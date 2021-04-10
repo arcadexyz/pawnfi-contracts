@@ -1,14 +1,7 @@
 {
-  "name": "@paulrberg/solidity-template",
-  "description": "Setup for writing Solidity smart contracts",
+  "name": "pawn-contracts",
+  "description": "Smart contracts for the Pawn Finance protocol",
   "version": "1.0.0",
-  "author": {
-    "name": "Paul Razvan Berg",
-    "url": "https://paulrberg.com"
-  },
-  "dependencies": {
-    "@openzeppelin/contracts": "^4.0.0"
-  },
   "devDependencies": {
     "@commitlint/cli": "^9.1.2",
     "@commitlint/config-conventional": "^9.1.2",
@@ -16,6 +9,7 @@
     "@ethersproject/bignumber": "^5.0.8",
     "@nomiclabs/hardhat-ethers": "^2.0.1",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts": "^4.0.0",
     "@typechain/ethers-v5": "^5.0.0",
     "@typechain/hardhat": "^1.0.1",
     "@types/chai": "^4.2.13",
