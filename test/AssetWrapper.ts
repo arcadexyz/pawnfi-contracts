@@ -14,6 +14,7 @@ interface TestContext {
   mockERC20: MockERC20;
   user: Signer;
   other: Signer;
+  signers: Signer[];
 }
 
 describe("AssetWrapper", () => {
@@ -26,7 +27,7 @@ describe("AssetWrapper", () => {
     const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
-    return { assetWrapper, mockERC20, user: signers[0], other: signers[1] };
+    return { assetWrapper, mockERC20, user: signers[0], other: signers[1], signers: signers.slice(2) };
   };
 
   /**
@@ -216,6 +217,166 @@ describe("AssetWrapper", () => {
 
       await assetWrapper.connect(user).approve(assetWrapper.address, bundleId);
       await expect(assetWrapper.connect(other).withdraw(bundleId)).to.be.reverted;
+    });
+  });
+
+  describe("ERC721", () => {
+    let token: AssetWrapper;
+    let user: Signer, other: Signer, signers: Signer[];
+
+    context("with minted tokens", function () {
+      beforeEach(async () => {
+        const { assetWrapper, user: userSigner, other: otherSigner, signers: otherSigners } = await setupTestContext();
+        user = userSigner;
+        other = otherSigner;
+        token = assetWrapper;
+        signers = otherSigners;
+      });
+
+      describe("balanceOf", function () {
+        context("when the given address owns some tokens", function () {
+          it("returns the amount of tokens owned by the given address", async function () {
+            await initializeBundle(token, user);
+            await initializeBundle(token, user);
+            expect(await token.balanceOf(await user.getAddress())).to.equal(BigNumber.from("2"));
+          });
+        });
+
+        context("when the given address does not own any tokens", function () {
+          it("returns 0", async function () {
+            expect(await token.balanceOf(await other.getAddress())).to.equal(BigNumber.from("0"));
+          });
+        });
+
+        context("when querying the zero address", function () {
+          it("throws", async function () {
+            await expect(token.balanceOf(ZERO_ADDRESS)).to.be.reverted;
+          });
+        });
+      });
+
+      describe("ownerOf", function () {
+        context("when the given token ID was tracked by this token", function () {
+          it("returns the owner of the given token ID", async function () {
+            const tokenId = await initializeBundle(token, user);
+            expect(await token.ownerOf(tokenId)).to.be.equal(await user.getAddress());
+          });
+        });
+
+        context("when the given token ID was not tracked by this token", function () {
+          it("reverts", async function () {
+            await expect(token.ownerOf(BigNumber.from("123412341234"))).to.be.reverted;
+          });
+        });
+      });
+
+      describe("transfers", function () {
+        describe("transferFrom", function () {
+          const testTransfer = async (
+            token: AssetWrapper,
+            from: Signer,
+            to: Signer,
+            caller: Signer,
+            tokenId: BigNumber,
+          ) => {
+            const preSenderBalance = await token.balanceOf(await from.getAddress());
+            const preRecipientBalance = await token.balanceOf(await to.getAddress());
+            await expect(token.connect(caller).transferFrom(await from.getAddress(), await to.getAddress(), tokenId))
+              .to.emit(token, "Transfer")
+              .withArgs(await from.getAddress(), await to.getAddress(), tokenId)
+              .to.emit(token, "Approval")
+              .withArgs(await from.getAddress(), ZERO_ADDRESS, tokenId);
+
+            expect(await token.ownerOf(tokenId)).to.equal(await to.getAddress());
+            expect(await token.getApproved(tokenId)).to.equal(ZERO_ADDRESS);
+            const postSenderBalance = await token.balanceOf(await from.getAddress());
+            const postRecipientBalance = await token.balanceOf(await to.getAddress());
+            expect(postSenderBalance).to.equal(preSenderBalance.sub(1));
+            expect(postRecipientBalance).to.equal(preRecipientBalance.add(1));
+
+            if (postSenderBalance.gt(0)) {
+              expect(await token.tokenOfOwnerByIndex(await from.getAddress(), 0)).to.not.equal(tokenId);
+            } else {
+              await expect(token.tokenOfOwnerByIndex(await from.getAddress(), 0)).to.be.reverted;
+            }
+
+            if (postRecipientBalance.gt(0)) {
+              expect(await token.tokenOfOwnerByIndex(await to.getAddress(), 0)).to.equal(tokenId);
+            } else {
+              await expect(token.tokenOfOwnerByIndex(await to.getAddress(), 0)).to.be.reverted;
+            }
+          };
+
+          it("succeeds when called by owner", async () => {
+            const tokenId = await initializeBundle(token, user);
+            await testTransfer(token, user, other, user, tokenId);
+          });
+
+          it("succeeds when called by approved user", async () => {
+            const approved = signers[0];
+            const tokenId = await initializeBundle(token, user);
+            await token.connect(user).approve(await approved.getAddress(), tokenId);
+            await testTransfer(token, user, other, approved, tokenId);
+          });
+
+          it("succeeds when called by an operator", async () => {
+            const operator = signers[1];
+            const tokenId = await initializeBundle(token, user);
+            await token.connect(user).setApprovalForAll(await operator.getAddress(), true);
+            await testTransfer(token, user, other, operator, tokenId);
+          });
+
+          describe("properly performs a self-send", async () => {
+            let tokenId: BigNumber;
+
+            beforeEach(async () => {
+              tokenId = await initializeBundle(token, user);
+              await expect(token.connect(user).transferFrom(await user.getAddress(), await user.getAddress(), tokenId))
+                .to.emit(token, "Transfer")
+                .withArgs(await user.getAddress(), await user.getAddress(), tokenId)
+                .to.emit(token, "Approval")
+                .withArgs(await user.getAddress(), ZERO_ADDRESS, tokenId);
+            });
+
+            it("keeps ownership of the token", async function () {
+              expect(await token.ownerOf(tokenId)).to.equal(await user.getAddress());
+            });
+
+            it("clears the approval for the token ID", async function () {
+              expect(await token.getApproved(tokenId)).to.equal(ZERO_ADDRESS);
+            });
+
+            it("keeps the owner balance", async function () {
+              expect(await token.balanceOf(await user.getAddress())).to.equal(BigNumber.from("1"));
+            });
+          });
+
+          it("fails when the owner address is incorrect", async () => {
+            const tokenId = await initializeBundle(token, user);
+            await expect(token.connect(user).transferFrom(await other.getAddress(), await other.getAddress(), tokenId))
+              .to.be.reverted;
+          });
+
+          it("fails when the sender is not authorized", async () => {
+            const tokenId = await initializeBundle(token, user);
+            await expect(token.connect(other).transferFrom(await user.getAddress(), await other.getAddress(), tokenId))
+              .to.be.reverted;
+          });
+
+          it("fails when the token id does not exist", async () => {
+            const nonexistentTokenId = BigNumber.from("123412341243");
+            await expect(
+              token.connect(user).transferFrom(await user.getAddress(), await other.getAddress(), nonexistentTokenId),
+            ).to.be.reverted;
+          });
+
+          it("fails when the recipient is the zero address", async () => {
+            const tokenId = await initializeBundle(token, user);
+            await expect(token.connect(user).transferFrom(await user.getAddress(), ZERO_ADDRESS, tokenId)).to.be
+              .reverted;
+          });
+        });
+      });
     });
   });
 });

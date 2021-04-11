@@ -10,7 +10,7 @@ import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "./interfaces/IAssetWrapper.sol";
 
 /**
- * @dev {ERC721} token allows users to create bundles of assets.
+ * @dev {ERC721} token allowing users to create bundles of assets.
  *
  * Users can create new bundles, which grants them an NFT to
  * reclaim all assets stored in the bundle. They can then
