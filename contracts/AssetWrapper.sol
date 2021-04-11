@@ -10,7 +10,7 @@ import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "./interfaces/IAssetWrapper.sol";
 
 /**
- * @dev {ERC721} token allows users to create bundles of assets.
+ * @dev {ERC721} token allowing users to create bundles of assets.
  *
  * Users can create new bundles, which grants them an NFT to
  * reclaim all assets stored in the bundle. They can then
@@ -83,6 +83,7 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
         for (uint256 i = 0; i < holdings.length; i++) {
             TransferHelper.safeTransfer(holdings[i].tokenAddress, _msgSender(), holdings[i].amount);
         }
+        delete bundleERC20Holdings[bundleId];
     }
 
     /**
