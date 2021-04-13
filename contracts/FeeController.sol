@@ -20,7 +20,7 @@ contract FeeController {
 
     struct FeeController{ 
 
-        float originationFee
+        float originationFee;
 
     }
 
@@ -41,16 +41,17 @@ contract FeeController {
 
     */
 
-    getFeeOfType(EventType type, 
+    function getFeeOfType(EventType type, 
     uint256 amount, 
     address payer) returns(float) {
 
         if (keccak256(bytes(type)) == keccak256(bytes("originationFee"))) {
 
-            return amount * .02;
-
+            originationFee = amount * .02;
+            return originationFee;
 
     }
+
 
 
 
