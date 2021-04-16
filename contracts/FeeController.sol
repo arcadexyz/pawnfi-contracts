@@ -12,22 +12,13 @@ Version 1 (as of 4/21/2021) Capabilities:
 FeeController will be called once after a loan has been matched so that we can
 create an origination fee (2% credited to PawnFi) 
 
-@dev support for floating point originationFee should be discussed
+* @dev support for floating point originationFee should be discussed
 
 
 */
-
-
 contract FeeController { 
 
-
-    struct FeeController { 
-
-        uint256 originationFee;
-
-    }
-
-
+    uint256 public originationFee;
 
     /** @dev Returns the type of fee given business logic of PawnFi
     
@@ -43,17 +34,18 @@ contract FeeController {
 
 
     */
-    
-    function getFeeOfType(string type, 
-    uint256 amount, 
-    address payer) returns(float) {
+    function getFeeOfType(
+        string memory loanType, 
+        uint256 amount) 
+        public returns(uint256) {
 
-        if (keccak256(bytes(type)) == keccak256(bytes("originationFee"))) {
+        if (keccak256(bytes(loanType)) == keccak256(bytes("originationFee"))) {
 
-            originationFee = amount * .02;
+            //Use DS Math code to return this : originationFee = amount * .02;
             return originationFee;
 
-    }
+        }
 
+    }
 
 }
