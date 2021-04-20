@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0 
 
-import "@openzeppelin/contracts/token/ERC1155/ERC155.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC155Burnable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC72/extensions/ERC721Burnable.sol";
 
 library LoanStatus {
 
@@ -15,7 +15,7 @@ Borrower note is intended to be an upgradable
 **@dev
 
 */
-contract BorrowerNote is ERC1150Burnable { 
+contract BorrowerNote is IERC721 { 
 
     using LoanStatus for Status;
     address public loanCore;
@@ -25,11 +25,40 @@ contract BorrowerNote is ERC1150Burnable {
     * See (_setURI).
     */
 
-    constructor(string memory uri_, address loanCore_) ERC155(uri) {
+    constructor(string memory uri_, address loanCore_) ERC721(uri) {
 
         require(loanCore_ != address(0), "loanCore must be specified");
 
     }
+
+    function _burn(uint256 noteId) internal virtual { 
+
+        address owner = ERC721.ownerOf(tokenId);
+        _beforeTokenTransfer(owner, address(0), noteId);
+        _approve(address(0), noteId);
+        _balances[owner] -= 1; 
+        delete _owners[noteId];
+        delete _assetWrappers[_tokenIdTracker];
+
+        emit Transfor(owner, address(0), tokenId);
+
+    }
+
+    function _mint(
+        address account,
+        uint256 noteId) internal virtual { 
+
+            require(to != address(0), "ERC 721: mint to the zero address");
+            require(!_exists(tokenId), "ERC721: token already minted");
+
+            _beforeTokenTransfer(address(0), to, tokenId);
+
+            _balances[to] += 1;
+            _owners[tokenId] = to;
+
+            emit Transfer(address(0), to, tokenId);
+
+        }
 
     function mint(
         uint256 account,
@@ -41,7 +70,7 @@ contract BorrowerNote is ERC1150Burnable {
     require(hasRole(MINTER_ROLE, _mesSender()), "ERC721PresetMinter:")
     _mint(to, _tokenIdTracker.current());
     _assetWrappers[_tokenIdTracker] = assetWrapper;
-    _tokeIdTracker.increment();
+    _tokenIdTracker.increment();
 
     require(
         IAssetWrapper(assetWrapper).supportInterface(type(IAssetWrapper)),

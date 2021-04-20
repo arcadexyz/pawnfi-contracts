@@ -32,7 +32,6 @@ contract FeeController {
     * - amount for loan must be greater than 0 
     * - address must be a valid ERC20  contract implementing balanceOf
 
-
     */
     function getFeeOfType(
         string memory loanType, 
