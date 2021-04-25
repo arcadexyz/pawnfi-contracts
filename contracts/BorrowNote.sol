@@ -1,7 +1,14 @@
 pragma solidity ^0.8.0 
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC72/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "./utils/LoanMetadata.sol";
+import "./interfaces/ILoanCore.sol";
 
 library LoanStatus {
 
@@ -15,50 +22,39 @@ Borrower note is intended to be an upgradable
 **@dev
 
 */
-contract BorrowerNote is IERC721 { 
+contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable { 
 
     using LoanStatus for Status;
+    using LoanMetadata for *;
+
+    bytes32 public constant LOAN_CORE_ROLE = keccak256("LOAN_CORE_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    
+    Counters.Counter private _tokenIdTracker;
     address public loanCore;
+
     /**
     *@dev Creates the borrowor note contract linked to a specific loan core 
     * The loan core reference is non-upgradeable 
     * See (_setURI).
     */
 
-    constructor(string memory uri_, address loanCore_) ERC721(uri) {
+    constructor(string memory name, string memory symbol, address loanCore_) ERC721(uri) {
 
-        require(loanCore_ != address(0), "loanCore must be specified");
+        require(loanCore_ != address(0), "loanCore address must be defined");
+        
+        bytes4 loanCoarInterface = type(ILoanCore).interfaceId;
+        
+        require(IERC165(loanCore_).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
+        
+        _setupRole(LOAN_CORE_ROLE, loanCore_);
+        loanCore = loanCore_;
 
-    }
+        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-    function _burn(uint256 noteId) internal virtual { 
-
-        address owner = ERC721.ownerOf(tokenId);
-        _beforeTokenTransfer(owner, address(0), noteId);
-        _approve(address(0), noteId);
-        _balances[owner] -= 1; 
-        delete _owners[noteId];
-        delete _assetWrappers[_tokenIdTracker];
-
-        emit Transfor(owner, address(0), tokenId);
+        _setupRole(PAUSER_ROLE, _msgSender());
 
     }
-
-    function _mint(
-        address account,
-        uint256 noteId) internal virtual { 
-
-            require(to != address(0), "ERC 721: mint to the zero address");
-            require(!_exists(tokenId), "ERC721: token already minted");
-
-            _beforeTokenTransfer(address(0), to, tokenId);
-
-            _balances[to] += 1;
-            _owners[tokenId] = to;
-
-            emit Transfer(address(0), to, tokenId);
-
-        }
 
     function mint(
         uint256 account,
@@ -86,15 +82,19 @@ contract BorrowerNote is IERC721 {
 
     }
 
+    function burn(uint256 tokenId){
 
-    function getRepaymentController() external view returns (address){
+        if (hasRole(LOAN_CORE_ROLE, _msgSender())){
 
-        return repaymentController;
+            require(!this.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
+            
+        } else { 
 
-    }
+            require(_isApproveOrOwner(_msgSender(), tokenId), "BorrowerNote: callers is not owner nor approved");
 
-    function checkStatus(uint256 noteId) external view returns (Status){
+        }
 
+        _burn(tokenId);
 
     }
 
@@ -104,11 +104,46 @@ contract BorrowerNote is IERC721 {
         address assetWrapper) returns(bool) {
 
         address repaymentController = ILoanCore(loanCore).getRepaymentController();
-        IPaymentController(repaymentController).
-        //getRepaymentController is both honest and correct
+        uint256 balance = repaymentContoller.balance; //CHECK TO SEE IF THIS IS CORRECT
+        require(balance > 0, "Balance must be greater than 0");
+
+        string fundingCurrency = ILoanCore(loanCore).getLoanByBorrowerNote.fundingCurrency;
+
+        if (fundingCurrency == keccak256("ETH")) {
+
+            //Send ETH
+
+        } else if (fundingCurrency == keccak256("ERC20")) {
+
+            //SEND ERC20
+        }
 
     }
 
+    function checkStatus(uint256 tokenId) external view returns (Status){
+      
+        require(_exists(tokenId), "BorrowerNote: loan does not exist");
 
+        return ILoanCore(loanCore).getLoanByBorrowerNote(tokenId).status;
+
+    }
+
+    function checkTerms(uint256 tokenId) external view returns (Status){
+
+        require(_exists(tokenId), "BorrowerNote: loan does not exist");
+
+        return ILoanCore(loanCore).getLoanByBorrowerNote(tokenId).terms;
+
+    }
+
+    function isActive(uint256 tokenId) public view returns (bool) {
+
+        require(_exists(tokenId), "BorrowerNote: loan does not exist");
+
+        LoanMetadata.Status stats = ILoanCore(loanCore).getLoanByBorrowerNote(tokenId).status;
+
+        return status == LoanMetadata.Status.OPEN || status == LoanMetadata.Status.DEFAULT;
+
+    }
 
 }
