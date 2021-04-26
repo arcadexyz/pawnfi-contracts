@@ -63,7 +63,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
     ) external {
 
-    require(hasRole(MINTER_ROLE, _mesSender()), "ERC721PresetMinter:")
+    require(hasRole(MINTER_ROLE, _mesSender()), "ERC721PresetMinter: ");
     _mint(to, _tokenIdTracker.current());
     _assetWrappers[_tokenIdTracker] = assetWrapper;
     _tokenIdTracker.increment();
@@ -120,7 +120,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
     }
 
-    function checkStatus(uint256 tokenId) external view returns (Status){
+    function checkStatus(uint256 tokenId) external view returns (Status) {
       
         require(_exists(tokenId), "BorrowerNote: loan does not exist");
 
@@ -128,7 +128,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
     }
 
-    function checkTerms(uint256 tokenId) external view returns (Status){
+    function checkTerms(uint256 tokenId) external view returns (Status) {
 
         require(_exists(tokenId), "BorrowerNote: loan does not exist");
 
