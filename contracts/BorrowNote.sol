@@ -70,8 +70,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
     require(
         IAssetWrapper(assetWrapper).supportInterface(type(IAssetWrapper)),
-        "assetWrapper must support AssetWrapper interface"
-    );
+        "assetWrapper must support AssetWrapper interface");
 
     
     /*
@@ -84,7 +83,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
     function burn(uint256 tokenId){
 
-        if (hasRole(LOAN_CORE_ROLE, _msgSender())){
+        if (hasRole(LOAN_CORE_ROLE, _msgSender())) {
 
             require(!this.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
             
