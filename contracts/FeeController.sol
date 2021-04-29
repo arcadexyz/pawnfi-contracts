@@ -1,4 +1,4 @@
-pragma solidity ^0.8.0; 
+pragma solidity ^0.8.0;
 
 /**
 Fee Controller is intended to be an upgradable component of Pawnfi
@@ -16,8 +16,7 @@ create an origination fee (2% credited to PawnFi)
 
 
 */
-contract FeeController { 
-
+contract FeeController {
     uint256 public originationFee;
 
     /** @dev Returns the type of fee given business logic of PawnFi
@@ -33,18 +32,10 @@ contract FeeController {
     * - address must be a valid ERC20  contract implementing balanceOf
 
     */
-    function getFeeOfType(
-        string memory loanType, 
-        uint256 amount) 
-        public returns(uint256) {
-
+    function getFeeOfType(string memory loanType, uint256 amount) public returns (uint256) {
         if (keccak256(bytes(loanType)) == keccak256(bytes("originationFee"))) {
-
             //Use DS Math code to return this : originationFee = amount * .02;
             return originationFee;
-
         }
-
     }
-
 }
