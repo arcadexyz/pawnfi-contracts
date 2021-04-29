@@ -36,14 +36,10 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
      * See (_setURI).
      */
 
-    constructor(
-        string memory name,
-        string memory symbol,
-        address loanCore_
-    ) ERC721(uri) {
+    constructor(address loanCore_) ERC721(uri) {
         require(loanCore_ != address(0), "loanCore address must be defined");
 
-        bytes4 loanCoarInterface = type(ILoanCore).interfaceId;
+        bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
 
         require(IERC165(loanCore_).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
 
@@ -56,11 +52,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         _setupRole(PAUSER_ROLE, _msgSender());
     }
 
-    function mint(
-        uint256 account,
-        uint256 noteId,
-        address assetWrapper
-    ) external {
+    function mint(address assetWrapper) external {
         require(hasRole(MINTER_ROLE, _mesSender()), "ERC721PresetMinter: ");
         _mint(to, _tokenIdTracker.current());
         _assetWrappers[_tokenIdTracker] = assetWrapper;

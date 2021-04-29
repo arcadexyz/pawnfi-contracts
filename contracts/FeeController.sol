@@ -32,7 +32,7 @@ contract FeeController {
     * - address must be a valid ERC20  contract implementing balanceOf
 
     */
-    function getFeeOfType(string memory loanType, uint256 amount) public returns (uint256) {
+    function getFeeOfType(string memory loanType) public returns (uint256) {
         if (keccak256(bytes(loanType)) == keccak256(bytes("originationFee"))) {
             //Use DS Math code to return this : originationFee = amount * .02;
             return originationFee;
