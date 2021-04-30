@@ -9,6 +9,7 @@
     "func-visibility": ["error", { "ignoreConstructors": true }],
     "max-line-length": ["error", 120],
     "not-rely-on-time": "off",
+    "no-empty-blocks": "off",
     "prettier/prettier": [
       "error",
       {
