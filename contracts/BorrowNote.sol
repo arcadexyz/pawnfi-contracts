@@ -7,8 +7,9 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "./utils/LoanMetadata.sol";
-import "./interfaces/ILoanCore.sol";
+
+//import "./utils/LoanMetadata.sol";
+//import "./interfaces/ILoanCore.sol";
 
 library LoanStatus {
     enum Status { Open, Repaid, Default }
