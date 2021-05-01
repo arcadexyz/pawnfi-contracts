@@ -18,7 +18,6 @@ Borrower note is intended to be an upgradable
 
 */
 contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable {
-    
     using Counters for Counters.Counter;
     using LoanMetadata for *;
 
@@ -38,7 +37,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
      */
 
     constructor(address loanCore_) ERC721(uri, _symbol) {
-
         require(loanCore_ != address(0), "loanCore address must be defined");
 
         bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
@@ -65,13 +63,11 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
             "assetWrapper must support AssetWrapper interface"
         );
         */
-
     }
 
     function burn(uint256 tokenId) external {
-
         if (hasRole(LOAN_CORE_ROLE, _msgSender())) {
-            require(! this.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
+            require(!this.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
         } else {
             require(_isApprovedOrOwner(_msgSender(), tokenId), "BorrowerNote: callers is not owner nor approved");
         }
@@ -79,22 +75,27 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         _burn(tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId) 
-    public view virtual override(AccessControlEnumerable, ERC721, ERC721Enumerable) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(AccessControlEnumerable, ERC721, ERC721Enumerable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 amount)
-     internal virtual override(ERC721, ERC721Enumerable, ERC721Pausable) {
-        
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override(ERC721, ERC721Enumerable, ERC721Pausable) {
         super._beforeTokenTransfer(from, to, amount);
 
         require(!paused(), "ERC20Pausable: token transfer while paused");
-
     }
 
     function isActive(uint256 tokenId) public view returns (bool) {
-
         require(_exists(tokenId), "BorrowerNote: loan does not exist");
 
         LoanMetadata.Status status = ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
@@ -102,11 +103,11 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         return status == LoanMetadata.Status.OPEN || status == LoanMetadata.Status.DEFAULT;
     }
 
-        /**
+    /**
      * @dev See the current status of the loan this note is attached to.
      *
      * This is a convenienc function that gives a wallet or contract interacting
-     * the ability 
+     * the ability
      */
     function checkStatus(uint256 tokenId) public view returns (LoanMetadata.Status status) {
         require(_exists(tokenId), "LenderNote: loan does not exist");
@@ -122,6 +123,4 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
         return ILoanCore(loanCore).getLoanByLenderNote(tokenId).terms;
     }
-
- 
 }

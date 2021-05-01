@@ -17,6 +17,4 @@ interface IBorrowerNote {
         uint256 loadId,
         address assetWrapper
     ) external;
-
-   
 }
