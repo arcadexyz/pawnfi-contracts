@@ -1,20 +1,18 @@
-/* eslint-disable */
-// TODO: Remove the disable above.
+//import { expect } from "chai";
+//import hre from "hardhat";
+import { Signer } from "ethers";
+import { BorrowerNote } from "../typechain/BorrowerNote";
 
-import { expect } from "chai";
-import hre from "hardhat";
-import { BigNumber, Signer } from "ethers";
-
-import { LenderNote } from "../typechain/LenderNote";
+//const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
 interface TestContext {
-  lenderNote: LenderNote;
+  borrowerNote: BorrowerNote;
   user: Signer;
   other: Signer;
   signers: Signer[];
 }
 
-describe("LenderNote", () => {
+describe("BorrowerNote", () => {
   describe("constructor", () => {
     it("Reverts if loanCore_ address is not provided");
     it("Reverts if loanCore_ address does not support loanCore interface");
