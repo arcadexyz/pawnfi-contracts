@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import "./utils/LoanNoteUtilities.sol";
 import "./interfaces/ILoanCore.sol";
 
 /**
@@ -68,7 +67,9 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
 
     function burn(uint256 tokenId) external {
         if (hasRole(BURNER_ROLE, _msgSender())) {
-            require(!ILoanCore.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
+            LoanMetadata.Status status = ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
+            bool loanStatus = status == LoanMetadata.Status.OPEN;
+            require(! loanStatus, "BorrowerNote: LoanCore attempted to burn an active note.");
         } else {
             require(_isApprovedOrOwner(_msgSender(), tokenId), "BorrowerNote: callers is not owner nor approved");
         }
