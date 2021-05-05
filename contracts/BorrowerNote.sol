@@ -18,7 +18,6 @@ Borrower note is intended to be an upgradable
 
 */
 contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable {
-    
     using Counters for Counters.Counter;
 
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -35,10 +34,10 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
      */
 
     constructor(
-        address loanCore_,        
+        address loanCore_,
         string memory name,
-        string memory symbol) ERC721(name, symbol) {
-
+        string memory symbol
+    ) ERC721(name, symbol) {
         require(loanCore_ != address(0), "loanCore address must be defined");
 
         bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
@@ -52,7 +51,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         _setupRole(MINTER_ROLE, _msgSender());
 
         _setupRole(PAUSER_ROLE, _msgSender());
-        
     }
 
     function mint(address to) external {
@@ -66,14 +64,11 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
             "assetWrapper must support AssetWrapper interface"
         );
         */
-
     }
 
     function burn(uint256 tokenId) external {
-
         if (hasRole(BURNER_ROLE, _msgSender())) {
-            require(! ILoanCore.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
-            
+            require(!ILoanCore.isActive(tokenId), "BorrowerNote: LoanCore attempted to burn an active note.");
         } else {
             require(_isApprovedOrOwner(_msgSender(), tokenId), "BorrowerNote: callers is not owner nor approved");
         }
@@ -81,20 +76,23 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         _burn(tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId) 
-    public view virtual override(AccessControlEnumerable, ERC721, ERC721Enumerable) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(AccessControlEnumerable, ERC721, ERC721Enumerable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 amount)
-     internal virtual override(ERC721, ERC721Enumerable, ERC721Pausable) {
-        
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override(ERC721, ERC721Enumerable, ERC721Pausable) {
         super._beforeTokenTransfer(from, to, amount);
 
-        require(! paused(), "ERC20Pausable: token transfer while paused");
-
+        require(!paused(), "ERC20Pausable: token transfer while paused");
     }
-
-    
- 
 }
