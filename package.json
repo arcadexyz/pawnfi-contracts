@@ -78,6 +78,7 @@
     "typechain": "hardhat typechain"
   },
   "dependencies": {
+    "@codechecks/client": "^0.1.10",
     "@commitlint/resolve-extends": "^12.1.1",
     "global-dirs": "^0.1.1",
     "resolve-global": "^1.0.0"
