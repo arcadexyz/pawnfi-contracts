@@ -69,7 +69,7 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         if (hasRole(BURNER_ROLE, _msgSender())) {
             LoanMetadata.Status status = ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
             bool loanStatus = status == LoanMetadata.Status.OPEN;
-            require(! loanStatus, "BorrowerNote: LoanCore attempted to burn an active note.");
+            require(!loanStatus, "BorrowerNote: LoanCore attempted to burn an active note.");
         } else {
             require(_isApprovedOrOwner(_msgSender(), tokenId), "BorrowerNote: callers is not owner nor approved");
         }
