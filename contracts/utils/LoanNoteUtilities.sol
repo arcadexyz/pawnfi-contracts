@@ -8,13 +8,11 @@ import "../interfaces/ILoanCore.sol";
 import "./LoanMetadata.sol";
 
 contract LoanNoteUtilities is Context, ERC721, ERC721Enumerable, ERC721Pausable {
-    
     address public loanCore;
 
     constructor() public ERC721() {}
 
     function isActive(uint256 tokenId) public view returns (bool) {
-
         require(_exists(tokenId), "BorrowerNote: loan does not exist");
 
         LoanMetadata.Status status = ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
