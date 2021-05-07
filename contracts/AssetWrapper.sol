@@ -35,10 +35,7 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {}
 
     /**
-     * @dev Creates a new bundle token for `to`. Its token ID will be
-     * automatically assigned (and available on the emitted {IERC721-Transfer} event)
-     *
-     * See {ERC721-_mint}.
+     * @inheritdoc IAssetWrapper
      */
     function initializeBundle(address to) external override {
         _mint(to, _tokenIdTracker.current());
@@ -46,12 +43,7 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
     }
 
     /**
-     * @dev Deposit some ERC20 tokens into a given bundle
-     *
-     * Requirements:
-     *
-     * - The bundle with id `bundleId` must have been initialized with {initializeBundle}
-     * - `amount` tokens from `msg.sender` on `tokenAddress` must have been approved to this contract
+     * @inheritdoc IAssetWrapper
      */
     function depositERC20(
         address tokenAddress,
@@ -68,12 +60,7 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
     }
 
     /**
-     * @dev Withdraw all assets in the given bundle, returning them to the msg.sender
-     *
-     * Requirements:
-     *
-     * - The bundle with id `bundleId` must have been initialized with {initializeBundle}
-     * - The bundle with id `bundleId` must be owned by or approved to msg.sender
+     * @inheritdoc IAssetWrapper
      */
     function withdraw(uint256 bundleId) external override {
         require(_isApprovedOrOwner(_msgSender(), bundleId), "AssetWrapper: Non-owner withdrawal");
