@@ -9,6 +9,9 @@ pragma solidity ^0.8.0;
  *                    -> Defaulted
  */
 enum LoanState {
+    // Dummy enum value so all valid values are non-zero
+    // this avoids an issue where an uninitialized loan has a valid state of Created
+    DUMMY_DO_NOT_USE,
     // The loan data is stored, but not initiated yet.
     Created,
     // The loan has been initialized, funds have been delivered to the borrower and the collateral is held.
