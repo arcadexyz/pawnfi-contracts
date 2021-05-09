@@ -1,9 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, Signer } from "ethers";
-import { BorrowerNote } from "../typechain/BorrowerNote";
-import { MockERC20 } from "../typechain/MockERC20";
-//import { MockLoanCore } from "../typechain/MockLoanCore";
+import { MockLoanCore, BorrowerNote } from "../typechain";
 import { ZERO_ADDRESS } from "./utils/erc20";
 import { deploy } from "./utils/contracts";
 
@@ -11,18 +9,19 @@ const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
 interface TestContext {
   borrowerNote: BorrowerNote;
-  mockERC20: MockERC20,
+  mockLoanCore: MockLoanCore,
   user: Signer;
   other: Signer;
   signers: Signer[];
 }
 
 describe("BorrowerNote", () => {
+
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
-    const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
-    const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [await signers[0].getAddress(), "BorrowerNote", "BN"]));
-    return { borrowerNote, mockERC20, user: signers[0], other: signers[1], signers: signers.slice(2) };
+    const mockLoanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], [signers[0].getAddress(), "Mock ERC20", "MOCK"]);
+    const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [mockLoanCore.address, "BorrowerNote", "BN"]));
+    return { borrowerNote, mockLoanCore, user: signers[0], other: signers[1], signers: signers.slice(2) };
 
       };
 
@@ -51,7 +50,7 @@ describe("BorrowerNote", () => {
 
     it("Creates a BorrowerNote", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
-      const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [await signers[0].getAddress(), "BorrowerNote", "BN"]));
+      const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [mockLoanCore.address, "BorrowerNote", "BN"]));
       expect(borrowerNote.args.loanCore_).to.be.true;
        });
   });
