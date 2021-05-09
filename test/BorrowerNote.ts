@@ -31,14 +31,12 @@ describe("BorrowerNote", () => {
       const receipt = await tx.wait();
 
       if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-        return receipt.events[0].args.tokenId;
+        return receipt.events[0].args.loanCore_;
       } else {
         throw new Error("Unable to mint borrower note");
       }
 
     };
-
-
 
   describe("constructor", () => {
     it("Reverts if loanCore_ address is not provided", async () => {
@@ -54,7 +52,7 @@ describe("BorrowerNote", () => {
     it("Creates a BorrowerNote", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
       const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [await signers[0].getAddress(), "BorrowerNote", "BN"]));
-      expect(borrowerNote).to.be.true;
+      expect(borrowerNote.args.loanCore_).to.be.true;
        });
   });
 
