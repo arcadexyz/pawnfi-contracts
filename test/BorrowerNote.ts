@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, Signer } from "ethers";
-import { MockLoanCore, BorrowerNote } from "../typechain";
+import { LoanCore, MockERC721, BorrowerNote } from "../typechain";
 import { ZERO_ADDRESS } from "./utils/erc20";
 import { deploy } from "./utils/contracts";
 
@@ -9,22 +9,28 @@ const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
 interface TestContext {
   borrowerNote: BorrowerNote;
-  mockLoanCore: MockLoanCore,
+  loanCore: LoanCore;
   user: Signer;
   other: Signer;
   signers: Signer[];
 }
 
 describe("BorrowerNote", () => {
-
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
-    const mockLoanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], [signers[0].getAddress(), "Mock ERC20", "MOCK"]);
-    const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [mockLoanCore.address, "BorrowerNote", "BN"]));
-    return { borrowerNote, mockLoanCore, user: signers[0], other: signers[1], signers: signers.slice(2) };
+    const mockBorrowerNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock BorrowerNote", "MB"]);
+    const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "ML"]);
+    const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
+    const loanCore = <LoanCore>(
+      await deploy("LoanCore", signers[0], [mockBorrowerNote.address, mockLenderNote.address, mockAssetWrapper.address])
+    );
+    const borrowerNote = <BorrowerNote>(
+      await deploy("BorrowerNote", signers[0], [loanCore.address, "BorrowerNote", "BN"])
+    );
+    return { borrowerNote, loanCore, user: signers[0], other: signers[1], signers: signers.slice(2) };
   };
 
-  const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> =>  {
+  const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> => {
     const tx = await borrowerNote.connect(user).mint(await user.getAddress());
     const receipt = await tx.wait();
 
@@ -48,20 +54,28 @@ describe("BorrowerNote", () => {
 
     it("Creates a BorrowerNote", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
-      const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [mockLoanCore.address, "BorrowerNote", "BN"]));
-      expect(borrowerNote.args.loanCore_).to.be.true;
-       });
+      const mockBorrowerNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock BorrowerNote", "MB"]);
+      const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "ML"]);
+      const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
+      const loanCore = <LoanCore>(
+        await deploy("LoanCore", signers[0], [mockBorrowerNote.address, mockLenderNote.address, mockAssetWrapper.address])
+      );      const borrowerNote = <BorrowerNote>(
+        await deploy("BorrowerNote", signers[0], [loanCore.address, "BorrowerNote", "BN"])
+      );
+      expect(borrowerNote).to.be.true;
+
+    });
   });
 
   describe("mint", () => {
     it("Reverts if sender is not loanCore", async () => {
-      const { borrowerNote, mockERC20, user, other } = await setupTestContext();
+      const { borrowerNote, loanCore, user, other } = await setupTestContext();
       const transaction = borrowerNote.connect(ZERO_ADDRESS).mint(ZERO_ADDRESS);
       expect(transaction).to.be.reverted;
     });
 
     it("Assigns a BorrowerNote NFT to the recipient", async () => {
-      const { borrowerNote, mockERC20, user, other } = await setupTestContext();
+      const { borrowerNote, loanCore, user, other } = await setupTestContext();
     });
   });
 
