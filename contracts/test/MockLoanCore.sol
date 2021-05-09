@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 import "../utils/LoanMetadata.sol";
 
 contract MockLoanCore {
-    address public loanCoreAddress;
+    address public address;
     address public borrowerAddress;
     address public lenderAddress;
     LoanMetadata.Loan public activeLoan;
@@ -13,7 +13,7 @@ contract MockLoanCore {
         uint256 nonce = 1000;
         borrowerAddress = _borrowerAddress;
         lenderAddress = _lenderAddress;
-        loanCoreAddress = address(uint160(uint256(keccak256(abi.encodePacked(nonce, blockhash(block.number))))));
+        address = address(uint160(uint256(keccak256(abi.encodePacked(nonce, blockhash(block.number))))));
     }
 
     function getLoanCoreAddres() public returns (address) {
