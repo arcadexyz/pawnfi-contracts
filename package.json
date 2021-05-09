@@ -62,6 +62,7 @@
     "commit": "git-cz",
     "compile": "hardhat compile",
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/**/*.ts\"",
+    "gendocs": "solidity-docgen -i ./contracts --solc-module solc-0.8",
     "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:list-different",
     "lint:fix": "yarn run prettier && yarn run lint:sol:fix && yarn run lint:ts:fix",
     "lint:sol": "solhint --config ./.solhint.json --max-warnings 0 \"contracts/**/*.sol\"",
@@ -70,8 +71,9 @@
     "lint:ts:fix": "eslint --config ./.eslintrc.yaml --fix --ignore-path ./.eslintignore --ext .js,.ts .",
     "prettier": "prettier --config .prettierrc --write \"**/*.{js,json,md,sol,ts}\"",
     "prettier:list-different": "prettier --config .prettierrc --list-different \"**/*.{js,json,md,sol,ts}\"",
+    "solc-0.8": "npm:solc@^0.8.0",
+    "solidity-docgen": "^0.5.13",
     "test": "hardhat test",
     "typechain": "hardhat typechain"
-  },
-  "dependencies": {}
+  }
 }
