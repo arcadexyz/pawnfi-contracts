@@ -36,11 +36,11 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
     Counters.Counter private _tokenIdTracker;
     address public loanCore;
 
-    /** 
+    /**
      * @dev Creates the borrowor note contract linked to a specific loan core
      * The loan core reference is non-upgradeable
      * See (_setURI).
-     *Grants `MINTER_ROLE` and `BURNER_ROLE` to the specified loanCore-
+     * Grants `MINTER_ROLE` and `BURNER_ROLE` to the specified loanCore-
      * contract, provided it is an instance of LoanCore.
      *
      * Grants `DEFAULT_ADMIN_ROLE` to the account that deploys the contract. Admins
@@ -53,7 +53,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         string memory name,
         string memory symbol
     ) ERC721(name, symbol) {
-        
         require(loanCore_ != address(0), "loanCore address must be defined");
 
         bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
@@ -93,7 +92,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         */
     }
 
-
     /**
      * @dev Burns `tokenId`. See {ERC721-_burn}.
      *
@@ -117,9 +115,9 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         _burn(tokenId);
     }
 
-    /** 
-    * @dev override of supportsInterface for AccessControlEnumerable, ERC721, ERC721Enumerable
-    */
+    /**
+     * @dev override of supportsInterface for AccessControlEnumerable, ERC721, ERC721Enumerable
+     */
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -130,9 +128,9 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         return super.supportsInterface(interfaceId);
     }
 
-    /** 
-    * @dev override of supportsInterface for ERC721, ERC721Enumerable, ERC721Pausable
-    */
+    /**
+     * @dev override of supportsInterface for ERC721, ERC721Enumerable, ERC721Pausable
+     */
     function _beforeTokenTransfer(
         address from,
         address to,
