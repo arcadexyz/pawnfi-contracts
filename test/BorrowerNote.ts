@@ -146,8 +146,12 @@ describe("BorrowerNote", () => {
         dueDate: await blockchainTime.secondsFromNow(100000),
       });
 
-      const burnResult = await borrowerNote.connect(user).burn(tokenId);
+      const borrowerNoteInstance = borrowerNote.connect(user);
+      
+      const burnResult = await borrowerNoteInstance.burn(tokenId);
 
+      console.log(burnResult);
+      
       expect(burnResult).to.be.reverted;
     });
 
@@ -156,7 +160,14 @@ describe("BorrowerNote", () => {
       const transaction = await borrowerNote.connect(user).mint(await other.getAddress());
       const receipt = await transaction.wait();
       const tokenId = await mintBorrowerNote(borrowerNote, user);
-      expect(borrowerNote.connect(other).burn(tokenId)).to.be.reverted;
+
+      const borrowerNoteInstance = borrowerNote.connect(other);
+
+      const burnResult = await borrowerNoteInstance.burn(tokenId);
+
+      console.log(burnResult);
+
+      expect(burnResult).to.be.reverted;
     });
 
     it("Burns a LenderNote NFT", async () => {
@@ -164,8 +175,14 @@ describe("BorrowerNote", () => {
       const transaction = await borrowerNote.connect(user).mint(await other.getAddress());
       const receipt = await transaction.wait();
       const tokenId = await mintBorrowerNote(borrowerNote, user);
-      expect(borrowerNote.connect(user).burn(tokenId)).not.exist;
 
+      const borrowerNoteInstance = borrowerNote.connect(user);
+
+      const burnResult = await borrowerNoteInstance.burn(tokenId);
+
+      console.log(burnResult);
+
+      expect(burnResult).to.equal("{}");
     });
   });
 });
