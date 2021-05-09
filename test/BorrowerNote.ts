@@ -22,20 +22,18 @@ describe("BorrowerNote", () => {
     const mockLoanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], [signers[0].getAddress(), "Mock ERC20", "MOCK"]);
     const borrowerNote = <BorrowerNote>(await deploy("BorrowerNote", signers[0], [mockLoanCore.address, "BorrowerNote", "BN"]));
     return { borrowerNote, mockLoanCore, user: signers[0], other: signers[1], signers: signers.slice(2) };
+  };
 
-      };
+  const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> =>  {
+    const tx = await borrowerNote.connect(user).mint(await user.getAddress());
+    const receipt = await tx.wait();
 
-    const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> =>  {
-      const tx = await borrowerNote.connect(user).mint(await user.getAddress());
-      const receipt = await tx.wait();
-
-      if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-        return receipt.events[0].args.loanCore_;
-      } else {
-        throw new Error("Unable to mint borrower note");
-      }
-
-    };
+    if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
+      return receipt.events[0].args.loanCore_;
+    } else {
+      throw new Error("Unable to mint borrower note");
+    }
+  };
 
   describe("constructor", () => {
     it("Reverts if loanCore_ address is not provided", async () => {
