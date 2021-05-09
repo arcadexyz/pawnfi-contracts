@@ -32,7 +32,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-
     Counters.Counter private _tokenIdTracker;
     address public loanCore;
 
@@ -105,8 +104,8 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
      */
     function burn(uint256 tokenId) external {
         if (hasRole(BURNER_ROLE, _msgSender())) {
-            LoanMetadata.Status status = ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
-            bool loanStatus = status == LoanMetadata.Status.OPEN;
+            LoanState status = ILoanCore(loanCore).getLoan(tokenId).state;
+            bool loanStatus = status == LoanState.Active;
             require(!loanStatus, "BorrowerNote: LoanCore attempted to burn an active note.");
         } else {
             require(_isApprovedOrOwner(_msgSender(), tokenId), "BorrowerNote: callers is not owner nor approved");
