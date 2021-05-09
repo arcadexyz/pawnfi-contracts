@@ -23,7 +23,6 @@ describe("AssetWrapper", () => {
    */
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
-
     const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
