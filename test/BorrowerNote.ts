@@ -2,6 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, Signer } from "ethers";
 import { LoanCore, MockERC721, BorrowerNote } from "../typechain";
+import { mint as mintERC721 } from "./utils/erc721";
 import { ZERO_ADDRESS } from "./utils/erc20";
 import { deploy } from "./utils/contracts";
 
@@ -16,6 +17,7 @@ interface TestContext {
 }
 
 describe("BorrowerNote", () => {
+
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const mockBorrowerNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock BorrowerNote", "MB"]);
@@ -34,11 +36,11 @@ describe("BorrowerNote", () => {
     };
 
   const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> => {
-    const tx = await borrowerNote.connect(user).mint(await user.getAddress());
-    const receipt = await tx.wait();
+    const transaction = await borrowerNote.connect(user).mint(await user.getAddress());
+    const receipt = await transaction.wait();
 
     if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-      return receipt.events[0].args.loanCore_;
+      return receipt.events[0].args.tokenId;
     } else {
       throw new Error("Unable to mint borrower note");
     }
@@ -87,15 +89,16 @@ describe("BorrowerNote", () => {
     });
 
     it("Assigns a BorrowerNote NFT to the recipient", async () => {
+
       const { borrowerNote, loanCore, user, other } = await setupTestContext();
       const transaction = await borrowerNote.connect(user).mint(await other.getAddress());
       const receipt = await transaction.wait();
 
-    if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-      return expect(receipt.events[0]).exist;
-    } else {
-      throw new Error("Unable to mint borrower note");
-    }
+      if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
+        return expect(receipt.events[0]).exist;
+      } else {
+        throw new Error("Unable to mint borrower note");
+      }
 
     });
 
@@ -108,8 +111,8 @@ describe("BorrowerNote", () => {
       const { borrowerNote, loanCore, user, other } = await setupTestContext();
       const transaction = await borrowerNote.connect(user).mint(await other.getAddress());
       const receipt = await transaction.wait();
-      const tokenId = BigNumber.from(borrowerNote.tokenId);
-      const burnResult = await borrowerNote.connect(user).burn(tokenId);
+      const tokenId = mintBorrowerNote(borrowerNote, user);
+      const burnResult = await borrowerNote.connect(user).burn(await tokenId);
       expect(burnResult).to.be.reverted;
 
     });
@@ -119,9 +122,8 @@ describe("BorrowerNote", () => {
       const { borrowerNote, loanCore, user, other } = await setupTestContext();
       const transaction = await borrowerNote.connect(user).mint(await other.getAddress());
       const receipt = await transaction.wait();
-      const tokenId = BigNumber.from(borrowerNote.tokenId);
-      const burnResult = await borrowerNote.connect(ZERO_ADDRESS).burn(tokenId);
-      expect(transaction).to.be.reverted;
+      const tokenId = mintBorrowerNote(borrowerNote, user);
+      expect(await borrowerNote.connect(other).burn(await tokenId)).to.be.reverted;
 
     });
 
@@ -133,7 +135,4 @@ describe("BorrowerNote", () => {
 
   });
 
-  describe("supportsInterface", () => {});
-
-  describe("_beforeTokenTransfer", () => {});
 });
