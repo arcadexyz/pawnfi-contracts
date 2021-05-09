@@ -54,9 +54,9 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
     ) ERC721(name, symbol) {
         require(loanCore_ != address(0), "loanCore address must be defined");
 
-        bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
+        //bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
 
-        require(IERC165(loanCore_).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
+        //require(ERC721(loanCore_).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
 
         _setupRole(BURNER_ROLE, loanCore_);
 
