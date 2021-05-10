@@ -6,7 +6,6 @@ pragma solidity ^0.8.0;
  * @dev Interface for the LenderNote contracts
  */
 interface ILenderNote {
-
     /**
      * @dev Creates a new token for `to`. Its token ID will be automatically
      * assigned (and available on the emitted {IERC721-Transfer} event), and the token
