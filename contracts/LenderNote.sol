@@ -10,12 +10,12 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import "./utils/LoanMetadata.sol";
+import "./interfaces/ILenderNote.sol";
 import "./interfaces/ILoanCore.sol";
 
 /**
  * Built off Openzeppelin's ERC721PresetMinterPauserAutoId.
- * 
+ *
  * @dev {ERC721} token, including:
  *
  *  - ability for holders to burn (destroy) their tokens
@@ -29,9 +29,8 @@ import "./interfaces/ILoanCore.sol";
  * roles, as well as the default admin role, which will let it grant both minter
  * and pauser roles to other accounts.
  */
-contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable {
+contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable, ILenderNote {
     using Counters for Counters.Counter;
-    using LoanMetadata for *;
 
     bytes32 public constant LOAN_CORE_ROLE = keccak256("LOAN_CORE_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -43,19 +42,23 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
     /**
      * @dev Grants `LOAN_CORE_ROLE` to the specified loanCore-
      * contract, provided it is an instance of LoanCore.
-     * 
+     *
      * Grants `DEFAULT_ADMIN_ROLE` to the account that deploys the contract. Admins
      * can pause the contract if needed.
-     * 
+     *
      */
-    constructor(string memory name, string memory symbol, address loanCore_) ERC721(name, symbol) {
-        require(loanCore_ != address(0), "loanCore address must be defined");
-        
-        bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
-        require(IERC165(loanCore_).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
+    constructor(
+        string memory name,
+        string memory symbol,
+        address _loanCore
+    ) ERC721(name, symbol) {
+        require(_loanCore != address(0), "loanCore address must be defined");
 
-        _setupRole(LOAN_CORE_ROLE, loanCore_);
-        loanCore = loanCore_;
+        bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
+        require(IERC165(_loanCore).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
+
+        _setupRole(LOAN_CORE_ROLE, _loanCore);
+        loanCore = _loanCore;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         // TODO: This pause might be good for alpha. Should we remove for mainnet?
@@ -73,7 +76,7 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
      *
      * - the caller must have the `LOAN_CORE_ROLE`.
      */
-    function mint(address to) public virtual {
+    function mint(address to) public override {
         require(hasRole(LOAN_CORE_ROLE, _msgSender()), "LenderNote: only LoanCore contract can mint");
 
         // We cannot just use balanceOf to create the new tokenId because tokens
@@ -91,14 +94,10 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
      * The loan core contract can only burn a loan that is finished:
      * either repaid or claimed.
      *
-     * 
+     *
      */
-    function burn(uint256 tokenId) public virtual {
-        if (hasRole(LOAN_CORE_ROLE, _msgSender())) {
-            require(!this.isActive(tokenId), "LenderNote: LoanCore attempted to burn an active note.");
-        } else {
-            require(_isApprovedOrOwner(_msgSender(), tokenId), "LenderNote: caller is not owner nor approved");
-        }
+    function burn(uint256 tokenId) public override {
+        require(hasRole(LOAN_CORE_ROLE, _msgSender()), "LenderNote: only LoanCore can burn");
 
         _burn(tokenId);
     }
@@ -114,7 +113,7 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
      *
      * TODO: Figure out if we should remove the ability to pause.
      */
-    function pause() public virtual {
+    function pause() public override {
         require(hasRole(PAUSER_ROLE, _msgSender()), "LenderNote: must have pauser role to pause");
         _pause();
     }
@@ -130,57 +129,33 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
      *
      * TODO: Figure out if we should remove the ability to pause.
      */
-    function unpause() public virtual {
+    function unpause() public override {
         require(hasRole(PAUSER_ROLE, _msgSender()), "LenderNote: must have pauser role to unpause");
         _unpause();
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override(ERC721, ERC721Enumerable, ERC721Pausable) {
+    /**
+     * @dev Hook called before transfer of tokens, including minting and burning.
+     * Part of OpenZeppelin's ERC721 implementation.
+     */
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override(ERC721, ERC721Enumerable, ERC721Pausable) {
         super._beforeTokenTransfer(from, to, tokenId);
-        
-        // Do not allow transfer if the loan is not active.
-        if (to != address(0)) {
-            require(this.isActive(tokenId), "LenderNote: cannot transfer an inactive note. Can only burn.");
-        }
     }
 
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, ERC721, ERC721Enumerable) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ILenderNote, AccessControlEnumerable, ERC721, ERC721Enumerable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
-    }
-
-    /**
-     * @dev See the current status of the loan this note is attached to.
-     *
-     * This is a convenienc function that gives a wallet or contract interacting
-     * the ability 
-     */
-    function checkStatus(uint256 tokenId) public view returns (LoanMetadata.Status status) {
-        require(_exists(tokenId), "LenderNote: loan does not exist");
-
-        return ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
-    }
-
-    /**
-     * @dev See the current status of the loan this note is attached to.
-     */
-    function checkTerms(uint256 tokenId) public view returns (LoanMetadata.Terms memory terms) {
-        require(_exists(tokenId), "LenderNote: loan does not exist");
-
-        return ILoanCore(loanCore).getLoanByLenderNote(tokenId).terms;
-    }
-
-    /**
-     * @dev Use checkStatus to see if the loan is currently active. Used
-     * for safety checks during transfer and burn.
-     */
-    function isActive(uint256 tokenId) public view returns (bool) {
-        require(_exists(tokenId), "LenderNote: loan does not exist");
-
-        LoanMetadata.Status status = ILoanCore(loanCore).getLoanByLenderNote(tokenId).status;
-
-        return status == LoanMetadata.Status.OPEN || status == LoanMetadata.Status.DEFAULT;
     }
 }

@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 /**
- * @dev Interface for an AssetWrapper contract
+ * @dev Interface for the LenderNote contracts
  */
 interface ILenderNote {
     /**
@@ -12,7 +12,13 @@ interface ILenderNote {
 
     event Collect(uint256 loanId, address indexed lender);
 
-    function collect(uint256 noteId) external;
+    function mint(address to) external;
 
-    function mint(uint256 account, address assetWrapper) external;
+    function burn(uint256 tokenId) external;
+
+    function pause() external;
+
+    function unpause() external;
+
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
