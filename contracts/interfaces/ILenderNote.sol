@@ -2,10 +2,12 @@
 
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
 /**
  * @dev Interface for the LenderNote contracts
  */
-interface ILenderNote {
+interface ILenderNote is IERC721 {
     /**
      * @dev Creates a new token for `to`. Its token ID will be automatically
      * assigned (and available on the emitted {IERC721-Transfer} event), and the token
@@ -57,9 +59,4 @@ interface ILenderNote {
      * TODO: Figure out if we should remove the ability to pause.
      */
     function unpause() external;
-
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
