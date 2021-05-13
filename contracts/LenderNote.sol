@@ -115,7 +115,7 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
     }
 
     /**
-     * @inheritdoc ILenderNote
+     * @dev See {IERC165-supportsInterface}.
      */
     function supportsInterface(bytes4 interfaceId)
         public
