@@ -1,7 +1,8 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
-import { LoanCore, MockERC721, BorrowerNote } from "../typechain";
+import { MockLoanCore, ERC721, BorrowerNote } from "../typechain";
+import { mint as mintERC721 } from "./utils/erc721";
 import { ZERO_ADDRESS } from "./utils/erc20";
 import { deploy } from "./utils/contracts";
 import { BlockchainTime } from "./utils/time";
@@ -10,9 +11,9 @@ const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
 interface TestContext {
   borrowerNote: BorrowerNote;
-  loanCore: LoanCore;
-  mockBorrowerNote: MockERC721;
-  mockAssetWrapper: MockERC721;
+  loanCore: MockLoanCore;
+  mockBorrowerNote: ERC721;
+  mockAssetWrapper: ERC721;
   user: Signer;
   other: Signer;
   signers: Signer[];
@@ -62,7 +63,7 @@ describe("BorrowerNote", () => {
     const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "ML"]);
     const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
 
-    const loanCore = <LoanCore>(
+    const loanCore = <MockLoanCore>(
       await deploy("LoanCore", signers[0], [mockBorrowerNote.address, mockLenderNote.address, mockAssetWrapper.address])
     );
 
@@ -73,7 +74,7 @@ describe("BorrowerNote", () => {
     return { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user: signers[0], other: signers[1], signers: signers.slice(2) };
   };
 
-  const createLoan = async(loanCore: LoanCore, user: Signer, terms: LoanTerms): Promise<BigNumber> => {
+  const createLoan = async(loanCore: MockLoanCore, user: Signer, terms: LoanTerms): Promise<BigNumber> => {
     const transaction = await loanCore.connect(user).createLoan(terms);
     const receipt = await transaction.wait();
 
@@ -113,7 +114,7 @@ describe("BorrowerNote", () => {
       const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "ML"]);
       const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
 
-      const loanCore = <LoanCore>(
+      const loanCore = <MockLoanCore>(
         await deploy("LoanCore", signers[0], [
           mockBorrowerNote.address,
           mockLenderNote.address,
@@ -126,7 +127,9 @@ describe("BorrowerNote", () => {
       );
 
       expect(borrowerNote).exist;
+
     });
+
   });
 
   describe("mint", () => {
@@ -154,7 +157,8 @@ describe("BorrowerNote", () => {
     it("Reverts if loanCore attempts to burn active note", async () => {
 
       const { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user, other } = await setupTestContext();
-      const collateralTokenId = await mintBorrowerNote(borrowerNote, user);
+      const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
+      const collateralTokenId = await mintERC721(mockAssetWrapper, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address, {collateralTokenId});
       const loanId = await createLoan(loanCore, user, loanTerms);
       loanCore.connect(user).startLoan(await other.getAddress(), await user.getAddress(), loanId);
