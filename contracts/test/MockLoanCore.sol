@@ -1,14 +1,11 @@
 pragma solidity ^0.8.0;
 
-
 import "../interfaces/ILoanCore.sol";
-
 
 /**
  * @dev Interface for the LoanCore contract
  */
 contract MockLoanCore is ILoanCore {
- 
     /**
      * @dev Get LoanData by loanId
      */
@@ -16,34 +13,26 @@ contract MockLoanCore is ILoanCore {
     mapping(uint256 => LoanData) public loanData;
 
     function getLoan(uint256 loanId) public view override returns (LoanData memory _loanData) {
-
         _loanData = loanData[loanId];
         return _loanData;
-
     }
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanTerms calldata terms) external  override returns (uint256 loanId){
+    function createLoan(LoanTerms calldata terms) external override returns (uint256 loanId) {
+        LoanTerms memory _loanTerms =
+            LoanTerms(terms.dueDate, terms.principal, terms.interest, terms.collateralTokenId, terms.payableCurrency);
 
-        LoanTerms memory _loanTerms = LoanTerms(
-            terms.dueDate, 
-            terms.principal, 
-            terms.interest, 
-            terms.collateralTokenId,
-            terms.payableCurrency); 
-        
         loanId = 1;
 
         LoanData memory _loanData = LoanData(0, 0, _loanTerms, LoanState.Created);
 
         loanData[loanId] = _loanData;
-        
+
         emit LoanCreated(terms, loanId);
 
         return loanId;
-
     }
 
     /**
@@ -58,10 +47,8 @@ contract MockLoanCore is ILoanCore {
         address lender,
         address borrower,
         uint256 loanId
-    ) public  override {
-
+    ) public override {
         loanData[loanId].state = LoanState.Active;
-
     }
 
     /**
@@ -72,10 +59,8 @@ contract MockLoanCore is ILoanCore {
      *  - The caller must send in principal + interest
      *  - The loan must be in state Active
      */
-    function repay(uint256 loanId) public  override {
-        
+    function repay(uint256 loanId) public override {
         loanData[loanId].state = LoanState.Repaid;
-
     }
 
     /**
@@ -86,7 +71,5 @@ contract MockLoanCore is ILoanCore {
      *  - The loan must be in state Active
      *  - The current time must be beyond the dueDate
      */
-    function claim(uint256 loanId) public override{
-        
-    }
+    function claim(uint256 loanId) public override {}
 }

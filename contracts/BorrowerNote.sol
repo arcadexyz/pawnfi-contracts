@@ -82,7 +82,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinter: ");
         _mint(to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
-
     }
 
     /**

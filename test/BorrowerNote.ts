@@ -36,7 +36,6 @@ enum LoanState {
 }
 
 describe("BorrowerNote", () => {
-
   const blockchainTime = new BlockchainTime();
 
   const createLoanTerms = (
@@ -63,19 +62,24 @@ describe("BorrowerNote", () => {
     const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "ML"]);
     const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
 
-    const loanCore = <MockLoanCore>(
-      await deploy("MockLoanCore", signers[0], [])
-    );
+    const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
 
     const borrowerNote = <BorrowerNote>(
       await deploy("BorrowerNote", signers[0], [loanCore.address, "BorrowerNote", "BN"])
     );
 
-    return { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user: signers[0], other: signers[1], signers: signers.slice(2) };
+    return {
+      borrowerNote,
+      loanCore,
+      mockBorrowerNote,
+      mockAssetWrapper,
+      user: signers[0],
+      other: signers[1],
+      signers: signers.slice(2),
+    };
   };
 
-  const createLoan = async(loanCore: MockLoanCore, user: Signer, terms: LoanTerms): Promise<BigNumber> => {
-    
+  const createLoan = async (loanCore: MockLoanCore, user: Signer, terms: LoanTerms): Promise<BigNumber> => {
     const transaction = await loanCore.connect(user).createLoan(terms);
     const receipt = await transaction.wait();
 
@@ -84,7 +88,6 @@ describe("BorrowerNote", () => {
     } else {
       throw new Error("Unable to initialize loan");
     }
-
   };
 
   const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> => {
@@ -128,9 +131,7 @@ describe("BorrowerNote", () => {
       );
 
       expect(borrowerNote).exist;
-
     });
-
   });
 
   describe("mint", () => {
@@ -154,9 +155,7 @@ describe("BorrowerNote", () => {
   });
 
   describe("burn", () => {
-
     it("Reverts if loanCore attempts to burn active note", async () => {
-
       const { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user, other } = await setupTestContext();
       const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
@@ -164,7 +163,6 @@ describe("BorrowerNote", () => {
       loanCore.connect(user).startLoan(await other.getAddress(), await user.getAddress(), loanId);
       //expect(loanCore.connect(user).getLoand(loanId)).to.emit(loanCore, "LoanStarted");
       expect(borrowerNote.burn(loanId)).to.be.reverted;
-
     });
 
     it("Reverts if sender does not own the note", async () => {
@@ -173,7 +171,6 @@ describe("BorrowerNote", () => {
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
       await expect(borrowerNote.connect(other).burn(ZERO_ADDRESS)).to.be.reverted;
-
     });
 
     it("Burns a LenderNote NFT", async () => {
@@ -182,7 +179,6 @@ describe("BorrowerNote", () => {
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
       expect(borrowerNote.connect(user).burn(borrowerNoteId));
-
     });
   });
 });
