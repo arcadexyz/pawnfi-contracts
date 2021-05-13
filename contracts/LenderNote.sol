@@ -121,7 +121,7 @@ contract LenderNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerabl
         public
         view
         virtual
-        override(ILenderNote, AccessControlEnumerable, ERC721, ERC721Enumerable)
+        override(IERC165, AccessControlEnumerable, ERC721, ERC721Enumerable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
