@@ -83,12 +83,6 @@ contract BorrowerNote is Context, AccessControlEnumerable, ERC721, ERC721Enumera
         _mint(to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
 
-        /*
-        require(
-            IAssetWrapper(assetWrapper).supportInterface(type(IAssetWrapper)),
-            "assetWrapper must support AssetWrapper interface"
-        );
-        */
     }
 
     /**
