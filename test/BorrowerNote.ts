@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
-import { MockLoanCore, ERC721, BorrowerNote } from "../typechain";
+import { MockLoanCore, MockERC721, BorrowerNote } from "../typechain";
 import { mint as mintERC721 } from "./utils/erc721";
 import { ZERO_ADDRESS } from "./utils/erc20";
 import { deploy } from "./utils/contracts";
@@ -12,8 +12,8 @@ const ZERO = hre.ethers.utils.parseUnits("0", 18);
 interface TestContext {
   borrowerNote: BorrowerNote;
   loanCore: MockLoanCore;
-  mockBorrowerNote: ERC721;
-  mockAssetWrapper: ERC721;
+  mockBorrowerNote: MockERC721;
+  mockAssetWrapper: MockERC721;
   user: Signer;
   other: Signer;
   signers: Signer[];
@@ -64,7 +64,7 @@ describe("BorrowerNote", () => {
     const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
 
     const loanCore = <MockLoanCore>(
-      await deploy("LoanCore", signers[0], [mockBorrowerNote.address, mockLenderNote.address, mockAssetWrapper.address])
+      await deploy("MockLoanCore", signers[0], [])
     );
 
     const borrowerNote = <BorrowerNote>(
@@ -75,6 +75,7 @@ describe("BorrowerNote", () => {
   };
 
   const createLoan = async(loanCore: MockLoanCore, user: Signer, terms: LoanTerms): Promise<BigNumber> => {
+    
     const transaction = await loanCore.connect(user).createLoan(terms);
     const receipt = await transaction.wait();
 
@@ -158,33 +159,29 @@ describe("BorrowerNote", () => {
 
       const { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user, other } = await setupTestContext();
       const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
-      const collateralTokenId = await mintERC721(mockAssetWrapper, user);
-      const loanTerms = createLoanTerms(mockAssetWrapper.address, {collateralTokenId});
+      const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
       loanCore.connect(user).startLoan(await other.getAddress(), await user.getAddress(), loanId);
-      expect(loanCore.connect(user).getLoand(loanId)).to.emit(loanCore, "LoanStarted");
-      //expect(borrowerNote.burn(loanId)).to.be.reverted;
+      //expect(loanCore.connect(user).getLoand(loanId)).to.emit(loanCore, "LoanStarted");
+      expect(borrowerNote.burn(loanId)).to.be.reverted;
 
     });
 
     it("Reverts if sender does not own the note", async () => {
       const { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user, other } = await setupTestContext();
-      const collateralTokenId = await mintBorrowerNote(borrowerNote, user);
-      const loanTerms = createLoanTerms(mockAssetWrapper.address, {collateralTokenId});
+      const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
+      const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
-      expect(loanCore.connect(user).getLoand(loanId)).to.emit(loanCore, "LoanStarted");
-      //expect(await borrowerNote.burn(ZERO_ADDRESS)).to.be.reverted;
+      await expect(borrowerNote.connect(other).burn(ZERO_ADDRESS)).to.be.reverted;
 
     });
 
     it("Burns a LenderNote NFT", async () => {
       const { borrowerNote, loanCore, mockBorrowerNote, mockAssetWrapper, user, other } = await setupTestContext();
-      const collateralTokenId = await mintBorrowerNote(borrowerNote, user);
-      const loanTerms = createLoanTerms(mockAssetWrapper.address, {collateralTokenId});
+      const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
+      const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
-      const borrowerNoteInstance = borrowerNote.connect(user);
-      const burnResult = await borrowerNoteInstance.burn(loanId);
-      console.log(burnResult);
+      expect(borrowerNote.connect(user).burn(borrowerNoteId));
 
     });
   });
