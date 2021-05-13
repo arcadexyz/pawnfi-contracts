@@ -7,7 +7,7 @@ import "../interfaces/ILoanCore.sol";
 /**
  * @dev Interface for the LoanCore contract
  */
-contract MockLoanCore {
+contract MockLoanCore is ILoanCore {
  
     /**
      * @dev Get LoanData by loanId
@@ -15,7 +15,7 @@ contract MockLoanCore {
 
     mapping(uint256 => LoanData) public loanData;
 
-    function getLoan(uint256 loanId) public view returns (LoanData memory _loanData) {
+    function getLoan(uint256 loanId) public view override returns (LoanData memory _loanData) {
 
         _loanData = loanData[loanId];
         return _loanData;
@@ -25,7 +25,7 @@ contract MockLoanCore {
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanTerms calldata terms) external pure returns (uint256 loanId){
+    function createLoan(LoanTerms calldata terms) external  override returns (uint256 loanId){
 
         LoanTerms memory _loanTerms = LoanTerms(
             terms.dueDate, 
@@ -33,8 +33,16 @@ contract MockLoanCore {
             terms.interest, 
             terms.collateralTokenId,
             terms.payableCurrency); 
+        
+        loanId = 1;
 
-        return 1;
+        LoanData memory _loanData = LoanData(0, 0, _loanTerms, LoanState.Created);
+
+        loanData[loanId] = _loanData;
+        
+        emit LoanCreated(terms, loanId);
+
+        return loanId;
 
     }
 
@@ -50,7 +58,7 @@ contract MockLoanCore {
         address lender,
         address borrower,
         uint256 loanId
-    ) public {
+    ) public  override {
 
         loanData[loanId].state = LoanState.Active;
 
@@ -64,7 +72,7 @@ contract MockLoanCore {
      *  - The caller must send in principal + interest
      *  - The loan must be in state Active
      */
-    function repay(uint256 loanId) public {
+    function repay(uint256 loanId) public  override {
         
         loanData[loanId].state = LoanState.Repaid;
 
@@ -78,7 +86,7 @@ contract MockLoanCore {
      *  - The loan must be in state Active
      *  - The current time must be beyond the dueDate
      */
-    function claim(uint256 loanId) public {
+    function claim(uint256 loanId) public override{
         
     }
 }
