@@ -128,8 +128,8 @@ describe("BorrowerNote", () => {
 
   describe("mint", () => {
     it("Reverts if sender is not loanCore", async () => {
-      const { borrowerNote } = await setupTestContext();
-      const transaction = borrowerNote.connect(ZERO_ADDRESS).mint(ZERO_ADDRESS);
+      const { borrowerNote, user, other} = await setupTestContext();
+      const transaction = borrowerNote.connect(other).mint(await user.getAddress());
       await expect(transaction).to.be.reverted;
     });
 
