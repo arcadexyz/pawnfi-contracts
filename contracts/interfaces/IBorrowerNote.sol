@@ -6,15 +6,7 @@ interface IBorrowerNote {
     */
     event Repay(uint256 loanId, address lender);
 
-    function mint(
-        uint256 account,
-        uint256 loanId,
-        address assetWrapper
-    ) external;
+    function mint(address to) external;
 
-    function burn(
-        uint256 account,
-        uint256 loadId,
-        address assetWrapper
-    ) external;
+    function burn(uint256 loanId, uint256 tokenId) external;
 }
