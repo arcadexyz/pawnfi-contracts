@@ -2,7 +2,6 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
 import { MockLoanCore, MockERC721, BorrowerNote } from "../typechain";
-import { mint as mintERC721 } from "./utils/erc721";
 import { ZERO_ADDRESS } from "./utils/erc20";
 import { deploy } from "./utils/contracts";
 import { BlockchainTime } from "./utils/time";
@@ -119,11 +118,7 @@ describe("BorrowerNote", () => {
       const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
 
       const loanCore = <MockLoanCore>(
-        await deploy("LoanCore", signers[0], [
-          mockBorrowerNote.address,
-          mockLenderNote.address,
-          mockAssetWrapper.address,
-        ])
+        await deploy("MockLoanCore", signers[0], [])
       );
 
       const borrowerNote = <BorrowerNote>(
@@ -160,8 +155,6 @@ describe("BorrowerNote", () => {
       const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
-      loanCore.connect(user).startLoan(await other.getAddress(), await user.getAddress(), loanId);
-      //expect(loanCore.connect(user).getLoand(loanId)).to.emit(loanCore, "LoanStarted");
       expect(borrowerNote.burn(loanId)).to.be.reverted;
     });
 
