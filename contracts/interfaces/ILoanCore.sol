@@ -91,7 +91,11 @@ interface ILoanCore {
      *  - This function can only be called by a whitelisted OriginationController
      *  - The proper principal and collateral must have been sent to this contract before calling.
      */
-    function startLoan(uint256 loanId) external;
+    function startLoan(
+        uint256 loanId, 
+        address lender,
+        address borrower
+    ) external;
 
     /**
      * @dev Repay the given loan
