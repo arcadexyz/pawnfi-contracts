@@ -48,9 +48,8 @@ contract MockLoanCore is ILoanCore {
         address lender,
         address borrower
     ) public override {
-        emit LoanStarted(loanId, lender, borrower);
         loanData[loanId].state = LoanState.Active;
-
+        emit LoanStarted(loanId, lender, borrower);
     }
 
     /**
@@ -62,9 +61,8 @@ contract MockLoanCore is ILoanCore {
      *  - The loan must be in state Active
      */
     function repay(uint256 loanId) public override {
-        emit LoanRepaid(loanId);
         loanData[loanId].state = LoanState.Repaid;
-
+        emit LoanRepaid(loanId);
     }
 
     /**
