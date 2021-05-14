@@ -43,11 +43,7 @@ contract MockLoanCore is ILoanCore {
      *  - This function can only be called by a whitelisted OriginationController
      *  - The proper principal and collateral must have been sent to this contract before calling.
      */
-    function startLoan(
-        address lender,
-        address borrower,
-        uint256 loanId
-    ) public override {
+    function startLoan(uint256 loanId) public override {
         loanData[loanId].state = LoanState.Active;
     }
 
