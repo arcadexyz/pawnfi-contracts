@@ -4,8 +4,12 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "./interfaces/IAssetWrapper.sol";
 
@@ -19,8 +23,10 @@ import "./interfaces/IAssetWrapper.sol";
  * At any time, the holder of the bundle NFT can redeem it for the
  * underlying assets.
  */
-contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrapper {
+contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, ERC1155Holder, ERC721Holder, IAssetWrapper {
     using Counters for Counters.Counter;
+    using SafeMath for uint256;
+
     Counters.Counter private _tokenIdTracker;
 
     struct ERC20Holding {
@@ -28,6 +34,21 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
         uint256 amount;
     }
     mapping(uint256 => ERC20Holding[]) public bundleERC20Holdings;
+
+    struct ERC721Holding {
+        address tokenAddress;
+        uint256 tokenId;
+    }
+    mapping(uint256 => ERC721Holding[]) public bundleERC721Holdings;
+
+    struct ERC1155Holding {
+        address tokenAddress;
+        uint256 tokenId;
+        uint256 amount;
+    }
+    mapping(uint256 => ERC1155Holding[]) public bundleERC1155Holdings;
+
+    mapping(uint256 => uint256) public bundleETHHoldings;
 
     /**
      * @dev Initializes the token with name and symbol parameters
@@ -50,13 +71,60 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
         uint256 amount,
         uint256 bundleId
     ) external override {
+        require(_exists(bundleId), "Bundle does not exist");
+
         TransferHelper.safeTransferFrom(tokenAddress, _msgSender(), address(this), amount);
 
         // Note: there can be multiple `ERC20Holding` objects for the same token contract
         // in a given bundle. We could deduplicate them here, though I don't think
         // it's worth the extra complexity - the end effect is the same in either case.
         bundleERC20Holdings[bundleId].push(ERC20Holding(tokenAddress, amount));
-        emit DepositERC20(tokenAddress, amount, bundleId);
+        emit DepositERC20(_msgSender(), bundleId, tokenAddress, amount);
+    }
+
+    /**
+     * @inheritdoc IAssetWrapper
+     */
+    function depositERC721(
+        address tokenAddress,
+        uint256 tokenId,
+        uint256 bundleId
+    ) external override {
+        require(_exists(bundleId), "Bundle does not exist");
+
+        IERC721(tokenAddress).transferFrom(_msgSender(), address(this), tokenId);
+
+        bundleERC721Holdings[bundleId].push(ERC721Holding(tokenAddress, tokenId));
+        emit DepositERC721(_msgSender(), bundleId, tokenAddress, tokenId);
+    }
+
+    /**
+     * @inheritdoc IAssetWrapper
+     */
+    function depositERC1155(
+        address tokenAddress,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 bundleId
+    ) external override {
+        require(_exists(bundleId), "Bundle does not exist");
+
+        IERC1155(tokenAddress).safeTransferFrom(_msgSender(), address(this), tokenId, amount, "");
+
+        bundleERC1155Holdings[bundleId].push(ERC1155Holding(tokenAddress, tokenId, amount));
+        emit DepositERC1155(_msgSender(), bundleId, tokenAddress, tokenId, amount);
+    }
+
+    /**
+     * @inheritdoc IAssetWrapper
+     */
+    function depositETH(uint256 bundleId) external payable override {
+        require(_exists(bundleId), "Bundle does not exist");
+
+        uint256 amount = msg.value;
+
+        bundleETHHoldings[bundleId] = bundleETHHoldings[bundleId].add(amount);
+        emit DepositETH(_msgSender(), bundleId, amount);
     }
 
     /**
@@ -66,11 +134,41 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
         require(_isApprovedOrOwner(_msgSender(), bundleId), "AssetWrapper: Non-owner withdrawal");
         burn(bundleId);
 
-        ERC20Holding[] memory holdings = bundleERC20Holdings[bundleId];
-        for (uint256 i = 0; i < holdings.length; i++) {
-            TransferHelper.safeTransfer(holdings[i].tokenAddress, _msgSender(), holdings[i].amount);
+        ERC20Holding[] memory erc20Holdings = bundleERC20Holdings[bundleId];
+        for (uint256 i = 0; i < erc20Holdings.length; i++) {
+            TransferHelper.safeTransfer(erc20Holdings[i].tokenAddress, _msgSender(), erc20Holdings[i].amount);
         }
         delete bundleERC20Holdings[bundleId];
+
+        ERC721Holding[] memory erc721Holdings = bundleERC721Holdings[bundleId];
+        for (uint256 i = 0; i < erc721Holdings.length; i++) {
+            IERC721(erc721Holdings[i].tokenAddress).safeTransferFrom(
+                address(this),
+                _msgSender(),
+                erc721Holdings[i].tokenId
+            );
+        }
+        delete bundleERC721Holdings[bundleId];
+
+        ERC1155Holding[] memory erc1155Holdings = bundleERC1155Holdings[bundleId];
+        for (uint256 i = 0; i < erc1155Holdings.length; i++) {
+            IERC1155(erc1155Holdings[i].tokenAddress).safeTransferFrom(
+                address(this),
+                _msgSender(),
+                erc1155Holdings[i].tokenId,
+                erc1155Holdings[i].amount,
+                ""
+            );
+        }
+        delete bundleERC1155Holdings[bundleId];
+
+        uint256 ethHoldings = bundleETHHoldings[bundleId];
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = _msgSender().call{ value: ethHoldings }("");
+        require(success, "Failed to withdraw ETH");
+        delete bundleETHHoldings[bundleId];
+
+        emit Withdraw(_msgSender(), bundleId);
     }
 
     /**
@@ -91,7 +189,7 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, IAssetWrappe
         public
         view
         virtual
-        override(ERC721, ERC721Enumerable)
+        override(ERC721, ERC721Enumerable, ERC1155Receiver)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
