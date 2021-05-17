@@ -1,8 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
-import { MockLoanCore, MockERC721, BorrowerNote } from "../typechain";
-import { ZERO_ADDRESS } from "./utils/erc20";
+import { MockLoanCore, MockERC721, BankNote } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 enum LoanState {
@@ -14,7 +13,7 @@ enum LoanState {
 }
 
 interface TestContext {
-  borrowerNote: BorrowerNote;
+  bankNote: BankNote;
   mockLenderNote: MockERC721;
   loanCore: MockLoanCore;
   mockAssetWrapper: MockERC721;
@@ -31,9 +30,7 @@ interface LoanTerms {
   payableCurrency: string;
 }
 
-
-
-describe("BorrowerNote", () => {
+describe("BankNote", () => {
   const createLoanTerms = (
     payableCurrency: string,
     {
@@ -55,14 +52,12 @@ describe("BorrowerNote", () => {
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
-    const mockLenderNote = <MockERC721> await deploy("MockERC721", signers[0], ["Mock LenderNote", "LN"]);
+    const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "LN"]);
     const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
-    const borrowerNote = <BorrowerNote>(
-      await deploy("BorrowerNote", signers[0], [loanCore.address, "BorrowerNote", "BN"])
-    );
+    const bankNote = <BankNote>await deploy("BankNote", signers[0], [loanCore.address, "BankNote", "BN"]);
 
     return {
-      borrowerNote,
+      bankNote,
       mockLenderNote,
       loanCore,
       mockAssetWrapper,
@@ -83,105 +78,106 @@ describe("BorrowerNote", () => {
     }
   };
 
-  const startLoan = async (loanCore: MockLoanCore, user: Signer, lenderNote: MockERC721, borrowerNote: BorrowerNote, loanId: BigNumber) => {
-    await loanCore.connect(user).startLoan(loanId, lenderNote.address, borrowerNote.address);
+  const startLoan = async (
+    loanCore: MockLoanCore,
+    user: Signer,
+    lenderNote: MockERC721,
+    bankNote: BankNote,
+    loanId: BigNumber,
+  ) => {
+    const transaction = await loanCore.connect(user).startLoan(loanId, lenderNote.address, bankNote.address);
+    await transaction.wait();
   };
 
   const repayLoan = async (loanCore: MockLoanCore, user: Signer, loanId: BigNumber) => {
-    await loanCore.connect(user).repay(loanId);
+    const transaction = await loanCore.connect(user).repay(loanId);
+    await transaction.wait();
   };
 
-  const mintBorrowerNote = async (borrowerNote: BorrowerNote, user: Signer): Promise<BigNumber> => {
-    const transaction = await borrowerNote.mint(await user.getAddress());
+  const mintBankNote = async (bankNote: BankNote, user: Signer): Promise<BigNumber> => {
+    const transaction = await bankNote.mint(await user.getAddress());
     const receipt = await transaction.wait();
 
     if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
       return receipt.events[0].args.tokenId;
     } else {
-      throw new Error("Unable to mint borrower note");
+      throw new Error("Unable to mint bank note");
     }
   };
 
   describe("constructor", () => {
     it("Reverts if loanCore_ address is not provided", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
-      await expect(deploy("BorrowerNote", signers[0], ["BorrowerNote", "BN"])).to.be.reverted;
+      await expect(deploy("BankNote", signers[0], ["BankNote", "BN"])).to.be.reverted;
     });
 
-    it("Reverts if loanCore_ address does not support loanCore interface", async () => {
-      const signers: Signer[] = await hre.ethers.getSigners();
-      await expect(deploy("BorrowerNote", signers[0], [ZERO_ADDRESS, "BorrowerNote", "BN"])).to.be.reverted;
-    });
-
-    it("Creates a BorrowerNote", async () => {
+    it("Creates a BankNote", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
 
       const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
 
-      const borrowerNote = <BorrowerNote>(
-        await deploy("BorrowerNote", signers[0], [loanCore.address, "BorrowerNote", "BN"])
-      );
+      const bankNote = <BankNote>await deploy("BankNote", signers[0], [loanCore.address, "BankNote", "BN"]);
 
-      expect(borrowerNote).exist;
+      expect(bankNote).exist;
     });
   });
 
   describe("mint", () => {
     it("Reverts if sender is not loanCore", async () => {
-      const { borrowerNote, user, other} = await setupTestContext();
-      const transaction = borrowerNote.connect(other).mint(await user.getAddress());
+      const { bankNote, user, other } = await setupTestContext();
+      const transaction = bankNote.connect(other).mint(await user.getAddress());
       await expect(transaction).to.be.reverted;
     });
 
-    it("Assigns a BorrowerNote NFT to the recipient", async () => {
-      const { borrowerNote, user, other } = await setupTestContext();
-      const transaction = await borrowerNote.connect(user).mint(await other.getAddress());
+    it("Assigns a BankNote NFT to the recipient", async () => {
+      const { bankNote, user, other } = await setupTestContext();
+      const transaction = await bankNote.connect(user).mint(await other.getAddress());
       const receipt = await transaction.wait();
 
       if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
         return expect(receipt.events[0]).exist;
       } else {
-        throw new Error("Unable to mint borrower note");
+        throw new Error("Unable to mint bank note");
       }
     });
   });
 
   describe("burn", () => {
     it("Reverts if loanCore attempts to burn active note", async () => {
-      const { borrowerNote, mockLenderNote, loanCore, mockAssetWrapper, user} = await setupTestContext();
+      const { bankNote, mockLenderNote, loanCore, mockAssetWrapper, user } = await setupTestContext();
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
-      const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
+      const bankNoteId = await mintBankNote(bankNote, user);
       const loanId = await createLoan(loanCore, user, loanTerms);
-      await startLoan(loanCore, user, mockLenderNote, borrowerNote, loanId);
+      await startLoan(loanCore, user, mockLenderNote, bankNote, loanId);
       const loanData = await loanCore.connect(user).getLoan(loanId);
       expect(loanData.state).to.equal(LoanState.Active);
-      await expect(borrowerNote.connect(user).burn(loanId, borrowerNoteId)).to.be.reverted;
+      await expect(bankNote.connect(user).burn(loanId, bankNoteId)).to.be.reverted;
     });
 
     it("Reverts if sender does not own the note", async () => {
-      const { borrowerNote, mockLenderNote, loanCore, mockAssetWrapper, user, other } = await setupTestContext();
+      const { bankNote, mockLenderNote, loanCore, mockAssetWrapper, user, other } = await setupTestContext();
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
-      const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
+      const bankNoteId = await mintBankNote(bankNote, user);
       const loanId = await createLoan(loanCore, user, loanTerms);
-      await startLoan(loanCore, user, mockLenderNote, borrowerNote, loanId);
+      await startLoan(loanCore, user, mockLenderNote, bankNote, loanId);
       const loanData = await loanCore.connect(user).getLoan(loanId);
       expect(loanData.state).to.equal(LoanState.Active);
       await repayLoan(loanCore, user, loanId);
       expect(loanData.state).to.equal(LoanState.Repaid);
-      await expect(borrowerNote.connect(other).burn(loanId, borrowerNoteId)).to.be.reverted;
+      await expect(bankNote.connect(other).burn(loanId, bankNoteId)).to.be.reverted;
     });
 
     it("Burns a LenderNote NFT", async () => {
-      const { borrowerNote, loanCore, mockLenderNote, mockAssetWrapper, user} = await setupTestContext();
-      const borrowerNoteId = await mintBorrowerNote(borrowerNote, user);
+      const { bankNote, loanCore, mockLenderNote, mockAssetWrapper, user } = await setupTestContext();
+      const bankNoteId = await mintBankNote(bankNote, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
-      await startLoan(loanCore, user, mockLenderNote, borrowerNote, loanId);
+      await startLoan(loanCore, user, mockLenderNote, bankNote, loanId);
       const loanData = await loanCore.connect(user).getLoan(loanId);
       expect(loanData.state).to.equal(LoanState.Active);
       await repayLoan(loanCore, user, loanId);
       expect(loanData.state).to.equal(LoanState.Repaid);
-      expect(borrowerNote.connect(user).burn(loanId, borrowerNoteId));
+      expect(bankNote.connect(user).burn(loanId, bankNoteId));
     });
   });
 });
