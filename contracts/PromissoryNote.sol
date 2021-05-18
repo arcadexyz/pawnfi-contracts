@@ -75,7 +75,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      * - the caller must have the `MINTER_ROLE`.
      */
     function mint(address to) external {
-        require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinter: ");
+        require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinter: sending does have proper role");
         _mint(to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
     }
@@ -92,13 +92,11 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      *
      */
     function burn(uint256 loanId, uint256 tokenId) external {
-        if (hasRole(BURNER_ROLE, _msgSender())) {
-            LoanState status = ILoanCore(loanCore).getLoan(loanId).state;
-            require(status != LoanState.Active, "PromissoryNote: LoanCore attempted to burn an active note.");
-            _burn(tokenId);
-        } else {
-            require(_isApprovedOrOwner(_msgSender(), tokenId), "PromissoryNote: callers is not owner nor approved");
-        }
+        require(hasRole(BURNER_ROLE, _msgSender()), "PromissoryNote: callers is not owner nor approved");
+
+        LoanState status = ILoanCore(loanCore).getLoan(loanId).state;
+        require(status != LoanState.Active, "PromissoryNote: LoanCore attempted to burn an active note");
+        _burn(tokenId);
     }
 
     /**
