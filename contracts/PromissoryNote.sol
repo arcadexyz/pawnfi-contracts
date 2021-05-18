@@ -26,7 +26,7 @@ import "./interfaces/ILoanCore.sol";
  * roles, as well as the default admin role, which will let it grant both minter
  * and pauser roles to other accounts.
  */
-contract BankNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable {
+contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable {
     using Counters for Counters.Counter;
 
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -94,10 +94,10 @@ contract BankNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable,
     function burn(uint256 loanId, uint256 tokenId) external {
         if (hasRole(BURNER_ROLE, _msgSender())) {
             LoanState status = ILoanCore(loanCore).getLoan(loanId).state;
-            require(status != LoanState.Active, "BankNote: LoanCore attempted to burn an active note.");
+            require(status != LoanState.Active, "PromissoryNote: LoanCore attempted to burn an active note.");
             _burn(tokenId);
         } else {
-            require(_isApprovedOrOwner(_msgSender(), tokenId), "BankNote: callers is not owner nor approved");
+            require(_isApprovedOrOwner(_msgSender(), tokenId), "PromissoryNote: callers is not owner nor approved");
         }
     }
 
