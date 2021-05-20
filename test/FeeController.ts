@@ -12,7 +12,7 @@ interface TestContext {
 }
 
 describe("FeeController", () => {
-  const setupTestContext = async (): Promise<TestContext> => {
+    const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const feeController = <FeeController>await deploy("FeeController", signers[0], []);
 

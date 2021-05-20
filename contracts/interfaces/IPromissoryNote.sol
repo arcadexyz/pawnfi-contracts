@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-interface IBorrowerNote {
+interface IPromissoryNote {
     /* 
     @dev Emitted when an ERC20 token is deposited
     */
