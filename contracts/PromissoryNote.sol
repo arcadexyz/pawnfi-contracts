@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "./interfaces/ILoanCore.sol";
+import "./interfaces/INote.sol";
 
 /**
  * Built off Openzeppelin's ERC721PresetMinterPauserAutoId.
