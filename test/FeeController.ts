@@ -12,7 +12,7 @@ interface TestContext {
 }
 
 describe("FeeController", () => {
-    const setupTestContext = async (): Promise<TestContext> => {
+  const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const feeController = <FeeController>await deploy("FeeController", signers[0], []);
 
@@ -30,7 +30,7 @@ describe("FeeController", () => {
       expect(await deploy("FeeController", signers[0], []));
     });
 
-  describe("setOriginationFee", () => {
+    describe("setOriginationFee", () => {
       it("reverts if sender does not have admin role", async () => {
         const { feeController, other } = await setupTestContext();
         await expect(feeController.connect(other).setOriginationFee()).to.be.reverted;
@@ -41,7 +41,7 @@ describe("FeeController", () => {
         expect(feeController.connect(user).setOriginationFee());
       });
 
-   describe("getOriginationFee", () => {
+      describe("getOriginationFee", () => {
         it("returns an origination fee equal to 2 percent", async () => {
           const { feeController, user } = await setupTestContext();
           const originationFee = await feeController.connect(user).getOriginationFee(BigNumber.from(1000));
