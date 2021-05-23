@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "./interfaces/ILoanCore.sol";
-import "./interfaces/INote.sol";
+import "./interfaces/IPromissoryNote.sol";
 
 /**
  * Built off Openzeppelin's ERC721PresetMinterPauserAutoId.
@@ -27,7 +27,7 @@ import "./interfaces/INote.sol";
  * roles, as well as the default admin role, which will let it grant both minter
  * and pauser roles to other accounts.
  */
-contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable {
+contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable, IPromissoryNote {
     using Counters for Counters.Counter;
 
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -75,7 +75,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      *
      * - the caller must have the `MINTER_ROLE`.
      */
-    function mint(address to) external {
+    function mint(address to) external override {
         require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinter: sending does have proper role");
         _mint(to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
@@ -92,7 +92,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      *
      *
      */
-    function burn(uint256 loanId, uint256 tokenId) external {
+    function burn(uint256 loanId, uint256 tokenId) external override {
         require(hasRole(BURNER_ROLE, _msgSender()), "PromissoryNote: callers is not owner nor approved");
 
         LoanState status = ILoanCore(loanCore).getLoan(loanId).state;
