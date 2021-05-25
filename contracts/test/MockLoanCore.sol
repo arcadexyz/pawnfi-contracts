@@ -13,8 +13,7 @@ contract MockLoanCore is ILoanCore {
     mapping(uint256 => LoanData) public loanData;
 
     function getLoan(uint256 loanId) public view override returns (LoanData memory _loanData) {
-        _loanData = loanData[loanId];
-        return _loanData;
+        return loanData[loanId];
     }
 
     /**
@@ -24,15 +23,13 @@ contract MockLoanCore is ILoanCore {
         LoanTerms memory _loanTerms =
             LoanTerms(terms.dueDate, terms.principal, terms.interest, terms.collateralTokenId, terms.payableCurrency);
 
-        loanId = 1;
-
         LoanData memory _loanData = LoanData(0, 0, _loanTerms, LoanState.Created);
 
         loanData[loanId] = _loanData;
 
         emit LoanCreated(terms, loanId);
 
-        return loanId;
+        return 1;
     }
 
     /**
