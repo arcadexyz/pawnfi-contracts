@@ -2,6 +2,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
+import "./interfaces/IFeeController.sol";
+
 /**
  * Fee Controller is intended to be an upgradable component of Pawnfi
  * where new fees can be added or modified based on different user attributes
@@ -16,7 +18,7 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
  * @dev support for floating point originationFee should be discussed
  */
 
-contract FeeController is AccessControlEnumerable {
+contract FeeController is AccessControlEnumerable, IFeeController {
     /** @dev Returns the type of fee given business logic of PawnFi
     
     E.g. Random user's loan request for 2 wETH is matched with a lender
@@ -36,13 +38,13 @@ contract FeeController is AccessControlEnumerable {
         _setupRole(ADMIN_ROLE, _msgSender());
     }
 
-    function setOriginationFee() public view returns (uint256) {
+    function setOriginationFee() public view override returns (uint256) {
         require(hasRole(ADMIN_ROLE, _msgSender()), "FeeController: callers is not approved to set ");
 
         return 2;
     }
 
-    function getOriginationFee(uint256 loanAmount) public view returns (uint256) {
+    function getOriginationFee(uint256 loanAmount) public view override returns (uint256) {
         return (loanAmount / 100) * setOriginationFee();
     }
 }

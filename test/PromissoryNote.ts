@@ -89,7 +89,7 @@ describe("PromissoryNote", () => {
     borrowerNote: PromissoryNote,
     loanId: BigNumber,
   ) => {
-    const transaction = await loanCore.connect(user).startLoan(loanId, lenderNote.address, borrowerNote.address);
+    const transaction = await loanCore.connect(user).startLoan(lenderNote.address, borrowerNote.address, loanId);
     await transaction.wait();
   };
 

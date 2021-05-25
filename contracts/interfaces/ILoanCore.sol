@@ -92,9 +92,9 @@ interface ILoanCore {
      *  - The proper principal and collateral must have been sent to this contract before calling.
      */
     function startLoan(
-        uint256 loanId,
         address lender,
-        address borrower
+        address borrower,
+        uint256 loanId
     ) external;
 
     /**

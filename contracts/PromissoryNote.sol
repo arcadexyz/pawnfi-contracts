@@ -40,12 +40,11 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      * @dev Creates the borrowor note contract linked to a specific loan core
      * The loan core reference is non-upgradeable
      * See (_setURI).
-     * Grants `MINTER_ROLE` and `BURNER_ROLE` to the specified loanCore-
+     * Grants `PAUSER_ROLE`, `MINTER_ROLE`, and `BURNER_ROLE` to the specified loanCore-
      * contract, provided it is an instance of LoanCore.
      *
      * Grants `DEFAULT_ADMIN_ROLE` to the account that deploys the contract. Admins
-     * can pause the contract if needed.
-     *
+  
      */
 
     constructor(
@@ -107,7 +106,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
         public
         view
         virtual
-        override(AccessControlEnumerable, ERC721, ERC721Enumerable)
+        override(AccessControlEnumerable, ERC721, ERC721Enumerable, IERC165)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
