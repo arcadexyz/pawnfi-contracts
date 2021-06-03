@@ -10,20 +10,20 @@ contract MockLoanCore is ILoanCore {
      * @dev Get LoanData by loanId
      */
 
-    mapping(uint256 => LoanData) public loanData;
+    mapping(uint256 => LoanData.LoanData) public loanData;
 
-    function getLoan(uint256 loanId) public view override returns (LoanData memory _loanData) {
+    function getLoan(uint256 loanId) public view override returns (LoanData.LoanData memory _loanData) {
         return loanData[loanId];
     }
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanTerms calldata terms) external override returns (uint256 loanId) {
-        LoanTerms memory _loanTerms =
-            LoanTerms(terms.dueDate, terms.principal, terms.interest, terms.collateralTokenId, terms.payableCurrency);
+    function createLoan(LoanData.LoanTerms calldata terms) external override returns (uint256 loanId) {
+        LoanData.LoanTerms memory _loanTerms =
+            LoanData.LoanTerms(terms.dueDate, terms.principal, terms.interest, terms.collateralTokenId, terms.payableCurrency);
 
-        LoanData memory _loanData = LoanData(0, 0, _loanTerms, LoanState.Created);
+        LoanData.LoanData memory _loanData = LoanData.LoanData(0, 0, _loanTerms, LoanData.LoanState.Created);
 
         loanData[loanId] = _loanData;
 
@@ -45,7 +45,7 @@ contract MockLoanCore is ILoanCore {
         address borrower,
         uint256 loanId
     ) public override {
-        loanData[loanId].state = LoanState.Active;
+        loanData[loanId].state = LoanData.LoanState.Active;
         emit LoanStarted(loanId, lender, borrower);
     }
 
@@ -58,7 +58,7 @@ contract MockLoanCore is ILoanCore {
      *  - The loan must be in state Active
      */
     function repay(uint256 loanId) public override {
-        loanData[loanId].state = LoanState.Repaid;
+        loanData[loanId].state = LoanData.LoanState.Repaid;
         emit LoanRepaid(loanId);
     }
 

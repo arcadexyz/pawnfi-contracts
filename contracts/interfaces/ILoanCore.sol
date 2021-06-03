@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./libraries/LoanData.sol";
+import "../libraries/LoanData.sol";
 
 /**
  * @dev Interface for the LoanCore contract
@@ -11,7 +11,7 @@ interface ILoanCore {
     /**
      * @dev Emitted when a loan is initially created
      */
-    event LoanCreated(LoanTerms terms, uint256 loanId);
+    event LoanCreated(LoanData.LoanTerms terms, uint256 loanId);
 
     /**
      * @dev Emitted when a loan is started and principal is distributed to the borrower.
@@ -36,12 +36,12 @@ interface ILoanCore {
     /**
      * @dev Get LoanData by loanId
      */
-    function getLoan(uint256 loanId) external view returns (LoanData calldata loanData);
+    function getLoan(uint256 loanId) external view returns (LoanData.LoanData calldata loanData);
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanTerms calldata terms) external returns (uint256 loanId);
+    function createLoan(LoanData.LoanTerms calldata terms) external returns (uint256 loanId);
 
     /**
      * @dev Start a loan with the given borrower and lender

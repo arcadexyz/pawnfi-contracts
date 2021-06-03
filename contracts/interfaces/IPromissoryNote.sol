@@ -8,7 +8,10 @@ interface IPromissoryNote is IERC721 {
     */
     event Repay(uint256 loanId, address lender);
 
-    function mint(address to, uint256 loanId) external;
+    // Getter for mapping: mapping(uint256 => uint256) public loanIdByNoteId;
+    function loanIdByNoteId(uint256 noteId) external view returns (uint256);
+
+    function mint(address to, uint256 loanId) external returns (uint256);
 
     function burn(uint256 tokenId) external;
 }

@@ -23,13 +23,7 @@ contract RepaymentController is IRepaymentController {
         IPromissoryNote _borrowerNote,
         IPromissoryNote _lenderNote
     ) {
-        require(_loanCore != address(0), "loanCore address must be defined");
-
-        bytes4 loanCoreInterface = type(ILoanCore).interfaceId;
-        require(IERC165(_loanCore).supportsInterface(loanCoreInterface), "loanCore must be an instance of LoanCore");
-
-        loanCore = ILoanCore(_loanCore);
-
+        loanCore = _loanCore;
         borrowerNote = _borrowerNote;
         lenderNote = _lenderNote;
     }
@@ -39,10 +33,10 @@ contract RepaymentController is IRepaymentController {
      */
     function repay(uint256 borrowerNoteId) external override {
         // get loan from borrower note
-        uint256 loanId = borrowerNote.loanIdByNoteId[borrowerNoteId];
+        uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
         require(loanId != 0, "RepaymentController: repay could not dereference loan");
 
-        LoanTerms terms = loanCore.loans[loanId].terms;
+        LoanData.LoanTerms memory terms = loanCore.getLoan(loanId).terms;
 
         // withdraw principal plus interest from borrower and send to loan core
         IERC20(terms.payableCurrency).transferFrom(
@@ -52,7 +46,7 @@ contract RepaymentController is IRepaymentController {
         );
 
         // call repay function in loan core
-        _loanCore.repay(loanId);
+        loanCore.repay(loanId);
     }
 
     /**
@@ -60,14 +54,14 @@ contract RepaymentController is IRepaymentController {
      */
     function claim(uint256 lenderNoteId) external override {
         // make sure that caller owns lender note
-        address lender = _lenderNote.ownerOf(lenderNoteId);
+        address lender = lenderNote.ownerOf(lenderNoteId);
         require(lender == msg.sender, "RepaymentController: only lender can claim a lender note");
 
         // get loan from lender note
-        uint256 loanId = borrowerNote.loanIdByNoteId[borrowerNoteId];
+        uint256 loanId = lenderNote.loanIdByNoteId(lenderNoteId);
         require(loanId != 0, "RepaymentController: claim could not dereference loan");
 
         // call claim function in loan core
-        _loanCore.claim(loanId);
+        loanCore.claim(loanId);
     }
 }
