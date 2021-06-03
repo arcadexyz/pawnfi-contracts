@@ -8,7 +8,7 @@ interface IPromissoryNote is IERC721 {
     */
     event Repay(uint256 loanId, address lender);
 
-    function mint(address to) external;
+    function mint(address to, uint256 loanId) external;
 
     function burn(uint256 tokenId) external;
 }

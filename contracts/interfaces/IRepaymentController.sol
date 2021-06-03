@@ -8,7 +8,8 @@ interface IRepaymentController {
      *
      * The loan must be in the Active state, and the
      * payableCurrency must be approved for withdrawal by the
-     * repayment controller. 
+     * repayment controller. This call will withdraw tokens
+     * from the caller's wallet.
      *
      */
     function repay(uint256 borrowerNoteId) external;

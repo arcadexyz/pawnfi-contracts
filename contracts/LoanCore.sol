@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "./interfaces/INote.sol";
+import "./interfaces/IPromissoryNote.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 import "./interfaces/ILoanCore.sol";
@@ -25,9 +25,9 @@ contract LoanCore is ILoanCore, AccessControl {
     Counters.Counter private loanIdTracker;
     mapping(uint256 => LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
-    INote public borrowerNote;
-    INote public lenderNote;
-    IERC721 public collateralToken;
+    IPromissoryNote private borrowerNote;
+    IPromissoryNote private lenderNote;
+    IERC721 private collateralToken;
     IFeeController public feeController;
     address public originationController;
     address public repaymentController;
@@ -39,10 +39,9 @@ contract LoanCore is ILoanCore, AccessControl {
     mapping(address => uint256) private tokenBalances;
 
     constructor(
-        INote _borrowerNote,
-        INote _lenderNote,
-        IERC721 _collateralToken,
-        IFeeController _feeController
+        IPromissoryNote _borrowerNote,
+        IPromissoryNote _lenderNote,
+        IERC721 _collateralToken
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
