@@ -101,3 +101,14 @@ compiler version is to add the following fields to your VSCode user settings:
 ```
 
 Where of course `v0.8.3+commit.8d00100c` can be replaced with any other version.
+
+## Solidity Coverage Reporting
+
+Solidity Coverage tracks which lines are hit during a test run by instrumenting your contracts and detecting their execution in a coverage-enabled EVM. Coverage reports are produced under ./coverage and configuration lives in .solcover.js.
+[Solcover](https://github.com/sc-forks/solidity-coverage)
+
+Run Coverage instrumentation:
+
+```sh
+$ yarn coverage
+```
