@@ -10,5 +10,5 @@ interface IPromissoryNote is IERC721 {
 
     function mint(address to) external;
 
-    function burn(uint256 loanId, uint256 tokenId) external;
+    function burn(uint256 tokenId) external;
 }

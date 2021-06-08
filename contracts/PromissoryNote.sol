@@ -34,32 +34,21 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     Counters.Counter private _tokenIdTracker;
-    address public loanCore;
 
     /**
      * @dev Creates the borrowor note contract linked to a specific loan core
      * The loan core reference is non-upgradeable
      * See (_setURI).
-     * Grants `PAUSER_ROLE`, `MINTER_ROLE`, and `BURNER_ROLE` to the specified loanCore-
+     * Grants `PAUSER_ROLE`, `MINTER_ROLE`, and `BURNER_ROLE` to the sender
      * contract, provided it is an instance of LoanCore.
      *
      * Grants `DEFAULT_ADMIN_ROLE` to the account that deploys the contract. Admins
   
      */
 
-    constructor(
-        address loanCore_,
-        string memory name,
-        string memory symbol
-    ) ERC721(name, symbol) {
-        require(loanCore_ != address(0), "loanCore address must be defined");
-
-        _setupRole(BURNER_ROLE, loanCore_);
-
-        loanCore = loanCore_;
-
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) {
+        _setupRole(BURNER_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
-
         _setupRole(PAUSER_ROLE, _msgSender());
     }
 
@@ -91,11 +80,8 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      *
      *
      */
-    function burn(uint256 loanId, uint256 tokenId) external override {
+    function burn(uint256 tokenId) external override {
         require(hasRole(BURNER_ROLE, _msgSender()), "PromissoryNote: callers is not owner nor approved");
-
-        LoanState status = ILoanCore(loanCore).getLoan(loanId).state;
-        require(status != LoanState.Active, "PromissoryNote: LoanCore attempted to burn an active note");
         _burn(tokenId);
     }
 

@@ -5,11 +5,11 @@ import { MockLoanCore, MockERC721, PromissoryNote } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 enum LoanState {
-  // DUMMY = 0, // TODO: reintroduce after https://github.com/Non-fungible-Technologies/pawnfi-contracts/pull/11 is merged
-  Created = 0,
-  Active = 1,
-  Repaid = 2,
-  Defaulted = 3,
+  DUMMY = 0,
+  Created = 1,
+  Active = 2,
+  Repaid = 3,
+  Defaulted = 4,
 }
 
 interface TestContext {
@@ -54,10 +54,10 @@ describe("PromissoryNote", () => {
     const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
     const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
     const lenderPromissoryNote = <PromissoryNote>(
-      await deploy("PromissoryNote", signers[0], [loanCore.address, "PromissoryNote - Lender", "PBL"])
+      await deploy("PromissoryNote", signers[0], ["PromissoryNote - Lender", "PBL"])
     );
     const borrowerPromissoryNote = <PromissoryNote>(
-      await deploy("PromissoryNote", signers[0], [loanCore.address, "PromissoryNote - Borrower", "PBNs"])
+      await deploy("PromissoryNote", signers[0], ["PromissoryNote - Borrower", "PBNs"])
     );
 
     return {
@@ -110,19 +110,10 @@ describe("PromissoryNote", () => {
   };
 
   describe("constructor", () => {
-    it("Reverts if loanCore_ address is not provided", async () => {
-      const signers: Signer[] = await hre.ethers.getSigners();
-      await expect(deploy("PromissoryNote", signers[0], ["PromissoryNote", "BN"])).to.be.reverted;
-    });
-
     it("Creates a PromissoryNote", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
 
-      const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
-
-      const PromissoryNote = <PromissoryNote>(
-        await deploy("PromissoryNote", signers[0], [loanCore.address, "PromissoryNote", "BN"])
-      );
+      const PromissoryNote = <PromissoryNote>await deploy("PromissoryNote", signers[0], ["PromissoryNote", "BN"]);
 
       expect(PromissoryNote).exist;
     });
@@ -149,23 +140,6 @@ describe("PromissoryNote", () => {
   });
 
   describe("burn", () => {
-    it("Reverts if loanCore attempts to burn active note", async () => {
-      const {
-        borrowerPromissoryNote: promissoryNote,
-        lenderPromissoryNote,
-        loanCore,
-        mockAssetWrapper,
-        user,
-      } = await setupTestContext();
-      const loanTerms = createLoanTerms(mockAssetWrapper.address);
-      const PromissoryNoteId = await mintPromissoryNote(promissoryNote, user);
-      const loanId = await createLoan(loanCore, user, loanTerms);
-      await startLoan(loanCore, user, lenderPromissoryNote, promissoryNote, loanId);
-      const loanData = await loanCore.connect(user).getLoan(loanId);
-      expect(loanData.state).to.equal(LoanState.Active);
-      await expect(promissoryNote.connect(user).burn(loanId, PromissoryNoteId)).to.be.reverted;
-    });
-
     it("Reverts if sender does not own the note", async () => {
       const {
         borrowerPromissoryNote: promissoryNote,
@@ -176,7 +150,7 @@ describe("PromissoryNote", () => {
         other,
       } = await setupTestContext();
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
-      const PromissoryNoteId = await mintPromissoryNote(promissoryNote, user);
+      const promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
       const loanId = await createLoan(loanCore, user, loanTerms);
       await startLoan(loanCore, user, lenderPromissoryNote, promissoryNote, loanId);
       const loanData = await loanCore.connect(user).getLoan(loanId);
@@ -184,7 +158,7 @@ describe("PromissoryNote", () => {
       await repayLoan(loanCore, user, loanId);
       const loanDataAfterRepay = await loanCore.connect(user).getLoan(loanId);
       expect(loanDataAfterRepay.state).to.equal(LoanState.Repaid);
-      await expect(promissoryNote.connect(other).burn(loanId, PromissoryNoteId)).to.be.reverted;
+      await expect(promissoryNote.connect(other).burn(promissoryNoteId)).to.be.reverted;
     });
 
     it("Burns a PromissoryNote NFT", async () => {
@@ -195,7 +169,7 @@ describe("PromissoryNote", () => {
         mockAssetWrapper,
         user,
       } = await setupTestContext();
-      const PromissoryNoteId = await mintPromissoryNote(promissoryNote, user);
+      const promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address);
       const loanId = await createLoan(loanCore, user, loanTerms);
       await startLoan(loanCore, user, lenderPromissoryNote, promissoryNote, loanId);
@@ -204,7 +178,7 @@ describe("PromissoryNote", () => {
       await repayLoan(loanCore, user, loanId);
       const loanDataAfterRepay = await loanCore.connect(user).getLoan(loanId);
       expect(loanDataAfterRepay.state).to.equal(LoanState.Repaid);
-      expect(promissoryNote.connect(user).burn(loanId, PromissoryNoteId));
+      expect(promissoryNote.connect(user).burn(promissoryNoteId));
     });
   });
 });
