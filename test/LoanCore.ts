@@ -530,15 +530,6 @@ describe("LoanCore", () => {
       await expect(loanCore.connect(borrower).repay(loanId)).to.be.revertedWith("LoanCore::repay: Invalid loan state");
     });
 
-    it("should fail if the loan is expired", async () => {
-      const { loanId, loanCore, user: borrower } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
-      });
-      await blockchainTime.increaseTime(1001);
-
-      await expect(loanCore.connect(borrower).repay(loanId)).to.be.revertedWith("LoanCore::repay: Loan expired");
-    });
-
     it("should fail if the debt was not repaid", async () => {
       const { loanId, loanCore, user: borrower } = await setupLoan();
 

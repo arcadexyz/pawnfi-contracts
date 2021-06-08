@@ -116,8 +116,6 @@ contract LoanCore is ILoanCore {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Active, "LoanCore::repay: Invalid loan state");
-        // NOTE: maybe we should remove this line, i.e. allow repayment of expired loan
-        require(data.terms.dueDate > block.timestamp, "LoanCore::repay: Loan expired");
 
         // ensure repayment was valid
         uint256 returnAmount = data.terms.principal.add(data.terms.interest);
