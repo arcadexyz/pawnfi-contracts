@@ -45,6 +45,9 @@ contract MockLoanCore is ILoanCore {
         address borrower,
         uint256 loanId
     ) public override {
+        uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
+        uint256 lenderNoteId = lenderNote.mint(lender, loanId);
+
         loanData[loanId].state = LoanData.LoanState.Active;
         emit LoanStarted(loanId, lender, borrower);
     }
