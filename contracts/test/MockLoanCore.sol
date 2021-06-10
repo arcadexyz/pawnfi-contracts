@@ -1,11 +1,23 @@
 pragma solidity ^0.8.0;
 
 import "../interfaces/ILoanCore.sol";
+import "../interfaces/IPromissoryNote.sol";
 
 /**
  * @dev Interface for the LoanCore contract
  */
 contract MockLoanCore is ILoanCore {
+    IPromissoryNote private borrowerNote;
+    IPromissoryNote private lenderNote;
+
+    constructor(
+        IPromissoryNote _borrowerNote,
+        IPromissoryNote _lenderNote
+    ) {
+        borrowerNote = _borrowerNote;
+        lenderNote = _lenderNote;
+    }
+
     /**
      * @dev Get LoanData by loanId
      */

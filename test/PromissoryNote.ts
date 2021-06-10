@@ -99,7 +99,7 @@ describe("PromissoryNote", () => {
   };
 
   const mintPromissoryNote = async (note: PromissoryNote, user: Signer): Promise<BigNumber> => {
-    const transaction = await note.mint(await user.getAddress());
+    const transaction = await note.mint(await user.getAddress(), 1);
     const receipt = await transaction.wait();
 
     if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
@@ -122,13 +122,13 @@ describe("PromissoryNote", () => {
   describe("mint", () => {
     it("Reverts if sender is not loanCore", async () => {
       const { lenderPromissoryNote: promissoryNote, user, other } = await setupTestContext();
-      const transaction = promissoryNote.connect(other).mint(await user.getAddress());
+      const transaction = promissoryNote.connect(other).mint(await user.getAddress(), 1);
       await expect(transaction).to.be.reverted;
     });
 
     it("Assigns a PromissoryNote NFT to the recipient", async () => {
       const { lenderPromissoryNote: promissoryNote, user, other } = await setupTestContext();
-      const transaction = await promissoryNote.connect(user).mint(await other.getAddress());
+      const transaction = await promissoryNote.connect(user).mint(await other.getAddress(), 1);
       const receipt = await transaction.wait();
 
       if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
@@ -167,7 +167,7 @@ describe("PromissoryNote", () => {
         lenderPromissoryNote,
         loanCore,
         mockAssetWrapper,
-        user,
+        user, 
       } = await setupTestContext();
       const promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address);

@@ -158,8 +158,8 @@ contract LoanCore is ILoanCore, AccessControl {
         // state changes and cleanup
         // NOTE: these must be performed before assets are released to prevent reentrance
         loans[loanId].state = LoanData.LoanState.Repaid;
-        lenderNote.burn(loanId, data.lenderNoteId);
-        borrowerNote.burn(loanId, data.borrowerNoteId);
+        lenderNote.burn(data.lenderNoteId);
+        borrowerNote.burn(data.borrowerNoteId);
 
         // asset and collateral redistribution
         SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), lender, returnAmount);
@@ -188,8 +188,8 @@ contract LoanCore is ILoanCore, AccessControl {
 
         // NOTE: these must be performed before assets are released to prevent reentrance
         loans[loanId].state = LoanData.LoanState.Defaulted;
-        lenderNote.burn(loanId, data.lenderNoteId);
-        borrowerNote.burn(loanId, data.borrowerNoteId);
+        lenderNote.burn(data.lenderNoteId);
+        borrowerNote.burn(data.borrowerNoteId);
 
         // collateral redistribution
         collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);

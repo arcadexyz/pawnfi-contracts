@@ -91,6 +91,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
     function burn(uint256 tokenId) external override {
         require(hasRole(BURNER_ROLE, _msgSender()), "PromissoryNote: callers is not owner nor approved");
         _burn(tokenId);
+        loanIdByNoteId[tokenId] = 0;
     }
 
     /**
