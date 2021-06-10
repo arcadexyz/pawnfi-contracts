@@ -1,12 +1,16 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { BigNumber, Signer } from "ethers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+import { BigNumber, BigNumberish } from "ethers";
 
 import { AssetWrapper, MockERC20, MockERC721, MockERC1155 } from "../typechain";
 import { approve, mint, ZERO_ADDRESS } from "./utils/erc20";
 import { approve as approveERC721, mint as mintERC721 } from "./utils/erc721";
 import { approve as approveERC1155, mint as mintERC1155 } from "./utils/erc1155";
 import { deploy } from "./utils/contracts";
+import { fromRpcSig } from "ethereumjs-util";
+
+type Signer = SignerWithAddress;
 
 const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
@@ -838,6 +842,215 @@ describe("AssetWrapper", () => {
         await expect(assetWrapper.connect(other).withdraw(bundleId)).to.be.revertedWith(
           "AssetWrapper: Non-owner withdrawal",
         );
+      });
+    });
+
+    describe("Permit", () => {
+      const typedData = {
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "tokenId", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        },
+        primaryType: "Permit" as const,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const chainId = hre.network.config.chainId!;
+      const maxDeadline = hre.ethers.constants.MaxUint256;
+
+      const buildData = (
+        chainId: number,
+        verifyingContract: string,
+        name: string,
+        version: string,
+        owner: string,
+        spender: string,
+        tokenId: BigNumberish,
+        nonce: number,
+        deadline = maxDeadline,
+      ) => {
+        return Object.assign({}, typedData, {
+          domain: {
+            name,
+            version,
+            chainId,
+            verifyingContract,
+          },
+          message: { owner, spender, tokenId, nonce, deadline },
+        });
+      };
+
+      it("should accept owner signature", async () => {
+        const { assetWrapper, user, other } = await setupTestContext();
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const data = buildData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await user.getAddress(),
+          await other.getAddress(),
+          bundleId,
+          0,
+        );
+
+        const signature = await user._signTypedData(data.domain, data.types, data.message);
+        const { v, r, s } = fromRpcSig(signature);
+
+        let approved = await assetWrapper.getApproved(bundleId);
+        expect(approved).to.equal(hre.ethers.constants.AddressZero);
+
+        await expect(
+          assetWrapper.permit(await user.getAddress(), await other.getAddress(), bundleId, maxDeadline, v, r, s),
+        )
+          .to.emit(assetWrapper, "Approval")
+          .withArgs(await user.getAddress(), await other.getAddress(), bundleId);
+
+        approved = await assetWrapper.getApproved(bundleId);
+        expect(approved).to.equal(await other.getAddress());
+      });
+
+      it("rejects if given owner is not real owner", async () => {
+        const { assetWrapper, user, other } = await setupTestContext();
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const data = buildData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await user.getAddress(),
+          await other.getAddress(),
+          bundleId,
+          0,
+        );
+
+        const signature = await user._signTypedData(data.domain, data.types, data.message);
+        const { v, r, s } = fromRpcSig(signature);
+
+        const approved = await assetWrapper.getApproved(bundleId);
+        expect(approved).to.equal(hre.ethers.constants.AddressZero);
+
+        await expect(
+          assetWrapper.permit(await other.getAddress(), await other.getAddress(), bundleId, maxDeadline, v, r, s),
+        ).to.be.revertedWith("ERC721Permit: not owner");
+      });
+
+      it("rejects if bundleId is not valid", async () => {
+        const { assetWrapper, mockERC721, user, other } = await setupTestContext();
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const tokenId = await mintERC721(mockERC721, user);
+        await approveERC721(mockERC721, user, assetWrapper.address, tokenId);
+        await assetWrapper.connect(user).depositERC721(mockERC721.address, tokenId, bundleId);
+
+        const data = buildData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await user.getAddress(),
+          await other.getAddress(),
+          tokenId,
+          0,
+        );
+
+        const signature = await user._signTypedData(data.domain, data.types, data.message);
+        const { v, r, s } = fromRpcSig(signature);
+
+        const approved = await assetWrapper.getApproved(bundleId);
+        expect(approved).to.equal(hre.ethers.constants.AddressZero);
+
+        await expect(
+          assetWrapper.permit(await other.getAddress(), await other.getAddress(), tokenId, maxDeadline, v, r, s),
+        ).to.be.revertedWith("ERC721Permit: not owner");
+      });
+
+      it("rejects reused signature", async () => {
+        const { assetWrapper, user, other } = await setupTestContext();
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const data = buildData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await user.getAddress(),
+          await other.getAddress(),
+          bundleId,
+          0,
+        );
+
+        const signature = await user._signTypedData(data.domain, data.types, data.message);
+        const { v, r, s } = fromRpcSig(signature);
+
+        await expect(
+          assetWrapper.permit(await user.getAddress(), await other.getAddress(), bundleId, maxDeadline, v, r, s),
+        )
+          .to.emit(assetWrapper, "Approval")
+          .withArgs(await user.getAddress(), await other.getAddress(), bundleId);
+
+        await expect(
+          assetWrapper.permit(await user.getAddress(), await other.getAddress(), bundleId, maxDeadline, v, r, s),
+        ).to.be.revertedWith("ERC721Permit: invalid signature");
+      });
+
+      it("rejects other signature", async () => {
+        const { assetWrapper, user, other } = await setupTestContext();
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const data = buildData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await user.getAddress(),
+          await other.getAddress(),
+          bundleId,
+          0,
+        );
+
+        const signature = await other._signTypedData(data.domain, data.types, data.message);
+        const { v, r, s } = fromRpcSig(signature);
+
+        await expect(
+          assetWrapper.permit(await user.getAddress(), await other.getAddress(), bundleId, maxDeadline, v, r, s),
+        ).to.be.revertedWith("ERC721Permit: invalid signature");
+      });
+
+      it("rejects expired signature", async () => {
+        const { assetWrapper, user, other } = await setupTestContext();
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const data = buildData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await user.getAddress(),
+          await other.getAddress(),
+          bundleId,
+          0,
+          BigNumber.from("1234"),
+        );
+
+        const signature = await user._signTypedData(data.domain, data.types, data.message);
+        const { v, r, s } = fromRpcSig(signature);
+
+        const approved = await assetWrapper.getApproved(bundleId);
+        expect(approved).to.equal(hre.ethers.constants.AddressZero);
+
+        await expect(
+          assetWrapper.permit(
+            await user.getAddress(),
+            await other.getAddress(),
+            bundleId,
+            BigNumber.from("1234"),
+            v,
+            r,
+            s,
+          ),
+        ).to.be.revertedWith("ERC721Permit: expired deadline");
       });
     });
   });

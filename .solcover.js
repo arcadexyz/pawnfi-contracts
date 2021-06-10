@@ -3,7 +3,7 @@ const shell = require("shelljs");
 // The environment variables are loaded in hardhat.config.ts
 let mnemonic = process.env.MNEMONIC;
 if (!mnemonic) {
-  mnemonic = "testtesttesttest"
+  mnemonic = "testtesttesttest";
 }
 
 module.exports = {
@@ -20,4 +20,8 @@ module.exports = {
     mnemonic,
   },
   skipFiles: ["mocks", "test"],
+  mocha: {
+    grep: "@skip-on-coverage",
+    invert: true,
+  },
 };
