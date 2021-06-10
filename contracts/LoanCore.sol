@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -13,26 +13,28 @@ import "./interfaces/ILoanCore.sol";
 
 /**
  * TODO:
- * Add onlyOriginationController
- * Add onlyRepaymentController
- * Add admin permissions to update origination controller, repayment controller
  * Add fee collection mechanism
  */
 
 /**
  * @dev Interface for the LoanCore contract
  */
-contract LoanCore is ILoanCore, Ownable {
+contract LoanCore is ILoanCore, AccessControl {
     using Counters for Counters.Counter;
-    Counters.Counter private loanIdTracker;
     using SafeMath for uint256;
 
+    bytes32 public constant ORIGINATOR_ROLE = keccak256("ORIGINATOR_ROLE");
+    bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
+
+    Counters.Counter private loanIdTracker;
     mapping(uint256 => LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
     INote public borrowerNote;
     INote public lenderNote;
     IERC721 public collateralToken;
     IFeeController public feeController;
+    address public originationController;
+    address public repaymentController;
 
     // 10k bps per whole
     uint256 private constant BPS_DENOMINATOR = 10_000;
@@ -43,8 +45,14 @@ contract LoanCore is ILoanCore, Ownable {
         INote _borrowerNote,
         INote _lenderNote,
         IERC721 _collateralToken,
-        IFeeController _feeController;
+        IFeeController _feeController,
+        address _originationController,
+        address _repaymentController
     ) {
+        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(ORIGINATOR_ROLE, _originationController);
+        _setupRole(REPAYER_ROLE, _repaymentController);
+
         borrowerNote = _borrowerNote;
         lenderNote = _lenderNote;
         collateralToken = _collateralToken;
@@ -61,7 +69,7 @@ contract LoanCore is ILoanCore, Ownable {
     /**
      * @inheritdoc ILoanCore
      */
-    function createLoan(LoanTerms calldata terms) external override returns (uint256 loanId) {
+    function createLoan(LoanTerms calldata terms) external override onlyRole(ORIGINATOR_ROLE) returns (uint256 loanId) {
         require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
@@ -87,7 +95,7 @@ contract LoanCore is ILoanCore, Ownable {
         address lender,
         address borrower,
         uint256 loanId
-    ) external override {
+    ) external onlyRole(ORIGINATOR_ROLE) override {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Created, "LoanCore::start: Invalid loan state");
@@ -115,7 +123,7 @@ contract LoanCore is ILoanCore, Ownable {
     /**
      * @inheritdoc ILoanCore
      */
-    function repay(uint256 loanId) external override {
+    function repay(uint256 loanId) external onlyRole(REPAYER_ROLE) override {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Active, "LoanCore::repay: Invalid loan state");
@@ -146,7 +154,7 @@ contract LoanCore is ILoanCore, Ownable {
     /**
      * @inheritdoc ILoanCore
      */
-    function claim(uint256 loanId) external override {
+    function claim(uint256 loanId) external onlyRole(REPAYER_ROLE) override {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Active, "LoanCore::claim: Invalid loan state");
@@ -182,7 +190,7 @@ contract LoanCore is ILoanCore, Ownable {
     /**
      * Take a principal value and return the amount less protocol fees
      */
-    function getPrincipalLessFees(uint256 principal) internal pure returns (uint256) {
+    function getPrincipalLessFees(uint256 principal) internal view returns (uint256) {
         // TODO: Fetch protocol fee from the fee controller
         return principal.sub(principal.mul(feeController.getOriginationFee()).div(BPS_DENOMINATOR));
     }
@@ -196,7 +204,7 @@ contract LoanCore is ILoanCore, Ownable {
      *
      * - Must be called by the owner of this contract
      */
-    function setFeeController(IFeeController _newController) external onlyOwner {
+    function setFeeController(IFeeController _newController) external onlyRole(DEFAULT_ADMIN_ROLE) {
         feeController = _newController;
     }
 }
