@@ -3,7 +3,6 @@ import hre from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
 
 import { LoanCore, MockERC20, MockERC721 } from "../typechain";
-import { ZERO_ADDRESS } from "./utils/erc20";
 import { mint as mintERC721 } from "./utils/erc721";
 import { BlockchainTime } from "./utils/time";
 import { deploy } from "./utils/contracts";
@@ -180,7 +179,7 @@ describe("LoanCore", () => {
       );
     });
 
-    it("gas", async () => {
+    it("gas [ @skip-on-coverage ]", async () => {
       const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
       const collateralTokenId = await mintERC721(mockAssetWrapper, user);
       const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
@@ -438,7 +437,7 @@ describe("LoanCore", () => {
       ).to.be.revertedWith("LoanCore::start: Insufficient lender deposit");
     });
 
-    it("gas", async () => {
+    it("gas [ @skip-on-coverage ]", async () => {
       const {
         mockAssetWrapper,
         loanCore,
@@ -459,7 +458,7 @@ describe("LoanCore", () => {
         .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("323763");
+      expect(gasUsed.toString()).to.equal("323751");
     });
   });
 
@@ -566,7 +565,7 @@ describe("LoanCore", () => {
       );
     });
 
-    it("gas", async () => {
+    it("gas [ @skip-on-coverage ]", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan();
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
 
@@ -656,7 +655,7 @@ describe("LoanCore", () => {
       await expect(loanCore.connect(borrower).claim(loanId)).to.be.revertedWith("LoanCore::claim: Loan not expired");
     });
 
-    it("gas", async () => {
+    it("gas [ @skip-on-coverage ]", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
         dueDate: await blockchainTime.secondsFromNow(1000),
       });

@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "./interfaces/IAssetWrapper.sol";
+import "./ERC721Permit.sol";
 
 /**
  * @dev {ERC721} token allowing users to create bundles of assets.
@@ -23,7 +24,15 @@ import "./interfaces/IAssetWrapper.sol";
  * At any time, the holder of the bundle NFT can redeem it for the
  * underlying assets.
  */
-contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, ERC1155Holder, ERC721Holder, IAssetWrapper {
+contract AssetWrapper is
+    Context,
+    ERC721Enumerable,
+    ERC721Burnable,
+    ERC1155Holder,
+    ERC721Holder,
+    ERC721Permit,
+    IAssetWrapper
+{
     using Counters for Counters.Counter;
     using SafeMath for uint256;
 
@@ -53,7 +62,7 @@ contract AssetWrapper is Context, ERC721Enumerable, ERC721Burnable, ERC1155Holde
     /**
      * @dev Initializes the token with name and symbol parameters
      */
-    constructor(string memory name, string memory symbol) ERC721(name, symbol) {}
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) ERC721Permit(name) {}
 
     /**
      * @inheritdoc IAssetWrapper
