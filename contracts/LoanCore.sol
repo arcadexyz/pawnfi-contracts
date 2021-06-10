@@ -2,18 +2,19 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./interfaces/INote.sol";
 import "./interfaces/IAssetWrapper.sol";
+import "./interfaces/IFeeController.sol";
 import "./interfaces/ILoanCore.sol";
 
 /**
  * TODO:
  * Add onlyOriginationController
  * Add onlyRepaymentController
- * Fetch fees from FeeController
  * Add admin permissions to update origination controller, repayment controller
  * Add fee collection mechanism
  */
@@ -21,31 +22,33 @@ import "./interfaces/ILoanCore.sol";
 /**
  * @dev Interface for the LoanCore contract
  */
-contract LoanCore is ILoanCore {
+contract LoanCore is ILoanCore, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private loanIdTracker;
     using SafeMath for uint256;
 
     mapping(uint256 => LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
-    INote private borrowerNote;
-    INote private lenderNote;
-    IERC721 private collateralToken;
+    INote public borrowerNote;
+    INote public lenderNote;
+    IERC721 public collateralToken;
+    IFeeController public feeController;
 
-    // TODO: fetch this from fee controller when available
-    uint256 private constant PROTOCOL_FEE_BPS = 300;
-    uint256 private constant BPS_DENOMINATOR = 10000;
+    // 10k bps per whole
+    uint256 private constant BPS_DENOMINATOR = 10_000;
 
     mapping(address => uint256) private tokenBalances;
 
     constructor(
         INote _borrowerNote,
         INote _lenderNote,
-        IERC721 _collateralToken
+        IERC721 _collateralToken,
+        IFeeController _feeController;
     ) {
         borrowerNote = _borrowerNote;
         lenderNote = _lenderNote;
         collateralToken = _collateralToken;
+        feeController = _feeController;
     }
 
     /**
@@ -181,6 +184,19 @@ contract LoanCore is ILoanCore {
      */
     function getPrincipalLessFees(uint256 principal) internal pure returns (uint256) {
         // TODO: Fetch protocol fee from the fee controller
-        return principal.sub(principal.mul(PROTOCOL_FEE_BPS).div(BPS_DENOMINATOR));
+        return principal.sub(principal.mul(feeController.getOriginationFee()).div(BPS_DENOMINATOR));
+    }
+
+    // ADMIN FUNCTIONS
+
+    /**
+     * @dev Set the fee controller to a new value
+     *
+     * Requirements:
+     *
+     * - Must be called by the owner of this contract
+     */
+    function setFeeController(IFeeController _newController) external onlyOwner {
+        feeController = _newController;
     }
 }

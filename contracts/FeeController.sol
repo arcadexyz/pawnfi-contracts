@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IFeeController.sol";
 
 /**
@@ -18,33 +18,31 @@ import "./interfaces/IFeeController.sol";
  * @dev support for floating point originationFee should be discussed
  */
 
-contract FeeController is AccessControlEnumerable, IFeeController {
-    /** @dev Returns the type of fee given business logic of PawnFi
-    
-    E.g. Random user's loan request for 2 wETH is matched with a lender
-    Function is called to determine origination fee (predetermined 2% of total loan value) 
-    and fee, in terms of the base currency of the loan, is returned 
+contract FeeController is AccessControlEnumerable, IFeeController, Ownable {
+    uint256 private originationFee;
 
-    * Requirements: 
-
-    * - type must be a valid type supported by contract 
-    * - amount for loan must be greater than 0 
-    * - address must be a valid ERC20  contract implementing balanceOf
-
-    */
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
-    constructor() {
-        _setupRole(ADMIN_ROLE, _msgSender());
+    constructor(uint256 _originationFee) {
+        originationFee = _originationFee;
     }
 
-    function setOriginationFee() public view override returns (uint256) {
-        require(hasRole(ADMIN_ROLE, _msgSender()), "FeeController: callers is not approved to set ");
-
-        return 2;
+    /**
+     * @dev Set the origination fee to the given value
+     *
+     * @param _originationFee the new origination fee, in bps
+     *
+     * Requirements:
+     *
+     * - The caller must be the owner of the contract
+     */
+    function setOriginationFee(uint256 _originationFee) external onlyOwner override {
+        originationFee = _originationFee;
     }
 
-    function getOriginationFee(uint256 loanAmount) public view override returns (uint256) {
-        return (loanAmount / 100) * setOriginationFee();
+    /**
+     * @dev Get the current origination fee in bps
+     *
+     */
+    function getOriginationFee() public view override returns (uint256) {
+        return originationFee;
     }
 }
