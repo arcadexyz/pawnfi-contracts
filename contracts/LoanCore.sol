@@ -27,9 +27,9 @@ contract LoanCore is ILoanCore, AccessControl {
     Counters.Counter private loanIdTracker;
     mapping(uint256 => LoanData.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
-    IPromissoryNote private borrowerNote;
-    IPromissoryNote private lenderNote;
-    IERC721 private collateralToken;
+    IPromissoryNote public borrowerNote;
+    IPromissoryNote public lenderNote;
+    IERC721 public collateralToken;
     IFeeController public feeController;
     address public originationController;
     address public repaymentController;

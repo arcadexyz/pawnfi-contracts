@@ -1,8 +1,8 @@
 import { expect } from "chai";
-import hre from "hardhat";
+import hre, { ethers } from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
 
-import { LoanCore, FeeController, MockERC20, MockERC721 } from "../typechain";
+import { LoanCore, FeeController, PromissoryNote, MockERC20, MockERC721 } from "../typechain";
 import { mint as mintERC721 } from "./utils/erc721";
 import { BlockchainTime } from "./utils/time";
 import { deploy } from "./utils/contracts";
@@ -32,8 +32,8 @@ interface LoanTerms {
 interface TestContext {
   loanCore: LoanCore;
   mockERC20: MockERC20;
-  mockBorrowerNote: MockERC721;
-  mockLenderNote: MockERC721;
+  mockBorrowerNote: PromissoryNote;
+  mockLenderNote: PromissoryNote;
   mockAssetWrapper: MockERC721;
   user: Signer;
   other: Signer;
@@ -49,16 +49,12 @@ describe("LoanCore", () => {
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
 
-    const mockBorrowerNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock BorrowerNote", "MB"]);
-    const mockLenderNote = <MockERC721>await deploy("MockERC721", signers[0], ["Mock LenderNote", "ML"]);
     const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
     const feeController = <FeeController>await deploy("FeeController", signers[0], []);
     const originator = signers[0];
     const repayer = signers[0];
     const loanCore = <LoanCore>(
       await deploy("LoanCore", signers[0], [
-        mockBorrowerNote.address,
-        mockLenderNote.address,
         mockAssetWrapper.address,
         feeController.address,
       ])
@@ -66,6 +62,13 @@ describe("LoanCore", () => {
 
     await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await originator.getAddress());
     await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await repayer.getAddress());
+    
+    const borrowerNoteAddress = await loanCore.borrowerNote();
+    const mockBorrowerNote = <PromissoryNote>await (await (ethers.getContractFactory("PromissoryNote"))).attach(borrowerNoteAddress);
+
+    const lenderNoteAddress = await loanCore.lenderNote();
+    const mockLenderNote = <PromissoryNote>await (await (ethers.getContractFactory("PromissoryNote"))).attach(lenderNoteAddress);
+
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
     return {
