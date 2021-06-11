@@ -25,7 +25,7 @@ contract LoanCore is ILoanCore, AccessControl {
     bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
 
     Counters.Counter private loanIdTracker;
-    mapping(uint256 => LoanData) private loans;
+    mapping(uint256 => LoanData.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
     IPromissoryNote private borrowerNote;
     IPromissoryNote private lenderNote;
@@ -41,7 +41,10 @@ contract LoanCore is ILoanCore, AccessControl {
     mapping(address => uint256) private tokenBalances;
 
     constructor(
-        IERC721 _collateralToken
+        IERC721 _collateralToken,
+        IFeeController _feeController,
+        address _originationController,
+        address _repaymentController
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
@@ -110,7 +113,7 @@ contract LoanCore is ILoanCore, AccessControl {
         uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        loans[loanId] = LoanData.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanState.Active);
+        loans[loanId] = LoanData.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanData.LoanState.Active);
         SafeERC20.safeTransfer(
             IERC20(data.terms.payableCurrency),
             borrower,
@@ -127,7 +130,7 @@ contract LoanCore is ILoanCore, AccessControl {
     function repay(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
         LoanData.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanState.Active, "LoanCore::repay: Invalid loan state");
+        require(data.state == LoanData.LoanState.Active, "LoanCore::repay: Invalid loan state");
 
         // ensure repayment was valid
         uint256 returnAmount = data.terms.principal.add(data.terms.interest);
