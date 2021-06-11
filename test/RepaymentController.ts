@@ -1,16 +1,16 @@
 import { expect } from "chai";
-import hre from "hardhat";
-import { utils, BigNumber, BigNumberish, Signer } from "ethers";
+import hre, { ethers } from "hardhat";
+import { utils, Signer } from "ethers";
 
-import { MockLoanCore, MockERC20, MockERC721, PromissoryNote, RepaymentController } from "../typechain";
+import { MockLoanCore, MockERC20, MockERC721, RepaymentController } from "../typechain";
 import { deploy } from "./utils/contracts";
-import { TransactionDescription } from "ethers/lib/utils";
 
 interface TestContext {
     loanId: string;
     loanData: any;
     repaymentController: RepaymentController;
     mockERC20: MockERC20;
+    mockLoanCore: MockLoanCore;
     borrower: Signer;
     lender: Signer;
     otherParty: Signer;
@@ -79,6 +79,7 @@ describe("RepaymentController", () => {
             loanId,
             loanData,
             repaymentController,
+            mockLoanCore,
             mockERC20,
             borrower,
             lender,
@@ -87,7 +88,7 @@ describe("RepaymentController", () => {
         };
     };
 
-    describe.only("repay", () => {
+    describe("repay", () => {
         beforeEach(async () => {
             context = await setupTestContext();
         });
@@ -140,13 +141,33 @@ describe("RepaymentController", () => {
             const { repaymentController, lender } = context;
 
             // Use junk note ID, like 1000
-            await expect(repaymentController.connect(lender).claim(1000)).to.be.revertedWith("RepaymentController: claim could not dereference loan");
+            await expect(repaymentController.connect(lender).claim(1000)).to.be.revertedWith("ERC721: owner query for nonexistent token");
         });
+
+        it("reverts for a note ID not owned by caller", async () => {
+            const { repaymentController, lender, borrower, mockLoanCore, loanData } = context;
+
+            const lenderNote = await (await ethers.getContractFactory("PromissoryNote")).attach(await mockLoanCore.lenderNote());
+            await lenderNote.connect(lender).transferFrom(await lender.getAddress(), await borrower.getAddress(), loanData.lenderNoteId);
+
+            // Use junk note ID, like 1000
+            await expect(repaymentController.connect(lender).claim(loanData.lenderNoteId)).to.be.revertedWith("RepaymentController: not owner of lender note");
+        });
+
 
         it("reverts if the claimant is not the lender", async () => {
+            const { repaymentController, borrower, loanData } = context;
 
+            // Attempt to claim note from the borrower account
+            await expect(repaymentController.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith("RepaymentController: not owner of lender note");
         });
 
-        it("claims the collateral and sends it to the lender's account");
+        it("claims the collateral and sends it to the lender's account", async () => {
+            const { repaymentController, lender, loanData } = context;
+
+            await repaymentController.connect(lender).claim(loanData.lenderNoteId);
+
+            // Not reverted - correct loan state and disbursement should be updated in LoanCore
+        });
     });
 }); 

@@ -56,7 +56,7 @@ contract RepaymentController is IRepaymentController {
     function claim(uint256 lenderNoteId) external override {
         // make sure that caller owns lender note
         address lender = lenderNote.ownerOf(lenderNoteId);
-        require(lender == msg.sender, "RepaymentController: only lender can claim a lender note");
+        require(lender == msg.sender, "RepaymentController: not owner of lender note");
 
         // get loan from lender note
         uint256 loanId = lenderNote.loanIdByNoteId(lenderNoteId);
