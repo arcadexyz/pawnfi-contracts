@@ -77,6 +77,11 @@ interface ILoanCore {
     event LoanClaimed(uint256 loanId);
 
     /**
+     * @dev Emitted when fees are claimed by admin
+     */
+    event FeesClaimed(address token, address to, uint256 amount);
+
+    /**
      * @dev Get LoanData by loanId
      */
     function getLoan(uint256 loanId) external view returns (LoanData calldata loanData);

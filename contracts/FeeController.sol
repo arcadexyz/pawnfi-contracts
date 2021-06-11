@@ -19,11 +19,10 @@ import "./interfaces/IFeeController.sol";
  */
 
 contract FeeController is AccessControlEnumerable, IFeeController, Ownable {
-    uint256 private originationFee;
+    // initial fee is 3%
+    uint256 private originationFee = 300;
 
-    constructor(uint256 _originationFee) {
-        originationFee = _originationFee;
-    }
+    constructor() {}
 
     /**
      * @dev Set the origination fee to the given value
@@ -34,8 +33,9 @@ contract FeeController is AccessControlEnumerable, IFeeController, Ownable {
      *
      * - The caller must be the owner of the contract
      */
-    function setOriginationFee(uint256 _originationFee) external onlyOwner override {
+    function setOriginationFee(uint256 _originationFee) external override onlyOwner {
         originationFee = _originationFee;
+        emit UpdateOriginationFee(_originationFee);
     }
 
     /**

@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./interfaces/INote.sol";
 import "./interfaces/IAssetWrapper.sol";
@@ -12,12 +13,7 @@ import "./interfaces/IFeeController.sol";
 import "./interfaces/ILoanCore.sol";
 
 /**
- * TODO:
- * Add fee collection mechanism
- */
-
-/**
- * @dev Interface for the LoanCore contract
+ * @dev LoanCore contract - core contract for creating, repaying, and claiming collateral for PawnFi loans
  */
 contract LoanCore is ILoanCore, AccessControl {
     using Counters for Counters.Counter;
@@ -39,6 +35,7 @@ contract LoanCore is ILoanCore, AccessControl {
     // 10k bps per whole
     uint256 private constant BPS_DENOMINATOR = 10_000;
 
+    // the last known balances by ERC20 token address
     mapping(address => uint256) private tokenBalances;
 
     constructor(
@@ -95,7 +92,7 @@ contract LoanCore is ILoanCore, AccessControl {
         address lender,
         address borrower,
         uint256 loanId
-    ) external onlyRole(ORIGINATOR_ROLE) override {
+    ) external override onlyRole(ORIGINATOR_ROLE) {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Created, "LoanCore::start: Invalid loan state");
@@ -112,9 +109,12 @@ contract LoanCore is ILoanCore, AccessControl {
         uint256 borrowerNoteId = borrowerNote.mint(borrower);
         uint256 lenderNoteId = lenderNote.mint(lender);
 
-        // TODO: test if this is more/less costly than just setting the fields
         loans[loanId] = LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanState.Active);
-        IERC20(data.terms.payableCurrency).transfer(borrower, getPrincipalLessFees(data.terms.principal));
+        SafeERC20.safeTransfer(
+            IERC20(data.terms.payableCurrency),
+            borrower,
+            getPrincipalLessFees(data.terms.principal)
+        );
 
         updateTokenBalance(IERC20(data.terms.payableCurrency));
         emit LoanStarted(loanId, lender, borrower);
@@ -123,7 +123,7 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function repay(uint256 loanId) external onlyRole(REPAYER_ROLE) override {
+    function repay(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Active, "LoanCore::repay: Invalid loan state");
@@ -143,7 +143,7 @@ contract LoanCore is ILoanCore, AccessControl {
         borrowerNote.burn(data.borrowerNoteId);
 
         // asset and collateral redistribution
-        IERC20(data.terms.payableCurrency).transfer(lender, returnAmount);
+        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), lender, returnAmount);
         collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
 
         updateTokenBalance(IERC20(data.terms.payableCurrency));
@@ -154,7 +154,7 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function claim(uint256 loanId) external onlyRole(REPAYER_ROLE) override {
+    function claim(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
         LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanState.Active, "LoanCore::claim: Invalid loan state");
@@ -191,7 +191,6 @@ contract LoanCore is ILoanCore, AccessControl {
      * Take a principal value and return the amount less protocol fees
      */
     function getPrincipalLessFees(uint256 principal) internal view returns (uint256) {
-        // TODO: Fetch protocol fee from the fee controller
         return principal.sub(principal.mul(feeController.getOriginationFee()).div(BPS_DENOMINATOR));
     }
 
@@ -206,5 +205,21 @@ contract LoanCore is ILoanCore, AccessControl {
      */
     function setFeeController(IFeeController _newController) external onlyRole(DEFAULT_ADMIN_ROLE) {
         feeController = _newController;
+    }
+
+    /**
+     * @dev Claim the protocol fees for the given token
+     *
+     * @param token The address of the ERC20 token to claim fees for
+     *
+     * Requirements:
+     *
+     * - Must be called by the owner of this contract
+     */
+    function claimFees(IERC20 token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        // any token balances remaining on this contract are fees owned by the protocol
+        uint256 amount = token.balanceOf(address(this));
+        SafeERC20.safeTransfer(token, _msgSender(), amount);
+        emit FeesClaimed(address(token), _msgSender(), amount);
     }
 }

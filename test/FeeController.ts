@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { BigNumber, Signer } from "ethers";
+import { Signer } from "ethers";
 import { FeeController } from "../typechain";
 import { deploy } from "./utils/contracts";
 
@@ -33,20 +33,32 @@ describe("FeeController", () => {
     describe("setOriginationFee", () => {
       it("reverts if sender does not have admin role", async () => {
         const { feeController, other } = await setupTestContext();
-        await expect(feeController.connect(other).setOriginationFee()).to.be.reverted;
+        await expect(feeController.connect(other).setOriginationFee(1234)).to.be.reverted;
       });
 
       it("sets origination fee", async () => {
         const { feeController, user } = await setupTestContext();
-        expect(feeController.connect(user).setOriginationFee());
+        await expect(feeController.connect(user).setOriginationFee(1234))
+          .to.emit(feeController, "UpdateOriginationFee")
+          .withArgs(1234);
+      });
+    });
+
+    describe("getOriginationFee", () => {
+      it("initially returns 3%", async () => {
+        const { feeController, user } = await setupTestContext();
+        const originationFee = await feeController.connect(user).getOriginationFee();
+        expect(originationFee).to.equal(300);
       });
 
-      describe("getOriginationFee", () => {
-        it("returns an origination fee equal to 2 percent", async () => {
-          const { feeController, user } = await setupTestContext();
-          const originationFee = await feeController.connect(user).getOriginationFee(BigNumber.from(1000));
-          expect(originationFee);
-        });
+      it("returns updated origination fee after set", async () => {
+        const { feeController, user } = await setupTestContext();
+        const newFee = 200;
+
+        await feeController.connect(user).setOriginationFee(newFee);
+
+        const originationFee = await feeController.connect(user).getOriginationFee();
+        expect(originationFee).to.equal(newFee);
       });
     });
   });
