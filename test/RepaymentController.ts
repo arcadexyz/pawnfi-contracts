@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { utils, BigNumber, BigNumberish, Signer } from "ethers";
 
-import { MockLoanCore, MockERC20, MockERC721, RepaymentController } from "../typechain";
+import { MockLoanCore, MockERC20, MockERC721, PromissoryNote, RepaymentController } from "../typechain";
 import { deploy } from "./utils/contracts";
 import { TransactionDescription } from "ethers/lib/utils";
 
@@ -11,32 +11,35 @@ interface TestContext {
     loanData: any;
     repaymentController: RepaymentController;
     mockERC20: MockERC20;
-    mockBorrowerNote: MockERC721;
-    mockLenderNote: MockERC721;
     borrower: Signer;
     lender: Signer;
+    otherParty: Signer;
     signers: Signer[];
 }
 
 describe("RepaymentController", () => {
+    const TEST_LOAN_PRINCIPAL = 10;
+    const TEST_LOAN_INTEREST = 1;
+    let context: TestContext;
+
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
     const setupTestContext = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
-        const [deployer, borrower, lender] = signers;
+        const [deployer, borrower, lender, otherParty] = signers;
 
-        const mockBorrowerNote = <MockERC721>await deploy("MockERC721", deployer, ["Mock BorrowerNote", "MB"]);
-        const mockLenderNote = <MockERC721>await deploy("MockERC721", deployer, ["Mock LenderNote", "ML"]);
-        // const mockAssetWrapper = <MockERC721>await deploy("MockERC721", deployer, ["Mock AssetWrapper", "MA"]);
         const mockCollateral = <MockERC721>await deploy("MockERC721", deployer, ["Mock Collateral", "McNFT"]);
-        const mockLoanCore = <MockLoanCore>(
-            await deploy("MockLoanCore", deployer, [mockBorrowerNote.address, mockLenderNote.address])
-        );
-        const mockERC20 = <MockERC20>await deploy("MockERC20", deployer, ["Mock ERC20", "MOCK"]);
-        
-        const repaymentController = <RepaymentController>await deploy("RepaymentController", deployer, [mockLoanCore.address, mockBorrowerNote.address, mockLenderNote.address]);
+        const mockLoanCore = <MockLoanCore>(await deploy("MockLoanCore", deployer, []));
 
+        const borrowerNoteAddress = await mockLoanCore.borrowerNote();
+        const lenderNoteAddress = await mockLoanCore.lenderNote();
+
+        const mockERC20 = <MockERC20>await deploy("MockERC20", deployer, ["Mock ERC20", "MOCK"]);
+        await mockERC20.mint(await borrower.getAddress(), utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString()));
+        await mockERC20.mint(await otherParty.getAddress(), utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString()));
+        
+        const repaymentController = <RepaymentController>await deploy("RepaymentController", deployer, [mockLoanCore.address, borrowerNoteAddress, lenderNoteAddress]);
 
         // Mint collateral token from asset wrapper
         const collateralMintTx = await mockCollateral.mint(await borrower.getAddress());
@@ -48,8 +51,8 @@ describe("RepaymentController", () => {
         const dueDate = Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 14)
         const terms = {
             dueDate: dueDate,
-            principal: utils.parseEther('10'),
-            interest: utils.parseEther('1'),
+            principal: utils.parseEther(TEST_LOAN_PRINCIPAL.toString()),
+            interest: utils.parseEther(TEST_LOAN_INTEREST.toString()),
             collateralTokenId,
             payableCurrency: mockERC20.address
         };
@@ -64,43 +67,86 @@ describe("RepaymentController", () => {
             throw new Error("Unable to initialize loan");
         }
 
+        await mockLoanCore.startLoan(
+            await lender.getAddress(),
+            await borrower.getAddress(),
+            loanId
+        );
+
         const loanData = await mockLoanCore.getLoan(loanId);
-        console.log('This is loanData', loanData);
 
         return {
             loanId,
             loanData,
             repaymentController,
-            mockBorrowerNote,
-            mockLenderNote,
             mockERC20,
             borrower,
             lender,
+            otherParty,
             signers: signers.slice(3),
         };
     };
 
-    describe("repay", () => {
-        let context: TestContext;
-
-        before(async () => {
+    describe.only("repay", () => {
+        beforeEach(async () => {
             context = await setupTestContext();
         });
 
         it("reverts for an invalid note ID", async () => {
+            const { repaymentController, borrower } = context;
             // Use junk note ID, like 1000
-            console.log(context.repaymentController.repay);
-            await expect(context.repaymentController.repay(1)).to.be.revertedWith("RepaymentController: repay could not dereference loan");
+            await expect(repaymentController.connect(borrower).repay(1000)).to.be.revertedWith("RepaymentController: repay could not dereference loan");
         });
 
         it("repays the loan and withdraws from the borrower's account", async () => {
+            const { mockERC20, borrower, repaymentController, loanData } = context;
 
+            const balanceBefore = await mockERC20.balanceOf(await borrower.getAddress());
+            expect(balanceBefore.eq(utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString())));
+            
+            // approve withdrawal
+            await mockERC20.connect(borrower).approve(repaymentController.address, utils.parseEther("100"));
+            await repaymentController.connect(borrower).repay(loanData.borrowerNoteId);
+
+            // Test that borrower no longer has funds
+            const balanceAfter = await mockERC20.balanceOf(await borrower.getAddress());
+            expect(balanceAfter.eq(0));
+
+            // Correct loan state update should be tested in LoanCore
+        });
+
+        it("allows any party to repay the loan, even if not the borrower", async () => {
+            const { mockERC20, otherParty, repaymentController, loanData } = context;
+
+            const balanceBefore = await mockERC20.balanceOf(await otherParty.getAddress());
+            expect(balanceBefore.eq(utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString())));
+
+            await mockERC20.connect(otherParty).approve(repaymentController.address, utils.parseEther("100"));
+            await repaymentController.connect(otherParty).repay(loanData.borrowerNoteId);
+
+            // Test that otherParty no longer has funds
+            const balanceAfter = await mockERC20.balanceOf(await otherParty.getAddress());
+            expect(balanceAfter.eq(0));
+
+            // Correct loan state update should be tested in LoanCore
         });
     });
     describe("claim", () => {
-        it("reverts for an invalid note ID");
-        it("reverts if the claimant is not the lender");
-        it("claims the collateral and sends it to the lender's account");
+        beforeEach(async () => {
+            context = await setupTestContext();
+        });
 
+        it("reverts for an invalid note ID", async () => {
+            const { repaymentController, lender } = context;
+
+            // Use junk note ID, like 1000
+            await expect(repaymentController.connect(lender).claim(1000)).to.be.revertedWith("RepaymentController: claim could not dereference loan");
+        });
+
+        it("reverts if the claimant is not the lender", async () => {
+
+        });
+
+        it("claims the collateral and sends it to the lender's account");
     });
 }); 

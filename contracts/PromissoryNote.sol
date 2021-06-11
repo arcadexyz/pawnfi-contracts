@@ -52,6 +52,9 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
         _setupRole(BURNER_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
         _setupRole(PAUSER_ROLE, _msgSender());
+
+        // We don't want token IDs of 0
+        _tokenIdTracker.increment();
     }
 
     /**

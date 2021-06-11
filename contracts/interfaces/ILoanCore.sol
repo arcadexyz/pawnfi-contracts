@@ -9,6 +9,11 @@ import "../libraries/LoanData.sol";
  */
 interface ILoanCore {
     /**
+     * @dev Emitted on initialization to share location of dependent notes
+     */
+    event Initialized(address collateralToken, address borrowerNote, address lenderNote);
+
+    /**
      * @dev Emitted when a loan is initially created
      */
     event LoanCreated(LoanData.LoanTerms terms, uint256 loanId);
