@@ -1,9 +1,12 @@
 pragma solidity ^0.8.0;
 
-enum FeeType { Origination, Repayment, LateFee }
-
 interface IFeeController {
-    function setOriginationFee() external returns (uint256);
+    /**
+     * @dev Emitted when origination fee is updated
+     */
+    event UpdateOriginationFee(uint256 _newFee);
 
-    function getOriginationFee(uint256 amount) external returns (uint256);
+    function setOriginationFee(uint256 _originationFee) external;
+
+    function getOriginationFee() external view returns (uint256);
 }
