@@ -10,7 +10,7 @@ import "../PromissoryNote.sol";
 /**
  * @dev Interface for the LoanCore contract
  */
-contract MockLoanCore is ILoanCore {    
+contract MockLoanCore is ILoanCore {
     using Counters for Counters.Counter;
     Counters.Counter private loanIdTracker;
 
@@ -41,7 +41,13 @@ contract MockLoanCore is ILoanCore {
      */
     function createLoan(LoanData.LoanTerms calldata terms) external override returns (uint256 loanId) {
         LoanData.LoanTerms memory _loanTerms =
-            LoanData.LoanTerms(terms.dueDate, terms.principal, terms.interest, terms.collateralTokenId, terms.payableCurrency);
+            LoanData.LoanTerms(
+                terms.dueDate,
+                terms.principal,
+                terms.interest,
+                terms.collateralTokenId,
+                terms.payableCurrency
+            );
 
         LoanData.LoanData memory _loanData = LoanData.LoanData(0, 0, _loanTerms, LoanData.LoanState.Created);
 

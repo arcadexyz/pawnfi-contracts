@@ -167,7 +167,7 @@ describe("PromissoryNote", () => {
         lenderPromissoryNote,
         loanCore,
         mockAssetWrapper,
-        user, 
+        user,
       } = await setupTestContext();
       const promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
       const loanTerms = createLoanTerms(mockAssetWrapper.address);

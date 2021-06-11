@@ -2,11 +2,11 @@ pragma solidity ^0.8.0;
 
 library LoanData {
     /**
-    * @dev Enum describing the current state of a loan
-    * State change flow:
-    *  Created -> Active -> Repaid
-    *                    -> Defaulted
-    */
+     * @dev Enum describing the current state of a loan
+     * State change flow:
+     *  Created -> Active -> Repaid
+     *                    -> Defaulted
+     */
     enum LoanState {
         // We need a default that is not 'Created' - this is the zero value
         DUMMY_DO_NOT_USE,
@@ -21,8 +21,8 @@ library LoanData {
     }
 
     /**
-    * @dev The raw terms of a loan
-    */
+     * @dev The raw terms of a loan
+     */
     struct LoanTerms {
         // Timestamp representing the due date of the loan
         uint256 dueDate;
@@ -37,8 +37,8 @@ library LoanData {
     }
 
     /**
-    * @dev The data of a loan. This is stored once the loan is Active
-    */
+     * @dev The data of a loan. This is stored once the loan is Active
+     */
     struct LoanData {
         // The tokenId of the borrower note
         uint256 borrowerNoteId;

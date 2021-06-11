@@ -17,7 +17,7 @@ contract RepaymentController is IRepaymentController {
     ILoanCore private loanCore;
     IPromissoryNote private borrowerNote;
     IPromissoryNote private lenderNote;
-    
+
     constructor(
         ILoanCore _loanCore,
         IPromissoryNote _borrowerNote,
@@ -40,11 +40,7 @@ contract RepaymentController is IRepaymentController {
         LoanData.LoanTerms memory terms = loanCore.getLoan(loanId).terms;
 
         // withdraw principal plus interest from borrower and send to loan core
-        IERC20(terms.payableCurrency).transferFrom(
-            msg.sender, 
-            address(loanCore), 
-            terms.principal.add(terms.interest)
-        );
+        IERC20(terms.payableCurrency).transferFrom(msg.sender, address(loanCore), terms.principal.add(terms.interest));
 
         // call repay function in loan core
         loanCore.repay(loanId);

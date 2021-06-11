@@ -40,11 +40,15 @@ contract LoanCore is ILoanCore, AccessControl {
     // the last known balances by ERC20 token address
     mapping(address => uint256) private tokenBalances;
 
+<<<<<<< HEAD
     constructor(
         IERC721 _collateralToken
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
+=======
+    constructor(IERC721 _collateralToken) {
+>>>>>>> 7c93da7 (fix(lint): lint)
         collateralToken = _collateralToken;
         borrowerNote = new PromissoryNote("PawnFi Borrower Note", "pBN");
         lenderNote = new PromissoryNote("PawnFi Lender Note", "pLN");

@@ -35,7 +35,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     Counters.Counter private _tokenIdTracker;
 
-    mapping (uint256 => uint256) public override loanIdByNoteId;
+    mapping(uint256 => uint256) public override loanIdByNoteId;
 
     /**
      * @dev Creates the borrowor note contract linked to a specific loan core
