@@ -51,8 +51,7 @@ contract LoanCore is ILoanCore, AccessControl {
         collateralToken = _collateralToken;
         borrowerNote = new PromissoryNote("PawnFi Borrower Note", "pBN");
         lenderNote = new PromissoryNote("PawnFi Lender Note", "pLN");
-                feeController = _feeController;
-
+        feeController = _feeController;
 
         // Avoid having loanId = 0
         loanIdTracker.increment();
@@ -70,7 +69,12 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function createLoan(LoanData.LoanTerms calldata terms) external override onlyRole(ORIGINATOR_ROLE) returns (uint256 loanId) {
+    function createLoan(LoanData.LoanTerms calldata terms)
+        external
+        override
+        onlyRole(ORIGINATOR_ROLE)
+        returns (uint256 loanId)
+    {
         require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
