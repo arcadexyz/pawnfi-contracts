@@ -70,7 +70,7 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function createLoan(LoanData.LoanTerms calldata terms) external override returns (uint256 loanId) {
+    function createLoan(LoanData.LoanTerms calldata terms) external override onlyRole(ORIGINATOR_ROLE) returns (uint256 loanId) {
         require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
@@ -96,7 +96,7 @@ contract LoanCore is ILoanCore, AccessControl {
         address lender,
         address borrower,
         uint256 loanId
-    ) external override {
+    ) external override onlyRole(ORIGINATOR_ROLE) {
         LoanData.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanData.LoanState.Created, "LoanCore::start: Invalid loan state");
