@@ -7,7 +7,10 @@ import { deploy } from "./utils/contracts";
 
 interface TestContext {
   loanId: string;
-  loanData: any;
+  loanData: {
+      borrowerNoteId: string;
+      lenderNoteId: string;
+  };
   repaymentController: RepaymentController;
   mockERC20: MockERC20;
   mockLoanCore: MockLoanCore;
@@ -77,7 +80,13 @@ describe("RepaymentController", () => {
 
     await mockLoanCore.startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
 
-    const loanData = await mockLoanCore.getLoan(loanId);
+    const loanRes = await mockLoanCore.getLoan(loanId);
+
+    // Extracting properties for cleaner type in test context
+    const loanData = { 
+        borrowerNoteId: loanRes.borrowerNoteId,
+        lenderNoteId: loanRes.lenderNoteId,
+    }
 
     return {
       loanId,
