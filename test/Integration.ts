@@ -59,10 +59,14 @@ describe("Integration", () => {
     await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await signers[0].getAddress());
     await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await signers[0].getAddress());
     const borrowerNoteAddress = await loanCore.borrowerNote();
-    const borrowerNote = <PromissoryNote>await (await (ethers.getContractFactory("PromissoryNote"))).attach(borrowerNoteAddress);
+    const borrowerNote = <PromissoryNote>(
+      await (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)
+    );
 
     const lenderNoteAddress = await loanCore.lenderNote();
-    const lenderNote = <PromissoryNote>await (await (ethers.getContractFactory("PromissoryNote"))).attach(lenderNoteAddress);
+    const lenderNote = <PromissoryNote>(
+      await (await ethers.getContractFactory("PromissoryNote")).attach(lenderNoteAddress)
+    );
 
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
