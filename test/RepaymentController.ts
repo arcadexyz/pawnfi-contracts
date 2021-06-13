@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import hre, { ethers } from "hardhat";
-import { utils, Signer } from "ethers";
+import { utils, Signer, BigNumber } from "ethers";
 
 import { MockLoanCore, MockERC20, MockERC721, RepaymentController } from "../typechain";
 import { deploy } from "./utils/contracts";
@@ -8,8 +8,8 @@ import { deploy } from "./utils/contracts";
 interface TestContext {
   loanId: string;
   loanData: {
-    borrowerNoteId: string;
-    lenderNoteId: string;
+    borrowerNoteId: BigNumber;
+    lenderNoteId: BigNumber;
   };
   repaymentController: RepaymentController;
   mockERC20: MockERC20;
