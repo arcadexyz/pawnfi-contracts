@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import hre from "hardhat";
+import hre, { ethers } from "hardhat";
 import { BigNumber, BigNumberish, Signer } from "ethers";
 
 import { AssetWrapper, FeeController, PromissoryNote, LoanCore, MockERC20 } from "../typechain";
@@ -47,21 +47,22 @@ describe("Integration", () => {
   const setupTestContext = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
 
-    const borrowerNote = <PromissoryNote>await deploy("PromissoryNote", signers[0], ["Mock BorrowerNote", "MB"]);
-    const lenderNote = <PromissoryNote>await deploy("PromissoryNote", signers[0], ["Mock LenderNote", "ML"]);
     const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["Mock AssetWrapper", "MA"]);
     const feeController = <FeeController>await deploy("FeeController", signers[0], []);
-    const loanCore = <LoanCore>(
-      await deploy("LoanCore", signers[0], [
-        borrowerNote.address,
-        lenderNote.address,
-        assetWrapper.address,
-        feeController.address,
-      ])
-    );
+    const loanCore = <LoanCore>await deploy("LoanCore", signers[0], [assetWrapper.address, feeController.address]);
 
     await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await signers[0].getAddress());
     await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await signers[0].getAddress());
+    const borrowerNoteAddress = await loanCore.borrowerNote();
+    const borrowerNote = <PromissoryNote>(
+      await (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)
+    );
+
+    const lenderNoteAddress = await loanCore.lenderNote();
+    const lenderNote = <PromissoryNote>(
+      await (await ethers.getContractFactory("PromissoryNote")).attach(lenderNoteAddress)
+    );
+
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
     return {

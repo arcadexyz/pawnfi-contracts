@@ -35,6 +35,8 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     Counters.Counter private _tokenIdTracker;
 
+    mapping(uint256 => uint256) public override loanIdByNoteId;
+
     /**
      * @dev Creates the borrowor note contract linked to a specific loan core
      * The loan core reference is non-upgradeable
@@ -50,6 +52,9 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
         _setupRole(BURNER_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
         _setupRole(PAUSER_ROLE, _msgSender());
+
+        // We don't want token IDs of 0
+        _tokenIdTracker.increment();
     }
 
     /**
@@ -63,10 +68,16 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
      *
      * - the caller must have the `MINTER_ROLE`.
      */
-    function mint(address to) external override {
+    function mint(address to, uint256 loanId) external override returns (uint256) {
         require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinter: sending does have proper role");
-        _mint(to, _tokenIdTracker.current());
+
+        uint256 currentTokenId = _tokenIdTracker.current();
+        _mint(to, currentTokenId);
+        loanIdByNoteId[currentTokenId] = loanId;
+
         _tokenIdTracker.increment();
+
+        return currentTokenId;
     }
 
     /**
@@ -83,6 +94,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
     function burn(uint256 tokenId) external override {
         require(hasRole(BURNER_ROLE, _msgSender()), "PromissoryNote: callers is not owner nor approved");
         _burn(tokenId);
+        loanIdByNoteId[tokenId] = 0;
     }
 
     /**

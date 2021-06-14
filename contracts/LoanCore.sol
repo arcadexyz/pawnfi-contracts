@@ -7,10 +7,12 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "./interfaces/INote.sol";
+import "./interfaces/IPromissoryNote.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 import "./interfaces/ILoanCore.sol";
+
+import "./PromissoryNote.sol";
 
 /**
  * @dev LoanCore contract - core contract for creating, repaying, and claiming collateral for PawnFi loans
@@ -23,10 +25,10 @@ contract LoanCore is ILoanCore, AccessControl {
     bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
 
     Counters.Counter private loanIdTracker;
-    mapping(uint256 => LoanData) private loans;
+    mapping(uint256 => LoanData.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
-    INote public borrowerNote;
-    INote public lenderNote;
+    IPromissoryNote public borrowerNote;
+    IPromissoryNote public lenderNote;
     IERC721 public collateralToken;
     IFeeController public feeController;
     address public originationController;
@@ -38,31 +40,37 @@ contract LoanCore is ILoanCore, AccessControl {
     // the last known balances by ERC20 token address
     mapping(address => uint256) private tokenBalances;
 
-    constructor(
-        INote _borrowerNote,
-        INote _lenderNote,
-        IERC721 _collateralToken,
-        IFeeController _feeController
-    ) {
+    constructor(IERC721 _collateralToken, IFeeController _feeController) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-        borrowerNote = _borrowerNote;
-        lenderNote = _lenderNote;
-        collateralToken = _collateralToken;
         feeController = _feeController;
+        collateralToken = _collateralToken;
+
+        borrowerNote = new PromissoryNote("PawnFi Borrower Note", "pBN");
+        lenderNote = new PromissoryNote("PawnFi Lender Note", "pLN");
+
+        // Avoid having loanId = 0
+        loanIdTracker.increment();
+
+        emit Initialized(address(collateralToken), address(borrowerNote), address(lenderNote));
     }
 
     /**
      * @inheritdoc ILoanCore
      */
-    function getLoan(uint256 loanId) external view override returns (LoanData memory loanData) {
+    function getLoan(uint256 loanId) external view override returns (LoanData.LoanData memory loanData) {
         return loans[loanId];
     }
 
     /**
      * @inheritdoc ILoanCore
      */
-    function createLoan(LoanTerms calldata terms) external override onlyRole(ORIGINATOR_ROLE) returns (uint256 loanId) {
+    function createLoan(LoanData.LoanTerms calldata terms)
+        external
+        override
+        onlyRole(ORIGINATOR_ROLE)
+        returns (uint256 loanId)
+    {
         require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
@@ -76,7 +84,7 @@ contract LoanCore is ILoanCore, AccessControl {
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
 
-        loans[loanId] = LoanData(0, 0, terms, LoanState.Created);
+        loans[loanId] = LoanData.LoanData(0, 0, terms, LoanData.LoanState.Created);
         collateralInUse[terms.collateralTokenId] = true;
         emit LoanCreated(terms, loanId);
     }
@@ -89,9 +97,9 @@ contract LoanCore is ILoanCore, AccessControl {
         address borrower,
         uint256 loanId
     ) external override onlyRole(ORIGINATOR_ROLE) {
-        LoanData memory data = loans[loanId];
+        LoanData.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanState.Created, "LoanCore::start: Invalid loan state");
+        require(data.state == LoanData.LoanState.Created, "LoanCore::start: Invalid loan state");
         // Ensure collateral and principal were deposited
         require(
             collateralToken.ownerOf(data.terms.collateralTokenId) == address(this),
@@ -101,11 +109,11 @@ contract LoanCore is ILoanCore, AccessControl {
         require(received >= data.terms.principal, "LoanCore::start: Insufficient lender deposit");
 
         // Distribute notes and principal
-        loans[loanId].state = LoanState.Active;
-        uint256 borrowerNoteId = borrowerNote.mint(borrower);
-        uint256 lenderNoteId = lenderNote.mint(lender);
+        loans[loanId].state = LoanData.LoanState.Active;
+        uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
+        uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        loans[loanId] = LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanState.Active);
+        loans[loanId] = LoanData.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanData.LoanState.Active);
         SafeERC20.safeTransfer(
             IERC20(data.terms.payableCurrency),
             borrower,
@@ -120,9 +128,9 @@ contract LoanCore is ILoanCore, AccessControl {
      * @inheritdoc ILoanCore
      */
     function repay(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
-        LoanData memory data = loans[loanId];
+        LoanData.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanState.Active, "LoanCore::repay: Invalid loan state");
+        require(data.state == LoanData.LoanState.Active, "LoanCore::repay: Invalid loan state");
 
         // ensure repayment was valid
         uint256 returnAmount = data.terms.principal.add(data.terms.interest);
@@ -134,7 +142,7 @@ contract LoanCore is ILoanCore, AccessControl {
 
         // state changes and cleanup
         // NOTE: these must be performed before assets are released to prevent reentrance
-        loans[loanId].state = LoanState.Repaid;
+        loans[loanId].state = LoanData.LoanState.Repaid;
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
@@ -151,15 +159,16 @@ contract LoanCore is ILoanCore, AccessControl {
      * @inheritdoc ILoanCore
      */
     function claim(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
-        LoanData memory data = loans[loanId];
+        LoanData.LoanData memory data = loans[loanId];
+
         // Ensure valid initial loan state
-        require(data.state == LoanState.Active, "LoanCore::claim: Invalid loan state");
+        require(data.state == LoanData.LoanState.Active, "LoanCore::claim: Invalid loan state");
         require(data.terms.dueDate < block.timestamp, "LoanCore::claim: Loan not expired");
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
 
         // NOTE: these must be performed before assets are released to prevent reentrance
-        loans[loanId].state = LoanState.Defaulted;
+        loans[loanId].state = LoanData.LoanState.Defaulted;
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
