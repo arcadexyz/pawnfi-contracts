@@ -114,6 +114,17 @@ describe("RepaymentController", () => {
       );
     });
 
+    it("fails to repay the loan and if the payable currency is not approved", async () => {
+      const { mockERC20, borrower, repaymentController, loanData } = context;
+
+      const balanceBefore = await mockERC20.balanceOf(await borrower.getAddress());
+      expect(balanceBefore.eq(utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString())));
+
+      // approve withdrawal
+      await mockERC20.connect(borrower).approve(repaymentController.address, utils.parseEther("0.001"));
+      await expect(repaymentController.connect(borrower).repay(loanData.borrowerNoteId)).to.be.reverted;
+    });
+
     it("repays the loan and withdraws from the borrower's account", async () => {
       const { mockERC20, borrower, repaymentController, loanData } = context;
 

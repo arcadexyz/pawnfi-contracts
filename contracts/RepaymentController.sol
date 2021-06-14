@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./libraries/LoanData.sol";
 import "./interfaces/IPromissoryNote.sol";
@@ -40,7 +41,12 @@ contract RepaymentController is IRepaymentController {
         LoanData.LoanTerms memory terms = loanCore.getLoan(loanId).terms;
 
         // withdraw principal plus interest from borrower and send to loan core
-        IERC20(terms.payableCurrency).transferFrom(msg.sender, address(loanCore), terms.principal.add(terms.interest));
+        SafeERC20.safeTransferFrom(
+            IERC20(terms.payableCurrency),
+            msg.sender,
+            address(loanCore),
+            terms.principal.add(terms.interest)
+        );
 
         // call repay function in loan core
         loanCore.repay(loanId);

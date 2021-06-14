@@ -48,10 +48,11 @@ contract LoanCore is ILoanCore, AccessControl {
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
+        feeController = _feeController;
         collateralToken = _collateralToken;
+
         borrowerNote = new PromissoryNote("PawnFi Borrower Note", "pBN");
         lenderNote = new PromissoryNote("PawnFi Lender Note", "pLN");
-        feeController = _feeController;
 
         // Avoid having loanId = 0
         loanIdTracker.increment();
