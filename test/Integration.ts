@@ -14,6 +14,9 @@ enum LoanState {
   Defaulted = 4,
 }
 
+const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
+const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
+
 const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
 interface LoanTerms {
@@ -54,10 +57,11 @@ describe("Integration", () => {
         lenderNote.address,
         assetWrapper.address,
         feeController.address,
-        await signers[0].getAddress(),
-        await signers[0].getAddress(),
       ])
     );
+
+    await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await signers[0].getAddress());
+    await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await signers[0].getAddress());
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
     return {
