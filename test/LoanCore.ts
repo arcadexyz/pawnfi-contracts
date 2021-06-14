@@ -61,10 +61,11 @@ describe("LoanCore", () => {
         mockLenderNote.address,
         mockAssetWrapper.address,
         feeController.address,
-        await originator.getAddress(),
-        await repayer.getAddress(),
       ])
     );
+
+    await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await originator.getAddress());
+    await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await repayer.getAddress());
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
     return {

@@ -42,13 +42,9 @@ contract LoanCore is ILoanCore, AccessControl {
         INote _borrowerNote,
         INote _lenderNote,
         IERC721 _collateralToken,
-        IFeeController _feeController,
-        address _originationController,
-        address _repaymentController
+        IFeeController _feeController
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(ORIGINATOR_ROLE, _originationController);
-        _setupRole(REPAYER_ROLE, _repaymentController);
 
         borrowerNote = _borrowerNote;
         lenderNote = _lenderNote;
