@@ -40,12 +40,7 @@ contract LoanCore is ILoanCore, AccessControl {
     // the last known balances by ERC20 token address
     mapping(address => uint256) private tokenBalances;
 
-    constructor(
-        IERC721 _collateralToken,
-        IFeeController _feeController,
-        address _originationController,
-        address _repaymentController
-    ) {
+    constructor(IERC721 _collateralToken, IFeeController _feeController) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         feeController = _feeController;

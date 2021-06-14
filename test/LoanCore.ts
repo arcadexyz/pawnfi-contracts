@@ -53,16 +53,11 @@ describe("LoanCore", () => {
     const feeController = <FeeController>await deploy("FeeController", signers[0], []);
     const originator = signers[0];
     const repayer = signers[0];
-    const loanCore = <LoanCore>(
-      await deploy("LoanCore", signers[0], [
-        mockAssetWrapper.address,
-        feeController.address,
-      ])
-    );
+    const loanCore = <LoanCore>await deploy("LoanCore", signers[0], [mockAssetWrapper.address, feeController.address]);
 
     await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await originator.getAddress());
     await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await repayer.getAddress());
-    
+
     const borrowerNoteAddress = await loanCore.borrowerNote();
     const mockBorrowerNote = <PromissoryNote>(
       await (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)

@@ -49,12 +49,7 @@ describe("Integration", () => {
 
     const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["Mock AssetWrapper", "MA"]);
     const feeController = <FeeController>await deploy("FeeController", signers[0], []);
-    const loanCore = <LoanCore>(
-      await deploy("LoanCore", signers[0], [
-        assetWrapper.address,
-        feeController.address,
-      ])
-    );
+    const loanCore = <LoanCore>await deploy("LoanCore", signers[0], [assetWrapper.address, feeController.address]);
 
     await loanCore.connect(signers[0]).grantRole(ORIGINATOR_ROLE, await signers[0].getAddress());
     await loanCore.connect(signers[0]).grantRole(REPAYER_ROLE, await signers[0].getAddress());
