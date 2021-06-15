@@ -112,3 +112,9 @@ Run Coverage instrumentation:
 ```sh
 $ yarn coverage
 ```
+
+## Deploy
+
+In order to deploy the contracts to a local hardhat instance, run `yarn hardhat run scripts/deploy.ts`.
+
+The same can be done for non-local instances like Ropsten or Mainnet, but a private key for the address to deploy from must be supplied in `hardhat.config.ts` as specified in https://hardhat.org/config/.
