@@ -50,7 +50,7 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
      *
      */
     function initializeLoan(
-        LoanTerms calldata loanTerms,
+        LoanData.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
@@ -96,7 +96,7 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
      *
      **/
     function initializeLoanWithCollateralPermit(
-        LoanTerms calldata loanTerms,
+        LoanData.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,

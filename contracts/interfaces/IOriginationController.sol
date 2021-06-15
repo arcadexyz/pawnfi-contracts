@@ -13,7 +13,7 @@ interface IOriginationController {
      *
      */
     function initializeLoan(
-        LoanTerms calldata loanTerms,
+        LoanData.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
@@ -27,7 +27,7 @@ interface IOriginationController {
      *
      */
     function initializeLoanWithCollateralPermit(
-        LoanTerms calldata loanTerms,
+        LoanData.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
