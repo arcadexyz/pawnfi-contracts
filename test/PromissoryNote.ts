@@ -6,7 +6,6 @@ import { BigNumber, BigNumberish } from "ethers";
 import { MockLoanCore, MockERC721, PromissoryNote } from "../typechain";
 import { deploy } from "./utils/contracts";
 import { fromRpcSig } from "ethereumjs-util";
-import { Signer } from "crypto";
 
 type Signer = SignerWithAddress;
 
@@ -295,12 +294,13 @@ describe("PromissoryNote", () => {
       ).to.be.revertedWith("ERC721Permit: not owner");
     });
 
-    it("rejects if bundleId is not valid", async () => {
+    it("rejects if promissoryNoteId is not valid", async () => {
       const approved = await promissoryNote.getApproved(promissoryNoteId);
       expect(approved).to.equal(hre.ethers.constants.AddressZero);
+      const otherNoteId = await mintPromissoryNote(promissoryNote, user);
 
       await expect(
-        promissoryNote.permit(await other.getAddress(), await other.getAddress(), 99999, maxDeadline, v, r, s),
+        promissoryNote.permit(await other.getAddress(), await other.getAddress(), otherNoteId, maxDeadline, v, r, s),
       ).to.be.revertedWith("ERC721Permit: not owner");
     });
 
