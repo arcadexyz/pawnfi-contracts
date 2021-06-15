@@ -1,6 +1,5 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
@@ -8,6 +7,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
+import "./ERC721Permit.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IPromissoryNote.sol";
 
@@ -27,7 +27,14 @@ import "./interfaces/IPromissoryNote.sol";
  * roles, as well as the default admin role, which will let it grant both minter
  * and pauser roles to other accounts.
  */
-contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enumerable, ERC721Pausable, IPromissoryNote {
+contract PromissoryNote is
+    Context,
+    AccessControlEnumerable,
+    ERC721Enumerable,
+    ERC721Pausable,
+    ERC721Permit,
+    IPromissoryNote
+{
     using Counters for Counters.Counter;
 
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -48,7 +55,7 @@ contract PromissoryNote is Context, AccessControlEnumerable, ERC721, ERC721Enume
   
      */
 
-    constructor(string memory name, string memory symbol) ERC721(name, symbol) {
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) ERC721Permit(name) {
         _setupRole(BURNER_ROLE, _msgSender());
         _setupRole(MINTER_ROLE, _msgSender());
         _setupRole(PAUSER_ROLE, _msgSender());
