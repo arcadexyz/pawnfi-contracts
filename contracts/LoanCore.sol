@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -17,7 +18,7 @@ import "./PromissoryNote.sol";
 /**
  * @dev LoanCore contract - core contract for creating, repaying, and claiming collateral for PawnFi loans
  */
-contract LoanCore is ILoanCore, AccessControl {
+contract LoanCore is ILoanCore, AccessControl, Pausable {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
 
@@ -68,6 +69,7 @@ contract LoanCore is ILoanCore, AccessControl {
     function createLoan(LoanData.LoanTerms calldata terms)
         external
         override
+        whenNotPaused
         onlyRole(ORIGINATOR_ROLE)
         returns (uint256 loanId)
     {
@@ -96,7 +98,7 @@ contract LoanCore is ILoanCore, AccessControl {
         address lender,
         address borrower,
         uint256 loanId
-    ) external override onlyRole(ORIGINATOR_ROLE) {
+    ) external override whenNotPaused onlyRole(ORIGINATOR_ROLE) {
         LoanData.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanData.LoanState.Created, "LoanCore::start: Invalid loan state");
@@ -158,7 +160,7 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function claim(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
+    function claim(uint256 loanId) external override whenNotPaused onlyRole(REPAYER_ROLE) {
         LoanData.LoanData memory data = loans[loanId];
 
         // Ensure valid initial loan state
@@ -226,5 +228,27 @@ contract LoanCore is ILoanCore, AccessControl {
         uint256 amount = token.balanceOf(address(this));
         SafeERC20.safeTransfer(token, _msgSender(), amount);
         emit FeesClaimed(address(token), _msgSender(), amount);
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 }
