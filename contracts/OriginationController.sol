@@ -12,20 +12,11 @@ import "./interfaces/IOriginationController.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IERC721Permit.sol";
 
-/**
- * @dev
- * This contract uses {AccessControl} to lock permissioned functions using the
- * different roles - head to its documentation for details.
- */
 contract OriginationController is Context, IOriginationController {
     address public loanCore;
     address public assetWrapper;
     using ECDSA for bytes32;
 
-    /**
-     * @dev
-     * can pause the contract if needed.
-     */
     constructor(address _loanCore, address _assetWrapper) {
         require(_loanCore != address(0), "loanCore address must be defined");
         loanCore = _loanCore;
