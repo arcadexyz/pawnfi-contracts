@@ -9,8 +9,15 @@ import "../libraries/LoanData.sol";
  */
 interface IOriginationController {
     /**
-     * @dev creates a new loan
-     *
+     * @dev initializes loan from loan core
+     * Requirements:
+     * - The caller must be a borrower or lender
+     * - The external signer must not be msg.sender
+     * - The external signer must be a borrower or lender
+     * @param loanTerms - struct containing specifics of loan made between lender and borrower
+     * @param borrower - address of borrowerPromissory note
+     * @param lender - address of lenderPromissory note
+     * @param v, r, s - signature from erc20
      */
     function initializeLoan(
         LoanData.LoanTerms calldata loanTerms,
@@ -23,8 +30,11 @@ interface IOriginationController {
 
     /**
      * @dev creates a new loan, with permit attached
-     *
-     *
+     * @param loanTerms - struct containing specifics of loan made between lender and borrower
+     * @param borrower - address of borrowerPromissory note
+     * @param lender - address of lenderPromissory note
+     * @param v, r, s - signature from erc20
+     * @param collateralV, collateralR, collateralS - signature from collateral
      */
     function initializeLoanWithCollateralPermit(
         LoanData.LoanTerms calldata loanTerms,
