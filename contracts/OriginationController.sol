@@ -50,13 +50,14 @@ contract OriginationController is Context, IOriginationController {
                     loanTerms.dueDate,
                     loanTerms.principal,
                     loanTerms.interest,
-                    loanTerms.payableCurrency,
-                    loanTerms.collateralTokenId
+                    loanTerms.collateralTokenId,
+                    loanTerms.payableCurrency
                 )
             );
 
         address externalSigner = loanHash.toEthSignedMessageHash().recover(v, r, s);
 
+        //ensures that the person who initializes the loan cannot intiate and sign the same loan
         require(
             (externalSigner == lender && externalSigner != _msgSender()) ||
                 (externalSigner == borrower && externalSigner != _msgSender()),
