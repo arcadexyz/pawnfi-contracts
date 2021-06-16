@@ -60,12 +60,12 @@ describe("LoanCore", () => {
 
     const borrowerNoteAddress = await loanCore.borrowerNote();
     const mockBorrowerNote = <PromissoryNote>(
-      await (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)
+      (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)
     );
 
     const lenderNoteAddress = await loanCore.lenderNote();
     const mockLenderNote = <PromissoryNote>(
-      await (await ethers.getContractFactory("PromissoryNote")).attach(lenderNoteAddress)
+      (await ethers.getContractFactory("PromissoryNote")).attach(lenderNoteAddress)
     );
 
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
@@ -213,6 +213,16 @@ describe("LoanCore", () => {
       );
     });
 
+    it("should fail when paused", async () => {
+      const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+      const collateralTokenId = await mintERC721(mockAssetWrapper, user);
+      const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
+
+      await loanCore.connect(user).pause();
+
+      await expect(loanCore.connect(user).createLoan(terms)).to.be.revertedWith("Pausable: paused");
+    });
+
     it("gas [ @skip-on-coverage ]", async () => {
       const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
       const collateralTokenId = await mintERC721(mockAssetWrapper, user);
@@ -221,7 +231,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(user).createLoan(terms);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("180646");
+      expect(gasUsed.toString()).to.equal("182772");
     });
   });
 
@@ -522,6 +532,28 @@ describe("LoanCore", () => {
       ).to.be.revertedWith("LoanCore::start: Insufficient lender deposit");
     });
 
+    it("should fail when paused", async () => {
+      const {
+        mockAssetWrapper,
+        loanCore,
+        mockERC20,
+        loanId,
+        terms: { collateralTokenId, principal },
+        borrower,
+        lender,
+      } = await setupLoan();
+
+      await mockAssetWrapper
+        .connect(borrower)
+        .transferFrom(await borrower.getAddress(), loanCore.address, collateralTokenId);
+      await mockERC20.connect(lender).mint(loanCore.address, principal);
+
+      await loanCore.connect(borrower).pause();
+      await expect(
+        loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId),
+      ).to.be.revertedWith("Pausable: paused");
+    });
+
     it("gas [ @skip-on-coverage ]", async () => {
       const {
         mockAssetWrapper,
@@ -543,7 +575,7 @@ describe("LoanCore", () => {
         .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("473475");
+      expect(gasUsed.toString()).to.equal("475599");
     });
   });
 
@@ -658,6 +690,14 @@ describe("LoanCore", () => {
       );
     });
 
+    it("should still work when paused", async () => {
+      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan();
+      await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
+
+      await loanCore.connect(borrower).pause();
+      await expect(loanCore.connect(borrower).repay(loanId)).to.emit(loanCore, "LoanRepaid").withArgs(loanId);
+    });
+
     it("gas [ @skip-on-coverage ]", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan();
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -665,7 +705,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).repay(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("123069");
+      expect(gasUsed.toString()).to.equal("123118");
     });
   });
 
@@ -760,6 +800,18 @@ describe("LoanCore", () => {
       await expect(loanCore.connect(borrower).claim(loanId)).to.be.revertedWith("LoanCore::claim: Loan not expired");
     });
 
+    it("should fail when paused", async () => {
+      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
+        dueDate: await blockchainTime.secondsFromNow(1000),
+      });
+      await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
+
+      await blockchainTime.increaseTime(1001);
+
+      await loanCore.connect(borrower).pause();
+      await expect(loanCore.connect(borrower).claim(loanId)).to.be.revertedWith("Pausable: paused");
+    });
+
     it("gas [ @skip-on-coverage ]", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
         dueDate: await blockchainTime.secondsFromNow(1000),
@@ -771,7 +823,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).claim(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("103111");
+      expect(gasUsed.toString()).to.equal("104175");
     });
   });
 
