@@ -18,8 +18,7 @@ import "./interfaces/IERC721Permit.sol";
  * This contract uses {AccessControl} to lock permissioned functions using the
  * different roles - head to its documentation for details.
  */
-contract OriginationController is Context, AccessControlEnumerable, IOriginationController {
-    uint256 public loanId;
+contract OriginationController is Context, IOriginationController {
     address public loanCore;
     address public assetWrapper;
     using ECDSA for bytes32;
@@ -40,10 +39,10 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
      * - The caller must be a borrower or lender
      * - The external signer must not be msg.sender
      * - The external signer must be a borrower or lender
-     * loanTerms - struct containing specifics of loan made between lender and borrower
-     * borrower - address of borrowerPromissory note
-     * lender - address of lenderPromissory note
-     * v, r, s - signature from erc20
+     * @param loanTerms - struct containing specifics of loan made between lender and borrower
+     * @param borrower - address of borrowerPromissory note
+     * @param lender - address of lenderPromissory note
+     * @param v, r, s - signature from erc20
      */
     function initializeLoan(
         LoanData.LoanTerms calldata loanTerms,
@@ -74,30 +73,20 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
             "external signer must be borrower or lender"
         );
 
-        require(
-            IERC721(borrower).getApproved(loanTerms.collateralTokenId) != address(0),
-            "must be approved to accept collateral token"
-        );
-
-        require(
-            IERC20(loanTerms.payableCurrency).allowance(address(lender), address(this)) >= loanTerms.principal,
-            "must be approved to accept funding currency"
-        );
-
         TransferHelper.safeTransferFrom(loanTerms.payableCurrency, lender, loanCore, loanTerms.principal);
         IERC721(address(this)).transferFrom(borrower, loanCore, loanTerms.collateralTokenId);
 
-        loanId = ILoanCore(loanCore).createLoan(loanTerms);
+        uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);
         ILoanCore(loanCore).startLoan(lender, borrower, loanId);
     }
 
     /**
      * @dev creates a new loan, with permit attached
-     * loanTerms - struct containing specifics of loan made between lender and borrower
-     * borrower - address of borrowerPromissory note
-     * lender - address of lenderPromissory note
-     * v, r, s - signature from erc20
-     * collateralV, collateralR, collateralS - signature from collateral
+     * @param loanTerms - struct containing specifics of loan made between lender and borrower
+     * @param borrower - address of borrowerPromissory note
+     * @param lender - address of lenderPromissory note
+     * @param v, r, s - signature from erc20
+     * @param collateralV, collateralR, collateralS - signature from collateral
      */
     function initializeLoanWithCollateralPermit(
         LoanData.LoanTerms calldata loanTerms,
