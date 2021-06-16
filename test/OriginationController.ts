@@ -4,11 +4,11 @@
 import { expect } from "chai";
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { BigNumber, BigNumberish, ethers } from "ethers";
+import { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 import { deploy } from "./utils/contracts";
 
 import { OriginationController, MockERC20, AssetWrapper, PromissoryNote, MockLoanCore } from "../typechain";
-import { approve, mint, ZERO_ADDRESS } from "./utils/erc20";
+import { approve, ZERO_ADDRESS } from "./utils/erc20";
 import { fromRpcSig } from "ethereumjs-util";
 
 type Signer = SignerWithAddress;
@@ -41,6 +41,20 @@ const typedData = {
       { name: "tokenId", type: "uint256" },
       { name: "nonce", type: "uint256" },
       { name: "deadline", type: "uint256" },
+    ],
+  },
+  primaryType: "Permit" as const,
+};
+
+const collateralTypedData = {
+  types: {
+    Permit: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "tokenId", type: "uint256" },
+      { name: "nonce", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+      { name: "approvalMessage", type: "ContractTransaction" },
     ],
   },
   primaryType: "Permit" as const,
@@ -106,6 +120,28 @@ const createLoanTerms = (
     collateralTokenId,
     payableCurrency,
   };
+};
+
+const buildCollateralData = (
+  chainId: number,
+  verifyingContract: string,
+  name: string,
+  version: string,
+  owner: string,
+  spender: string,
+  tokenId: BigNumberish,
+  nonce: number,
+  deadline = maxDeadline,
+) => {
+  return Object.assign({}, typedData, {
+    domain: {
+      name,
+      version,
+      chainId,
+      verifyingContract,
+    },
+    message: { owner, spender, tokenId, nonce, deadline },
+  });
 };
 
 const buildData = (
@@ -233,6 +269,7 @@ describe("OriginationController", () => {
       ).to.be.reverted;
     });
   });
+
   it("Reverts if it has not been approved to accept the funding currency tokens by the lender", async () => {
     const {
       originationController,
@@ -311,6 +348,7 @@ describe("OriginationController", () => {
       lenderPromissoryNote,
       borrowerPromissoryNote,
     } = await setupTestContext();
+
     const loanTerms = createLoanTerms(assetWrapper.address);
     const bundleId = await initializeBundle(assetWrapper, user);
 
@@ -329,7 +367,7 @@ describe("OriginationController", () => {
     const { v, r, s } = fromRpcSig(signature);
 
     await approve(mockERC20, other, originationController.address, loanTerms.principal);
-    await assetWrapper.connect(user).approve(originationController.address, loanTerms.collateralTokenId);
+    await assetWrapper.connect(user).approve(originationController.address, bundleId);
 
     expect(
       originationController
@@ -337,9 +375,10 @@ describe("OriginationController", () => {
         .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
     );
   });
-});
 
-describe("initializeLoanWithCollateralPermit", () => {
-  it("Reverts if AssetWrapper.permit is invalid", () => { });
-  it("Initializes a loan", () => { });
+  describe("initializeLoanWithCollateralPermit", () => {
+    it("Reverts if AssetWrapper.permit is invalid", () => {});
+
+    it("Initializes a loan", () => {});
+  });
 });
