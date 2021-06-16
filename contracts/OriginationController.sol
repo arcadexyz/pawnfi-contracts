@@ -57,7 +57,7 @@ contract OriginationController is Context, IOriginationController {
 
         address externalSigner = loanHash.toEthSignedMessageHash().recover(v, r, s);
 
-        //ensures that the person who initializes the loan cannot intiate and sign the same loan
+        //ensures that the person who initializes the loan cannot initiate and sign the same loan
         require(
             (externalSigner == lender && externalSigner != _msgSender()) ||
                 (externalSigner == borrower && externalSigner != _msgSender()),
