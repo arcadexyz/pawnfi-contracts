@@ -41,7 +41,7 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
      * - The external signer must not be msg.sender
      * - The external signer must be a borrower or lender
      * loanTerms - struct containing specifics of loan made between lender and borrower
-     * borrower - address of borrowerPromissory note 
+     * borrower - address of borrowerPromissory note
      * lender - address of lenderPromissory note
      * v, r, s - signature from erc20
      */
@@ -68,9 +68,11 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
 
         address externalSigner = loanHash.toEthSignedMessageHash().recover(v, r, s);
 
-        require(externalSigner == lender && externalSigner != _msgSender()
-        || externalSigner == borrower && externalSigner != _msgSender(), 
-        "external signer must be borrower or lender");
+        require(
+            (externalSigner == lender && externalSigner != _msgSender()) ||
+                (externalSigner == borrower && externalSigner != _msgSender()),
+            "external signer must be borrower or lender"
+        );
 
         require(
             IERC721(borrower).getApproved(loanTerms.collateralTokenId) != address(0),
@@ -89,11 +91,10 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
         ILoanCore(loanCore).startLoan(lender, borrower, loanId);
     }
 
-
     /**
      * @dev creates a new loan, with permit attached
      * loanTerms - struct containing specifics of loan made between lender and borrower
-     * borrower - address of borrowerPromissory note 
+     * borrower - address of borrowerPromissory note
      * lender - address of lenderPromissory note
      * v, r, s - signature from erc20
      * collateralV, collateralR, collateralS - signature from collateral
