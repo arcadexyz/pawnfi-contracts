@@ -108,12 +108,11 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
         bytes32 collateralR,
         bytes32 collateralS
     ) external override {
-
         IERC721Permit(assetWrapper).permit(
             borrower,
             address(this),
             loanTerms.collateralTokenId,
-            block.timestamp+1000,
+            block.timestamp + 1000,
             collateralV,
             collateralR,
             collateralS
