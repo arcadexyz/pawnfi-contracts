@@ -24,6 +24,7 @@ import "./interfaces/IERC721Permit.sol";
 contract OriginationController is Context, AccessControlEnumerable, IOriginationController {
     uint256 public loanId;
     address public loanCore;
+    address public assetWrapper;
     using ECDSA for bytes32;
 
     /**
@@ -32,9 +33,10 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
      * can pause the contract if needed.
      *
      */
-    constructor(address _loanCore) {
+    constructor(address _loanCore, address _assetWrapper) {
         require(_loanCore != address(0), "loanCore address must be defined");
         loanCore = _loanCore;
+        assetWrapper = _assetWrapper;
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
@@ -106,11 +108,12 @@ contract OriginationController is Context, AccessControlEnumerable, IOrigination
         bytes32 collateralR,
         bytes32 collateralS
     ) external override {
-        IERC721Permit(address(this)).permit(
+
+        IERC721Permit(assetWrapper).permit(
             borrower,
-            lender,
+            address(this),
             loanTerms.collateralTokenId,
-            1000,
+            block.timestamp+1000,
             collateralV,
             collateralR,
             collateralS
