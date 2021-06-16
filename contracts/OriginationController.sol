@@ -24,15 +24,7 @@ contract OriginationController is Context, IOriginationController {
     }
 
     /**
-     * @dev initializes loan from loan core
-     * Requirements:
-     * - The caller must be a borrower or lender
-     * - The external signer must not be msg.sender
-     * - The external signer must be a borrower or lender
-     * @param loanTerms - struct containing specifics of loan made between lender and borrower
-     * @param borrower - address of borrowerPromissory note
-     * @param lender - address of lenderPromissory note
-     * @param v, r, s - signature from erc20
+     * @inheritdoc IOriginationController
      */
     function initializeLoan(
         LoanData.LoanTerms calldata loanTerms,
@@ -72,12 +64,7 @@ contract OriginationController is Context, IOriginationController {
     }
 
     /**
-     * @dev creates a new loan, with permit attached
-     * @param loanTerms - struct containing specifics of loan made between lender and borrower
-     * @param borrower - address of borrowerPromissory note
-     * @param lender - address of lenderPromissory note
-     * @param v, r, s - signature from erc20
-     * @param collateralV, collateralR, collateralS - signature from collateral
+     * @inheritdoc IOriginationController
      */
     function initializeLoanWithCollateralPermit(
         LoanData.LoanTerms calldata loanTerms,
