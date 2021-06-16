@@ -51,8 +51,8 @@ contract OriginationController is Context, IOriginationController {
 
         //ensures that the person who initializes the loan cannot initiate and sign the same loan
         require(
-            (externalSigner == lender && externalSigner != _msgSender()) ||
-                (externalSigner == borrower && externalSigner != _msgSender()),
+            (externalSigner == lender && _msgSender() != lender ||
+                externalSigner == borrower && _msgSender() != borrower),
             "external signer must be borrower or lender"
         );
 

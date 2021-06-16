@@ -250,38 +250,6 @@ describe("OriginationController", () => {
     });
   });
 
-  it("Reverts if it has not been approved to accept the funding currency tokens by the lender", async () => {
-    const {
-      originationController,
-      assetWrapper,
-      user,
-      other,
-      lenderPromissoryNote,
-      borrowerPromissoryNote,
-    } = await setupTestContext();
-    const loanTerms = createLoanTerms(assetWrapper.address);
-    const bundleId = await initializeBundle(assetWrapper, user);
-
-    const data = buildData(
-      chainId,
-      assetWrapper.address,
-      await assetWrapper.name(),
-      "1",
-      await user.getAddress(),
-      await other.getAddress(),
-      bundleId,
-      0,
-    );
-
-    const signature = await user._signTypedData(data.domain, data.types, data.message);
-    const { v, r, s } = fromRpcSig(signature);
-    await expect(
-      originationController
-        .connect(ZERO_ADDRESS)
-        .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
-    ).to.be.reverted;
-  });
-
   it("Reverts if it has not been approved to accept the collateral token by the borrower", async () => {
     const {
       originationController,
@@ -458,7 +426,7 @@ describe("OriginationController", () => {
 
       const signature = await user._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
 
-      const { v, r, s } = fromRpcSig(collateralSignature);
+      const { v, r, s } = fromRpcSig(signature);
 
       expect(
         originationController
