@@ -159,14 +159,20 @@ describe("OriginationController", () => {
     it("Reverts if _loanCore address is not provided", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
       const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
-      await expect(deploy("OriginationController", signers[0], [ZERO_ADDRESS, assetWrapper.address])).to.be.reverted;
+      await expect(
+        deploy("OriginationController", signers[0], [ZERO_ADDRESS, assetWrapper.address]),
+      ).to.be.revertedWith("Origination: loanCore not defined");
     });
 
     it("Instantiates the OriginationController", async () => {
       const signers: Signer[] = await hre.ethers.getSigners();
       const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
       const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
-      expect(deploy("OriginationController", signers[0], [loanCore.address, assetWrapper.address]));
+      const originationController = await deploy("OriginationController", signers[0], [
+        loanCore.address,
+        assetWrapper.address,
+      ]);
+      expect(await originationController.assetWrapper()).to.equal(assetWrapper.address);
     });
   });
 
@@ -174,170 +180,32 @@ describe("OriginationController", () => {
     it("Reverts if msg.sender is not either lender or borrower", async () => {
       const {
         originationController,
+        mockERC20,
         assetWrapper,
-        user,
-        lenderPromissoryNote,
-        borrowerPromissoryNote,
+        user: lender,
+        other: borrower,
+        signers,
       } = await setupTestContext();
-      const loanTerms = createLoanTerms(assetWrapper.address);
 
-      const data = buildData(chainId, assetWrapper.address, await assetWrapper.name(), "1", loanTerms);
+      const bundleId = await initializeBundle(assetWrapper, borrower);
+      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+      await mint(mockERC20, lender, loanTerms.principal);
 
-      const signature = await user._signTypedData(data.domain, data.types, data.message);
+      const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+      const signature = await borrower._signTypedData(data.domain, data.types, data.message);
       const { v, r, s } = fromRpcSig(signature);
+      await approve(mockERC20, lender, originationController.address, loanTerms.principal);
+      await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
       await expect(
         originationController
-          .connect(ZERO_ADDRESS)
-          .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
-      ).to.be.reverted;
+          // some random guy
+          .connect(signers[3])
+          .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
+      ).to.be.revertedWith("Origination: sender not participant");
     });
 
-    it("Reverts if it has not been approved to accept the collateral token by the borrower", async () => {
-      const {
-        originationController,
-        assetWrapper,
-        user,
-        lenderPromissoryNote,
-        borrowerPromissoryNote,
-      } = await setupTestContext();
-      const loanTerms = createLoanTerms(assetWrapper.address);
-
-      const data = buildData(chainId, assetWrapper.address, await assetWrapper.name(), "1", loanTerms);
-
-      const signature = await user._signTypedData(data.domain, data.types, data.message);
-      const { v, r, s } = fromRpcSig(signature);
-
-      await expect(
-        originationController
-          .connect(user)
-          .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
-      ).to.be.reverted;
-    });
-  });
-
-  it("Reverts if it has not been approved to accept the funding currency tokens by the lender", async () => {
-    const {
-      originationController,
-      assetWrapper,
-      user,
-      lenderPromissoryNote,
-      borrowerPromissoryNote,
-    } = await setupTestContext();
-    const loanTerms = createLoanTerms(assetWrapper.address);
-
-    const data = buildData(chainId, assetWrapper.address, await assetWrapper.name(), "1", loanTerms);
-
-    const signature = await user._signTypedData(data.domain, data.types, data.message);
-    const { v, r, s } = fromRpcSig(signature);
-    await expect(
-      originationController
-        .connect(ZERO_ADDRESS)
-        .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
-    ).to.be.reverted;
-  });
-
-  it("Reverts if it has not been approved to accept the collateral token by the borrower", async () => {
-    const {
-      originationController,
-      mockERC20,
-      assetWrapper,
-      user,
-      other,
-      lenderPromissoryNote,
-      borrowerPromissoryNote,
-    } = await setupTestContext();
-    const loanTerms = createLoanTerms(assetWrapper.address);
-
-    const data = buildData(chainId, assetWrapper.address, await assetWrapper.name(), "1", loanTerms);
-
-    const signature = await user._signTypedData(data.domain, data.types, data.message);
-    const { v, r, s } = fromRpcSig(signature);
-
-    await approve(mockERC20, other, originationController.address, loanTerms.principal);
-
-    await expect(
-      originationController
-        .connect(user)
-        .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
-    ).to.be.reverted;
-  });
-
-  it("Initializes a loan", async () => {
-    const {
-      originationController,
-      mockERC20,
-      loanCore,
-      assetWrapper,
-      user: lender,
-      other: borrower,
-    } = await setupTestContext();
-
-    const bundleId = await initializeBundle(assetWrapper, borrower);
-    const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
-    await mint(mockERC20, lender, loanTerms.principal);
-
-    const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
-
-    const signature = await borrower._signTypedData(data.domain, data.types, data.message);
-    const { v, r, s } = fromRpcSig(signature);
-    await approve(mockERC20, lender, originationController.address, loanTerms.principal);
-    await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
-    await expect(
-      await originationController
-        .connect(lender)
-        .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
-    )
-      .to.emit(mockERC20, "Transfer")
-      .withArgs(await lender.getAddress(), loanCore.address, loanTerms.principal);
-  });
-
-  describe("initializeLoanWithCollateralPermit", () => {
-    it("Reverts if AssetWrapper.permit is invalid", async () => {
-      const {
-        originationController,
-        assetWrapper,
-        user,
-        lenderPromissoryNote,
-        borrowerPromissoryNote,
-      } = await setupTestContext();
-
-      const loanTerms = createLoanTerms(assetWrapper.address);
-
-      const data = buildData(chainId, assetWrapper.address, await assetWrapper.name(), "1", loanTerms);
-
-      const collateralSignature = await user._signTypedData(data.domain, data.types, data.message);
-      const { v: collateralV, r: collateralR, s: collateralS } = fromRpcSig(collateralSignature);
-
-      const approvalData = buildData(
-        chainId,
-        originationController.address,
-        "originationController",
-        "approvalMessage",
-        loanTerms,
-      );
-
-      const signature = await user._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
-
-      const { v, r, s } = fromRpcSig(signature);
-
-      await expect(
-        await originationController
-          .connect(user)
-          .initializeLoanWithCollateralPermit(
-            loanTerms,
-            lenderPromissoryNote.address,
-            borrowerPromissoryNote.address,
-            collateralV,
-            collateralR,
-            collateralS,
-            v,
-            r,
-            s,
-          ),
-      ).to.be.reverted;
-    });
-
-    it("Initializes a loan with permit", async () => {
+    it("Reverts if cNFT not approved", async () => {
       const {
         originationController,
         mockERC20,
@@ -350,70 +218,232 @@ describe("OriginationController", () => {
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
       await mint(mockERC20, lender, loanTerms.principal);
 
-      const permitData = buildPermitData(
-        chainId,
-        assetWrapper.address,
-        await assetWrapper.name(),
-        "1",
-        await borrower.getAddress(),
-        originationController.address,
-        bundleId,
-        0,
-      );
+      const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
 
-      // TODO : remove all console logs
-      console.log("signTypedData types:", permitData.types);
-      console.log("signTypedData domain:", permitData.domain);
-      console.log("signTypedData message:", permitData.message);
-      console.log("bundleId ", bundleId, loanTerms.collateralTokenId);
-      console.log("borrower: ", await borrower.getAddress());
-      console.log("lender: ", await lender.getAddress());
-
-      const collateralSignature = await borrower._signTypedData(
-        permitData.domain,
-        permitData.types,
-        permitData.message,
-      );
-      const { v: collateralV, r: collateralR, s: collateralS } = fromRpcSig(collateralSignature);
-
-      // TODO: remove this expect clause when final expect clause works. This is here to prove the permit is functional.
-      await expect(
-        assetWrapper.permit(
-          await borrower.getAddress(),
-          originationController.address,
-          loanTerms.collateralTokenId,
-          maxDeadline,
-          collateralV,
-          collateralR,
-          collateralS,
-        ),
-      )
-        .to.emit(assetWrapper, "Approval")
-        .withArgs(await borrower.getAddress(), originationController.address, bundleId);
-
-      const approvalData = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
-
-      const signature = await borrower._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
-
+      const signature = await borrower._signTypedData(data.domain, data.types, data.message);
       const { v, r, s } = fromRpcSig(signature);
       await approve(mockERC20, lender, originationController.address, loanTerms.principal);
-      console.log("initializeLoanWithCollateralPermit");
-
-      expect(
+      // no approval of cNFT token
+      await expect(
         originationController
           .connect(lender)
-          .initializeLoanWithCollateralPermit(
-            loanTerms,
-            await borrower.getAddress(),
-            await lender.getAddress(),
-            v,
-            r,
-            s,
-            collateralV,
-            collateralR,
-            collateralS,
-          ),
-      );
+          .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
+      ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+    });
+
+    it("Reverts if principal not approved", async () => {
+      const {
+        originationController,
+        mockERC20,
+        assetWrapper,
+        user: lender,
+        other: borrower,
+      } = await setupTestContext();
+
+      const bundleId = await initializeBundle(assetWrapper, borrower);
+      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+      await mint(mockERC20, lender, loanTerms.principal);
+
+      const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+      const signature = await borrower._signTypedData(data.domain, data.types, data.message);
+      const { v, r, s } = fromRpcSig(signature);
+      await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
+      // no approval of principal token
+      await expect(
+        originationController
+          .connect(lender)
+          .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
+      ).to.be.revertedWith("TransferHelper::transferFrom: transferFrom failed");
+    });
+
+    it("Reverts if approving own loan", async () => {
+      const {
+        originationController,
+        mockERC20,
+        assetWrapper,
+        user: lender,
+        other: borrower,
+      } = await setupTestContext();
+
+      const bundleId = await initializeBundle(assetWrapper, borrower);
+      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+      await mint(mockERC20, lender, loanTerms.principal);
+
+      const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+      const signature = await borrower._signTypedData(data.domain, data.types, data.message);
+      const { v, r, s } = fromRpcSig(signature);
+      await approve(mockERC20, lender, originationController.address, loanTerms.principal);
+      await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
+      await expect(
+        originationController
+          // sender is the borrower, signer is also the borrower
+          .connect(borrower)
+          .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
+      ).to.be.revertedWith("Origination: approved own loan");
+    });
+
+    it("Reverts if signer is not a participant", async () => {
+      const {
+        originationController,
+        mockERC20,
+        assetWrapper,
+        user: lender,
+        other: borrower,
+        signers,
+      } = await setupTestContext();
+
+      const bundleId = await initializeBundle(assetWrapper, borrower);
+      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+      await mint(mockERC20, lender, loanTerms.principal);
+
+      const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+      // signer is some random guy
+      const signature = await signers[3]._signTypedData(data.domain, data.types, data.message);
+      const { v, r, s } = fromRpcSig(signature);
+      await approve(mockERC20, lender, originationController.address, loanTerms.principal);
+      await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
+      await expect(
+        originationController
+          .connect(lender)
+          .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
+      ).to.be.revertedWith("Origination: signer not participant");
+    });
+
+    it("Initializes a loan", async () => {
+      const {
+        originationController,
+        mockERC20,
+        loanCore,
+        assetWrapper,
+        user: lender,
+        other: borrower,
+      } = await setupTestContext();
+
+      const bundleId = await initializeBundle(assetWrapper, borrower);
+      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+      await mint(mockERC20, lender, loanTerms.principal);
+
+      const data = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+      const signature = await borrower._signTypedData(data.domain, data.types, data.message);
+      const { v, r, s } = fromRpcSig(signature);
+      await approve(mockERC20, lender, originationController.address, loanTerms.principal);
+      await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
+      await expect(
+        originationController
+          .connect(lender)
+          .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
+      )
+        .to.emit(mockERC20, "Transfer")
+        .withArgs(await lender.getAddress(), loanCore.address, loanTerms.principal);
+    });
+
+    describe("initializeLoanWithCollateralPermit", () => {
+      it("Reverts if AssetWrapper.permit is invalid", async () => {
+        const {
+          originationController,
+          assetWrapper,
+          user,
+          other,
+          mockERC20,
+          lenderPromissoryNote,
+          borrowerPromissoryNote,
+        } = await setupTestContext();
+
+        const bundleId = await initializeBundle(assetWrapper, user);
+        const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+        await mint(mockERC20, other, loanTerms.principal);
+
+        const data = buildData(chainId, assetWrapper.address, await assetWrapper.name(), "1", loanTerms);
+
+        const collateralSignature = await user._signTypedData(data.domain, data.types, data.message);
+        const { v: collateralV, r: collateralR, s: collateralS } = fromRpcSig(collateralSignature);
+
+        const approvalData = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+        const signature = await user._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
+
+        const { v, r, s } = fromRpcSig(signature);
+
+        await expect(
+          originationController
+            .connect(user)
+            .initializeLoanWithCollateralPermit(
+              loanTerms,
+              lenderPromissoryNote.address,
+              borrowerPromissoryNote.address,
+              collateralV,
+              collateralR,
+              collateralS,
+              v,
+              r,
+              s,
+              maxDeadline,
+            ),
+        ).to.be.revertedWith("ERC721Permit: not owner");
+      });
+
+      it("Initializes a loan with permit", async () => {
+        const {
+          originationController,
+          mockERC20,
+          assetWrapper,
+          loanCore,
+          user: lender,
+          other: borrower,
+        } = await setupTestContext();
+
+        const bundleId = await initializeBundle(assetWrapper, borrower);
+        const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+        await mint(mockERC20, lender, loanTerms.principal);
+
+        const permitData = buildPermitData(
+          chainId,
+          assetWrapper.address,
+          await assetWrapper.name(),
+          "1",
+          await borrower.getAddress(),
+          originationController.address,
+          bundleId,
+          0,
+        );
+
+        const collateralSignature = await borrower._signTypedData(
+          permitData.domain,
+          permitData.types,
+          permitData.message,
+        );
+        const { v: collateralV, r: collateralR, s: collateralS } = fromRpcSig(collateralSignature);
+
+        const approvalData = buildData(chainId, originationController.address, "OriginationController", "1", loanTerms);
+
+        const signature = await borrower._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
+
+        const { v, r, s } = fromRpcSig(signature);
+        await approve(mockERC20, lender, originationController.address, loanTerms.principal);
+
+        await expect(
+          originationController
+            .connect(lender)
+            .initializeLoanWithCollateralPermit(
+              loanTerms,
+              await borrower.getAddress(),
+              await lender.getAddress(),
+              v,
+              r,
+              s,
+              collateralV,
+              collateralR,
+              collateralS,
+              maxDeadline,
+            ),
+        )
+          .to.emit(mockERC20, "Transfer")
+          .withArgs(await lender.getAddress(), loanCore.address, loanTerms.principal);
+      });
     });
   });
 });

@@ -80,13 +80,14 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         bytes32 s,
         uint8 collateralV,
         bytes32 collateralR,
-        bytes32 collateralS
+        bytes32 collateralS,
+        uint256 permitDeadline
     ) external override {
         IERC721Permit(assetWrapper).permit(
             borrower,
             address(this),
             loanTerms.collateralTokenId,
-            block.timestamp,
+            permitDeadline,
             collateralV,
             collateralR,
             collateralS
