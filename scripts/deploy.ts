@@ -44,7 +44,10 @@ async function main(): Promise<void> {
   const OriginationController = await ethers.getContractFactory("OriginationController");
   const originationController = await OriginationController.deploy(loanCore.address, assetWrapper.address);
   await originationController.deployed();
-  const updateOriginationControllerPermissions = await loanCore.grantRole(ORIGINATOR_ROLE, originationController.address);
+  const updateOriginationControllerPermissions = await loanCore.grantRole(
+    ORIGINATOR_ROLE,
+    originationController.address,
+  );
   await updateOriginationControllerPermissions.wait();
 
   console.log("OriginationController deployed to: ", originationController.address);

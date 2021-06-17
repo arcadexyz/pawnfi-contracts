@@ -5,17 +5,10 @@ import { BigNumber, BigNumberish } from "ethers";
 
 import { MockLoanCore, MockERC721, PromissoryNote } from "../typechain";
 import { deploy } from "./utils/contracts";
+import { LoanTerms, LoanState } from "./utils/types";
 import { fromRpcSig } from "ethereumjs-util";
 
 type Signer = SignerWithAddress;
-
-enum LoanState {
-  DUMMY = 0,
-  Created = 1,
-  Active = 2,
-  Repaid = 3,
-  Defaulted = 4,
-}
 
 interface TestContext {
   borrowerPromissoryNote: PromissoryNote;
@@ -25,14 +18,6 @@ interface TestContext {
   user: Signer;
   other: Signer;
   signers: Signer[];
-}
-
-interface LoanTerms {
-  dueDate: BigNumberish;
-  principal: BigNumber;
-  interest: BigNumber;
-  collateralTokenId: BigNumber;
-  payableCurrency: string;
 }
 
 describe("PromissoryNote", () => {
