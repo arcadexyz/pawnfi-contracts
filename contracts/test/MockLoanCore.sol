@@ -17,7 +17,7 @@ contract MockLoanCore is ILoanCore {
     IPromissoryNote public borrowerNote;
     IPromissoryNote public lenderNote;
 
-    mapping(uint256 => LoanData.LoanData) public loans;
+    mapping(uint256 => LoanLibrary.LoanData) public loans;
 
     constructor() {
         borrowerNote = new PromissoryNote("Mock BorrowerNote", "MB");
@@ -32,16 +32,16 @@ contract MockLoanCore is ILoanCore {
     /**
      * @dev Get LoanData by loanId
      */
-    function getLoan(uint256 loanId) public view override returns (LoanData.LoanData memory _loanData) {
+    function getLoan(uint256 loanId) public view override returns (LoanLibrary.LoanData memory _loanData) {
         return loans[loanId];
     }
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanData.LoanTerms calldata terms) external override returns (uint256 loanId) {
-        LoanData.LoanTerms memory _loanTerms =
-            LoanData.LoanTerms(
+    function createLoan(LoanLibrary.LoanTerms calldata terms) external override returns (uint256 loanId) {
+        LoanLibrary.LoanTerms memory _loanTerms =
+            LoanLibrary.LoanTerms(
                 terms.dueDate,
                 terms.principal,
                 terms.interest,
@@ -49,7 +49,7 @@ contract MockLoanCore is ILoanCore {
                 terms.payableCurrency
             );
 
-        LoanData.LoanData memory _loanData = LoanData.LoanData(0, 0, _loanTerms, LoanData.LoanState.Created);
+        LoanLibrary.LoanData memory _loanData = LoanLibrary.LoanData(0, 0, _loanTerms, LoanLibrary.LoanState.Created);
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
@@ -77,8 +77,8 @@ contract MockLoanCore is ILoanCore {
         uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        LoanData.LoanData memory data = loans[loanId];
-        loans[loanId] = LoanData.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanData.LoanState.Active);
+        LoanLibrary.LoanData memory data = loans[loanId];
+        loans[loanId] = LoanLibrary.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanLibrary.LoanState.Active);
 
         emit LoanStarted(loanId, lender, borrower);
     }
@@ -92,7 +92,7 @@ contract MockLoanCore is ILoanCore {
      *  - The loan must be in state Active
      */
     function repay(uint256 loanId) public override {
-        loans[loanId].state = LoanData.LoanState.Repaid;
+        loans[loanId].state = LoanLibrary.LoanState.Repaid;
         emit LoanRepaid(loanId);
     }
 

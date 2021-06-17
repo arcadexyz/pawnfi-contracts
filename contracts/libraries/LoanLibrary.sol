@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-library LoanData {
+library LoanLibrary {
     /**
      * @dev Enum describing the current state of a loan
      * State change flow:

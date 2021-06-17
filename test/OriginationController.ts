@@ -254,7 +254,7 @@ describe("OriginationController", () => {
         originationController
           .connect(lender)
           .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
-      ).to.be.revertedWith("TransferHelper::transferFrom: transferFrom failed");
+      ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
     });
 
     it("Reverts if approving own loan", async () => {
