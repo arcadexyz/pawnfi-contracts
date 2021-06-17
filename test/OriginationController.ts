@@ -348,11 +348,11 @@ describe("OriginationController", () => {
 
     await approve(mockERC20, other, originationController.address, loanTerms.principal);
     await assetWrapper.connect(user).approve(originationController.address, bundleId);
-
-    expect(
+    console.log("borrower:", lenderPromissoryNote.address, user.address);
+    await expect(
       originationController
-        .connect(user)
-        .initializeLoan(loanTerms, lenderPromissoryNote.address, borrowerPromissoryNote.address, v, r, s),
+        .connect(other)
+        .initializeLoan(loanTerms, await other.getAddress(), await user.getAddress(), v, r, s),
     );
   });
 

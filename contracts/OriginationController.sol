@@ -1,5 +1,6 @@
 pragma solidity ^0.8.0;
 
+import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -50,13 +51,14 @@ contract OriginationController is Context, IOriginationController {
                     loanTerms.dueDate,
                     loanTerms.principal,
                     loanTerms.interest,
-                    loanTerms.payableCurrency,
-                    loanTerms.collateralTokenId
+                    loanTerms.collateralTokenId,
+                    loanTerms.payableCurrency
                 )
             );
 
         address externalSigner = loanHash.toEthSignedMessageHash().recover(v, r, s);
-
+        console.log("msg sender %s", _msgSender());
+        console.log("signer %s lender %s borrower %s", externalSigner, lender, borrower);
         require(
             (externalSigner == lender && externalSigner != _msgSender()) ||
                 (externalSigner == borrower && externalSigner != _msgSender()),
