@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -13,12 +14,12 @@ import "./interfaces/IOriginationController.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IERC721Permit.sol";
 
-contract OriginationController is Context, IOriginationController {
+contract OriginationController is Context, IOriginationController, EIP712 {
     address public loanCore;
     address public assetWrapper;
     using ECDSA for bytes32;
 
-    constructor(address _loanCore, address _assetWrapper) {
+    constructor(address _loanCore, address _assetWrapper) EIP712("OriginationController","1") {
         require(_loanCore != address(0), "loanCore address must be defined");
         loanCore = _loanCore;
         assetWrapper = _assetWrapper;
@@ -47,8 +48,9 @@ contract OriginationController is Context, IOriginationController {
                     loanTerms.payableCurrency
                 )
             );
+        bytes32 typedLoanHash = _hashTypedDataV4(loanHash);
+        address externalSigner = ECDSA.recover(typedLoanHash, v, r, s);
 
-        address externalSigner = loanHash.toEthSignedMessageHash().recover(v, r, s);
         console.log("msg sender %s", _msgSender());
         console.log("signer %s lender %s borrower %s", externalSigner, lender, borrower);
         require(
