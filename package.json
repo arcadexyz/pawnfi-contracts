@@ -18,7 +18,6 @@
     "@types/node": "^14.11.8",
     "@typescript-eslint/eslint-plugin": "^3.10.1",
     "@typescript-eslint/parser": "^3.10.1",
-    "@uniswap/lib": "^4.0.1-alpha",
     "chai": "^4.2.0",
     "commitizen": "^4.2.1",
     "cz-conventional-changelog": "^3.3.0",

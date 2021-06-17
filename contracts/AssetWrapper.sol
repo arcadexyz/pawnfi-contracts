@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./ERC721Permit.sol";
 
@@ -82,7 +82,7 @@ contract AssetWrapper is
     ) external override {
         require(_exists(bundleId), "Bundle does not exist");
 
-        TransferHelper.safeTransferFrom(tokenAddress, _msgSender(), address(this), amount);
+        SafeERC20.safeTransferFrom(IERC20(tokenAddress), _msgSender(), address(this), amount);
 
         // Note: there can be multiple `ERC20Holding` objects for the same token contract
         // in a given bundle. We could deduplicate them here, though I don't think
@@ -145,7 +145,7 @@ contract AssetWrapper is
 
         ERC20Holding[] memory erc20Holdings = bundleERC20Holdings[bundleId];
         for (uint256 i = 0; i < erc20Holdings.length; i++) {
-            TransferHelper.safeTransfer(erc20Holdings[i].tokenAddress, _msgSender(), erc20Holdings[i].amount);
+            SafeERC20.safeTransfer(IERC20(erc20Holdings[i].tokenAddress), _msgSender(), erc20Holdings[i].amount);
         }
         delete bundleERC20Holdings[bundleId];
 

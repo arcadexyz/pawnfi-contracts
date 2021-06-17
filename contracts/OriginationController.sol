@@ -1,12 +1,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interfaces/IOriginationController.sol";
@@ -16,7 +13,6 @@ import "./interfaces/IERC721Permit.sol";
 contract OriginationController is Context, IOriginationController, EIP712 {
     address public loanCore;
     address public assetWrapper;
-    using ECDSA for bytes32;
 
     // solhint-disable-next-line var-name-mixedcase
     bytes32 private immutable _LOAN_TERMS_TYPEHASH =
@@ -35,7 +31,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
      * @inheritdoc IOriginationController
      */
     function initializeLoan(
-        LoanData.LoanTerms calldata loanTerms,
+        LoanLibrary.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
@@ -61,7 +57,8 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         require(externalSigner == lender || externalSigner == borrower, "Origination: signer not participant");
         require(externalSigner != _msgSender(), "Origination: approved own loan");
 
-        TransferHelper.safeTransferFrom(loanTerms.payableCurrency, lender, loanCore, loanTerms.principal);
+        SafeERC20.safeTransferFrom(IERC20(loanTerms.payableCurrency), lender, loanCore, loanTerms.principal);
+
         IERC721(assetWrapper).transferFrom(borrower, loanCore, loanTerms.collateralTokenId);
 
         uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);
@@ -72,7 +69,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
      * @inheritdoc IOriginationController
      */
     function initializeLoanWithCollateralPermit(
-        LoanData.LoanTerms calldata loanTerms,
+        LoanLibrary.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,

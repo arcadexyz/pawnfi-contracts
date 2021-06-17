@@ -127,7 +127,7 @@ describe("AssetWrapper", () => {
         const bundleId = await initializeBundle(assetWrapper, user);
 
         await expect(assetWrapper.connect(user).depositERC20(mockERC20.address, amount, bundleId)).to.be.revertedWith(
-          "TransferHelper::transferFrom: transferFrom failed",
+          "ERC20: transfer amount exceeds allowance",
         );
       });
 
@@ -142,7 +142,7 @@ describe("AssetWrapper", () => {
 
         await expect(
           assetWrapper.connect(user).depositERC20(mockERC20.address, amount.mul(2), bundleId),
-        ).to.be.revertedWith("TransferHelper::transferFrom: transferFrom failed");
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
       it("should accept multiple deposits from an ERC20 token", async () => {
