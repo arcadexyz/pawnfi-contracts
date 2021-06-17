@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-// const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
+const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
 
 async function main(): Promise<void> {
@@ -41,7 +41,13 @@ async function main(): Promise<void> {
 
   console.log("RepaymentController deployed to: ", repaymentController.address);
 
-  // TODO: set up origination controller
+  const OriginationController = await ethers.getContractFactory("OriginationController");
+  const originationController = await OriginationController.deploy(loanCore.address, assetWrapper.address);
+  await originationController.deployed();
+  const updateOriginationControllerPermissions = await loanCore.grantRole(ORIGINATOR_ROLE, originationController.address);
+  await updateOriginationControllerPermissions.wait();
+
+  console.log("OriginationController deployed to: ", originationController.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
