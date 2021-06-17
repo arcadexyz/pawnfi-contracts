@@ -35,15 +35,15 @@ interface LoanTerms {
 
 const typedData = {
   types: {
-    Permit: [
-      { name: "owner", type: "address" },
-      { name: "spender", type: "address" },
-      { name: "tokenId", type: "uint256" },
-      { name: "nonce", type: "uint256" },
-      { name: "deadline", type: "uint256" },
+    LoanTerms: [
+      { name: "dueDate", type: "uint256" },
+      { name: "principal", type: "uint256" },
+      { name: "interest", type: "uint256" },
+      { name: "collateralTokenId", type: "uint256" },
+      { name: "payableCurrency", type: "address" },
     ],
   },
-  primaryType: "Permit" as const,
+  primaryType: "LoanTerms" as const,
 };
 
 const collateralTypedData = {
@@ -127,11 +127,7 @@ const buildData = (
   verifyingContract: string,
   name: string,
   version: string,
-  owner: string,
-  spender: string,
-  tokenId: BigNumberish,
-  nonce: number,
-  deadline = maxDeadline,
+  loanTerms: LoanTerms,
 ) => {
   return Object.assign({}, typedData, {
     domain: {
@@ -140,7 +136,7 @@ const buildData = (
       chainId,
       verifyingContract,
     },
-    message: { owner, spender, tokenId, nonce, deadline },
+    message: loanTerms,
   });
 };
 
@@ -200,10 +196,7 @@ describe("OriginationController", () => {
         assetWrapper.address,
         await assetWrapper.name(),
         "1",
-        await user.getAddress(),
-        await other.getAddress(),
-        bundleId,
-        0,
+        loanTerms,
       );
 
       const signature = await user._signTypedData(data.domain, data.types, data.message);
@@ -233,10 +226,7 @@ describe("OriginationController", () => {
         assetWrapper.address,
         await assetWrapper.name(),
         "1",
-        await user.getAddress(),
-        await other.getAddress(),
-        bundleId,
-        0,
+        loanTerms,
       );
 
       const signature = await user._signTypedData(data.domain, data.types, data.message);
@@ -267,10 +257,7 @@ describe("OriginationController", () => {
       assetWrapper.address,
       await assetWrapper.name(),
       "1",
-      await user.getAddress(),
-      await other.getAddress(),
-      bundleId,
-      0,
+      loanTerms,
     );
 
     const signature = await user._signTypedData(data.domain, data.types, data.message);
@@ -300,10 +287,7 @@ describe("OriginationController", () => {
       assetWrapper.address,
       await assetWrapper.name(),
       "1",
-      await user.getAddress(),
-      await other.getAddress(),
-      bundleId,
-      0,
+      loanTerms,
     );
 
     const signature = await user._signTypedData(data.domain, data.types, data.message);
@@ -322,11 +306,12 @@ describe("OriginationController", () => {
     const {
       originationController,
       mockERC20,
+      loanCore,
       assetWrapper,
       user,
       other,
       lenderPromissoryNote,
-      borrowerPromissoryNote,
+      borrowerPromissoryNote
     } = await setupTestContext();
 
     const loanTerms = createLoanTerms(assetWrapper.address);
@@ -337,23 +322,20 @@ describe("OriginationController", () => {
       assetWrapper.address,
       await assetWrapper.name(),
       "1",
-      await user.getAddress(),
-      await other.getAddress(),
-      bundleId,
-      0,
+      loanTerms,
     );
 
     const signature = await user._signTypedData(data.domain, data.types, data.message);
     const { v, r, s } = fromRpcSig(signature);
-
+    console.log("sig:", signature);
     await approve(mockERC20, other, originationController.address, loanTerms.principal);
     await assetWrapper.connect(user).approve(originationController.address, bundleId);
     console.log("borrower:", lenderPromissoryNote.address, user.address);
     await expect(
-      originationController
+      await originationController
         .connect(other)
         .initializeLoan(loanTerms, await other.getAddress(), await user.getAddress(), v, r, s),
-    );
+    ).to.emit(loanCore, "LoanStarted");
   });
 
   describe("initializeLoanWithCollateralPermit", () => {
@@ -376,11 +358,9 @@ describe("OriginationController", () => {
         assetWrapper.address,
         await assetWrapper.name(),
         "1",
-        await user.getAddress(),
-        originationController.address,
-        bundleId,
-        0,
+        loanTerms,
       );
+
 
       const collateralSignature = await user._signTypedData(data.domain, data.types, data.message);
       const { v: collateralV, r: collateralR, s: collateralS } = fromRpcSig(collateralSignature);
@@ -390,10 +370,7 @@ describe("OriginationController", () => {
         originationController.address,
         "originationController",
         "approvalMessage",
-        await user.getAddress(),
-        originationController.address,
-        bundleId,
-        0,
+        loanTerms,
       );
 
       const signature = await user._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
@@ -436,10 +413,7 @@ describe("OriginationController", () => {
         originationController.address,
         "originationController",
         "1",
-        await user.getAddress(),
-        originationController.address,
-        bundleId,
-        0,
+        loanTerms,
       );
 
       const collateralSignature = await user._signTypedData(data.domain, data.types, data.message);
@@ -450,10 +424,7 @@ describe("OriginationController", () => {
         originationController.address,
         "originationController",
         "approvalMessage",
-        await user.getAddress(),
-        await other.getAddress(),
-        bundleId,
-        0,
+        loanTerms,
       );
 
       const signature = await user._signTypedData(approvalData.domain, approvalData.types, approvalData.message);
