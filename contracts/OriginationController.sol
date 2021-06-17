@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -12,13 +13,20 @@ import "./interfaces/IOriginationController.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IERC721Permit.sol";
 
-contract OriginationController is Context, IOriginationController {
+contract OriginationController is Context, IOriginationController, EIP712 {
     address public loanCore;
     address public assetWrapper;
     using ECDSA for bytes32;
 
-    constructor(address _loanCore, address _assetWrapper) {
-        require(_loanCore != address(0), "loanCore address must be defined");
+    // solhint-disable-next-line var-name-mixedcase
+    bytes32 private immutable _LOAN_TERMS_TYPEHASH =
+        keccak256(
+            // solhint-disable-next-line max-line-length
+            "LoanTerms(uint256 dueDate,uint256 principal,uint256 interest,uint256 collateralTokenId,address payableCurrency)"
+        );
+
+    constructor(address _loanCore, address _assetWrapper) EIP712("OriginationController", "1") {
+        require(_loanCore != address(0), "Origination: loanCore not defined");
         loanCore = _loanCore;
         assetWrapper = _assetWrapper;
     }
@@ -38,7 +46,8 @@ contract OriginationController is Context, IOriginationController {
 
         bytes32 loanHash =
             keccak256(
-                abi.encodePacked(
+                abi.encode(
+                    _LOAN_TERMS_TYPEHASH,
                     loanTerms.dueDate,
                     loanTerms.principal,
                     loanTerms.interest,
@@ -46,18 +55,14 @@ contract OriginationController is Context, IOriginationController {
                     loanTerms.payableCurrency
                 )
             );
+        bytes32 typedLoanHash = _hashTypedDataV4(loanHash);
+        address externalSigner = ECDSA.recover(typedLoanHash, v, r, s);
 
-        address externalSigner = loanHash.toEthSignedMessageHash().recover(v, r, s);
-
-        //ensures that the person who initializes the loan cannot initiate and sign the same loan
-        require(
-            (externalSigner == lender && _msgSender() != lender ||
-                externalSigner == borrower && _msgSender() != borrower),
-            "external signer must be borrower or lender"
-        );
+        require(externalSigner == lender || externalSigner == borrower, "Origination: signer not participant");
+        require(externalSigner != _msgSender(), "Origination: approved own loan");
 
         TransferHelper.safeTransferFrom(loanTerms.payableCurrency, lender, loanCore, loanTerms.principal);
-        IERC721(address(this)).transferFrom(borrower, loanCore, loanTerms.collateralTokenId);
+        IERC721(assetWrapper).transferFrom(borrower, loanCore, loanTerms.collateralTokenId);
 
         uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);
         ILoanCore(loanCore).startLoan(lender, borrower, loanId);
@@ -75,13 +80,14 @@ contract OriginationController is Context, IOriginationController {
         bytes32 s,
         uint8 collateralV,
         bytes32 collateralR,
-        bytes32 collateralS
+        bytes32 collateralS,
+        uint256 permitDeadline
     ) external override {
         IERC721Permit(assetWrapper).permit(
             borrower,
             address(this),
             loanTerms.collateralTokenId,
-            block.timestamp,
+            permitDeadline,
             collateralV,
             collateralR,
             collateralS

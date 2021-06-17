@@ -35,6 +35,7 @@ interface IOriginationController {
      * @param lender - address of lenderPromissory note
      * @param v, r, s - signature from erc20
      * @param collateralV, collateralR, collateralS - signature from collateral
+     * @param permitDeadline - timestamp at which the collateral signature becomes invalid
      */
     function initializeLoanWithCollateralPermit(
         LoanData.LoanTerms calldata loanTerms,
@@ -45,6 +46,7 @@ interface IOriginationController {
         bytes32 s,
         uint8 collateralV,
         bytes32 collateralR,
-        bytes32 collateralS
+        bytes32 collateralS,
+        uint256 permitDeadline
     ) external;
 }
