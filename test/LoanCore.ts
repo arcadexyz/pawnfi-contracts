@@ -1,33 +1,18 @@
 import { expect } from "chai";
 import hre, { ethers } from "hardhat";
-import { BigNumber, BigNumberish, Signer } from "ethers";
+import { BigNumber, Signer } from "ethers";
 
 import { LoanCore, FeeController, PromissoryNote, MockERC20, MockERC721 } from "../typechain";
 import { mint as mintERC721 } from "./utils/erc721";
 import { BlockchainTime } from "./utils/time";
+import { LoanTerms, LoanState } from "./utils/types";
 import { deploy } from "./utils/contracts";
 
 const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
 const ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-enum LoanState {
-  DUMMY = 0,
-  Created = 1,
-  Active = 2,
-  Repaid = 3,
-  Defaulted = 4,
-}
-
 const ZERO = hre.ethers.utils.parseUnits("0", 18);
-
-interface LoanTerms {
-  dueDate: BigNumberish;
-  principal: BigNumber;
-  interest: BigNumber;
-  collateralTokenId: BigNumber;
-  payableCurrency: string;
-}
 
 interface TestContext {
   loanCore: LoanCore;
