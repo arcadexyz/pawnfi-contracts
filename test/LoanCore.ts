@@ -10,7 +10,7 @@ import { deploy } from "./utils/contracts";
 
 const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
-const ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const CLAIM_FEES_ROLE = "0x8dd046eb6fe22791cf064df41dbfc76ef240a563550f519aac88255bd8c2d3bb";
 
 const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
@@ -216,7 +216,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(user).createLoan(terms);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("182772");
+      expect(gasUsed.toString()).to.equal("182750");
     });
   });
 
@@ -560,7 +560,7 @@ describe("LoanCore", () => {
         .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("475599");
+      expect(gasUsed.toString()).to.equal("475577");
     });
   });
 
@@ -881,7 +881,36 @@ describe("LoanCore", () => {
       const fee = principal.mul(3).div(100);
       expect(await mockERC20.balanceOf(loanCore.address)).to.equal(fee);
       await expect(loanCore.connect(lender).claimFees(mockERC20.address)).to.be.revertedWith(
-        `AccessControl: account ${(await lender.getAddress()).toLowerCase()} is missing role ${ADMIN_ROLE}`,
+        `AccessControl: account ${(await lender.getAddress()).toLowerCase()} is missing role ${CLAIM_FEES_ROLE}`,
+      );
+    });
+
+    it("only fee claimer should be able to change fee claimer", async () => {
+      const {
+        mockAssetWrapper,
+        loanCore,
+        mockERC20,
+        loanId,
+        terms: { collateralTokenId, principal },
+        borrower,
+        lender,
+      } = await setupLoan();
+
+      await mockAssetWrapper
+        .connect(borrower)
+        .transferFrom(await borrower.getAddress(), loanCore.address, collateralTokenId);
+      await mockERC20.connect(lender).mint(loanCore.address, principal);
+
+      await expect(loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId))
+        .to.emit(loanCore, "LoanStarted")
+        .withArgs(loanId, await lender.getAddress(), await borrower.getAddress());
+
+      await loanCore.connect(borrower).grantRole(CLAIM_FEES_ROLE, await lender.getAddress());
+      await loanCore.connect(borrower).revokeRole(CLAIM_FEES_ROLE, await borrower.getAddress());
+      await expect(
+        loanCore.connect(borrower).grantRole(CLAIM_FEES_ROLE, await borrower.getAddress()),
+      ).to.be.revertedWith(
+        `AccessControl: account ${(await borrower.getAddress()).toLowerCase()} is missing role ${CLAIM_FEES_ROLE}`,
       );
     });
   });
