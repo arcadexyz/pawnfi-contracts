@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
@@ -29,17 +29,13 @@ import "./interfaces/IPromissoryNote.sol";
  */
 contract PromissoryNote is
     Context,
-    AccessControlEnumerable,
+    Ownable,
     ERC721Enumerable,
     ERC721Pausable,
     ERC721Permit,
     IPromissoryNote
 {
     using Counters for Counters.Counter;
-
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     Counters.Counter private _tokenIdTracker;
 
     mapping(uint256 => uint256) public override loanIdByNoteId;
@@ -56,9 +52,6 @@ contract PromissoryNote is
      */
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) ERC721Permit(name) {
-        _setupRole(BURNER_ROLE, _msgSender());
-        _setupRole(MINTER_ROLE, _msgSender());
-        _setupRole(PAUSER_ROLE, _msgSender());
 
         // We don't want token IDs of 0
         _tokenIdTracker.increment();
@@ -75,8 +68,7 @@ contract PromissoryNote is
      *
      * - the caller must have the `MINTER_ROLE`.
      */
-    function mint(address to, uint256 loanId) external override returns (uint256) {
-        require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinter: sending does have proper role");
+    function mint(address to, uint256 loanId) external override onlyOwner returns (uint256) {
 
         uint256 currentTokenId = _tokenIdTracker.current();
         _mint(to, currentTokenId);
@@ -98,20 +90,19 @@ contract PromissoryNote is
      *
      *
      */
-    function burn(uint256 tokenId) external override {
-        require(hasRole(BURNER_ROLE, _msgSender()), "PromissoryNote: callers is not owner nor approved");
+    function burn(uint256 tokenId) external onlyOwner override {
         _burn(tokenId);
         loanIdByNoteId[tokenId] = 0;
     }
 
     /**
-     * @dev override of supportsInterface for AccessControlEnumerable, ERC721, ERC721Enumerable
+     * @dev override of supportsInterface for ERC721, ERC721Enumerable
      */
     function supportsInterface(bytes4 interfaceId)
         public
         view
         virtual
-        override(AccessControlEnumerable, ERC721, ERC721Enumerable, IERC165)
+        override(ERC721, ERC721Enumerable, IERC165)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

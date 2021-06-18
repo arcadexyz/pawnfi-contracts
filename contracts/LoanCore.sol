@@ -28,10 +28,10 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     Counters.Counter private loanIdTracker;
     mapping(uint256 => LoanLibrary.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
-    IPromissoryNote public borrowerNote;
-    IPromissoryNote public lenderNote;
     IERC721 public collateralToken;
     IFeeController public feeController;
+    IPromissoryNote public borrowerNote;
+    IPromissoryNote public lenderNote;
     address public originationController;
     address public repaymentController;
 
@@ -41,14 +41,13 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     // the last known balances by ERC20 token address
     mapping(address => uint256) private tokenBalances;
 
-    constructor(IERC721 _collateralToken, IFeeController _feeController) {
+    constructor(IERC721 _collateralToken, IFeeController _feeController, IPromissoryNote _borrowerNote, IPromissoryNote _lenderNote) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         feeController = _feeController;
         collateralToken = _collateralToken;
-
-        borrowerNote = new PromissoryNote("PawnFi Borrower Note", "pBN");
-        lenderNote = new PromissoryNote("PawnFi Lender Note", "pLN");
+        borrowerNote = _borrowerNote;
+        lenderNote = _lenderNote;
 
         // Avoid having loanId = 0
         loanIdTracker.increment();
