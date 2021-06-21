@@ -1,6 +1,8 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { BigNumberish } from "ethers";
+import { BigNumberish, Wallet } from "ethers";
+import { getMessage } from 'eip-712';
+import * as ethers from 'ethers';
 import { LoanTerms } from "./types";
 import { fromRpcSig, ECDSASignature } from "ethereumjs-util";
 
@@ -17,6 +19,17 @@ export interface PermitData {
   tokenId: BigNumberish;
   nonce: number;
   deadline: BigNumberish;
+}
+
+export interface Eip712Data extends TypeData {
+    domain: {
+        name: string,
+        version: string,
+        chainId: number,
+        verifyingContract: string,
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    message: any,
 }
 
 const typedPermitData: TypeData = {
@@ -46,7 +59,7 @@ const typedLoanTermsData: TypeData = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const buildData = (verifyingContract: string, name: string, version: string, message: any, typeData: TypeData) => {
+const buildData = (verifyingContract: string, name: string, version: string, message: any, typeData: TypeData): Eip712Data => {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const chainId = hre.network.config.chainId!;
   return Object.assign({}, typeData, {
@@ -60,6 +73,11 @@ const buildData = (verifyingContract: string, name: string, version: string, mes
   });
 };
 
+// inspired by https://github.com/gnosis/gp-v2-contracts/blob/af9f84aab666c06e72e990dfe20afdfe09db6df4/src/ts/sign.ts#L133-L147
+async function signTypedData(signer: SignerWithAddress | Wallet, data: Eip712Data): Promise<ECDSASignature> {
+  return fromRpcSig(await signer._signTypedData(data.domain, data.types, data.message));
+}
+
 /**
  * Create an EIP712 signature for loan terms
  * @param verifyingContract The address of the contract that will be verifying this signature
@@ -71,12 +89,10 @@ export async function createLoanTermsSignature(
   verifyingContract: string,
   name: string,
   terms: LoanTerms,
-  signer: SignerWithAddress,
+  signer: SignerWithAddress | Wallet,
 ): Promise<ECDSASignature> {
   const data = buildData(verifyingContract, name, "1", terms, typedLoanTermsData);
-
-  const signature = await signer._signTypedData(data.domain, data.types, data.message);
-  return fromRpcSig(signature);
+  return await signTypedData(signer, data);
 }
 
 /**
@@ -90,10 +106,8 @@ export async function createPermitSignature(
   verifyingContract: string,
   name: string,
   permitData: PermitData,
-  signer: SignerWithAddress,
+  signer: SignerWithAddress | Wallet,
 ): Promise<ECDSASignature> {
   const data = buildData(verifyingContract, name, "1", permitData, typedPermitData);
-
-  const signature = await signer._signTypedData(data.domain, data.types, data.message);
-  return fromRpcSig(signature);
+  return await signTypedData(signer, data);
 }
