@@ -24,6 +24,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
     bytes32 public constant ORIGINATOR_ROLE = keccak256("ORIGINATOR_ROLE");
     bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
+    bytes32 public constant FEE_CLAIMER_ROLE = keccak256("FEE_CLAIMER_ROLE");
 
     Counters.Counter private loanIdTracker;
     mapping(uint256 => LoanLibrary.LoanData) private loans;
@@ -43,6 +44,9 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
     constructor(IERC721 _collateralToken, IFeeController _feeController) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(FEE_CLAIMER_ROLE, _msgSender());
+        // only those with FEE_CLAIMER_ROLE can update or grant FEE_CLAIMER_ROLE
+        _setRoleAdmin(FEE_CLAIMER_ROLE, FEE_CLAIMER_ROLE);
 
         feeController = _feeController;
         collateralToken = _collateralToken;
@@ -210,7 +214,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
      *
      * - Must be called by the owner of this contract
      */
-    function setFeeController(IFeeController _newController) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setFeeController(IFeeController _newController) external onlyRole(FEE_CLAIMER_ROLE) {
         feeController = _newController;
     }
 
@@ -223,7 +227,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
      *
      * - Must be called by the owner of this contract
      */
-    function claimFees(IERC20 token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function claimFees(IERC20 token) external onlyRole(FEE_CLAIMER_ROLE) {
         // any token balances remaining on this contract are fees owned by the protocol
         uint256 amount = token.balanceOf(address(this));
         SafeERC20.safeTransfer(token, _msgSender(), amount);
