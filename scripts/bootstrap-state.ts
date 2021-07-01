@@ -428,16 +428,24 @@ export async function main(): Promise<void> {
 
     // 1 will pay off loan from 3
     const loan1BorrowerNoteId = await borrowerNote.tokenOfOwnerByIndex(signer1.address, 1);
-    console.log("SIGNER 1 BALANCE", await getBalance(pawnToken, signer1.address));
     await pawnToken.connect(signer1).approve(repaymentController.address, ethers.utils.parseEther("10500"));
-    await repaymentController.repay(loan1BorrowerNoteId);
+    await repaymentController.connect(signer1).repay(loan1BorrowerNoteId);
 
     console.log(`(Loan 2) Borrower ${signer1.address} repaid 10500 PAWN to ${signer3.address}`);
 
     // 3 will pay off one loan from 2
+    const loan4BorrowerNoteId = await borrowerNote.tokenOfOwnerByIndex(signer3.address, 1);
+    await usd.connect(signer3).approve(repaymentController.address, ethers.utils.parseEther("1140"));
+    await repaymentController.connect(signer3).repay(loan4BorrowerNoteId);
+
+    console.log(`(Loan 4) Borrower ${signer3.address} repaid 1140 PUSD to ${signer2.address}`);
+
+    console.log(SECTION_SEPARATOR);
+    console.log("Bootstrapping complete!");
+    console.log(SECTION_SEPARATOR);
 
     // End state:
-    // 0 is clean
+    // 0 is clean (but has a bunch of tokens and NFTs)
     // 1 has 2 bundles and 1 open borrow, one closed borrow
     // 2 has two open lends and one closed lend
     // 3 has 3 bundles, two open borrows, one closed borrow, and one closed lend
