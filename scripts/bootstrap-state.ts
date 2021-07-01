@@ -59,29 +59,21 @@ export async function main(): Promise<void> {
     console.log("Distributing assets...\n");
 
     async function mintTokens(target: string, [wethAmount, pawnAmount, usdAmount]: [number, number, number]) {
-        const mints = [
-            weth.mint(target, ethers.utils.parseEther(wethAmount.toString())),
-            pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString())),
-            usd.mint(target, ethers.utils.parseEther(usdAmount.toString()))
-        ];
-        
-        await Promise.all(mints);
+        await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
+        await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
+        await usd.mint(target, ethers.utils.parseEther(usdAmount.toString()));
     }
 
     async function mintNFTs(target: string, [numPunks, numArts, numBeats0, numBeats1]: [number, number, number, number]) {
-        const mints = [];
-
         for (let i = 0; i < numPunks; i++) {
-            mints.push(punks.mint(target))
+            await punks.mint(target);
         }
 
         for (let i = 0; i < numArts; i++) {
-            mints.push(art.mint(target))
+            await art.mint(target);
         }
 
-        mints.push(beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], "0x00"))
-
-        await Promise.all(mints);
+        await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], "0x00");
     }
 
     // Give a bunch of everything to signer[0]
