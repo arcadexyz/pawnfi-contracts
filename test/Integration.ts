@@ -100,7 +100,7 @@ describe("Integration", () => {
     }
   };
 
-  const createCnft = async (assetWrapper: AssetWrapper, user: Signer) => {
+  const createWnft = async (assetWrapper: AssetWrapper, user: Signer) => {
     const tx = await assetWrapper.initializeBundle(await user.getAddress());
     const receipt = await tx.wait();
     if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
@@ -124,7 +124,7 @@ describe("Integration", () => {
   describe("Create Loan", function () {
     it("should successfully create a loan", async () => {
       const { loanCore, mockERC20, assetWrapper, user } = await setupTestContext();
-      const collateralTokenId = await createCnft(assetWrapper, user);
+      const collateralTokenId = await createWnft(assetWrapper, user);
       const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
       const loanId = await createLoan(loanCore, user, terms);
@@ -139,7 +139,7 @@ describe("Integration", () => {
 
     it("should emit the LoanCreated event", async () => {
       const { loanCore, mockERC20, assetWrapper, user } = await setupTestContext();
-      const collateralTokenId = await createCnft(assetWrapper, user);
+      const collateralTokenId = await createWnft(assetWrapper, user);
       const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
       await expect(loanCore.connect(user).createLoan(terms)).to.emit(loanCore, "LoanCreated");
@@ -150,7 +150,7 @@ describe("Integration", () => {
 
       const loanIds = new Set();
       for (let i = 0; i < 10; i++) {
-        const collateralTokenId = await createCnft(assetWrapper, user);
+        const collateralTokenId = await createWnft(assetWrapper, user);
         const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
         const loanId = await createLoan(loanCore, user, terms);
@@ -168,7 +168,7 @@ describe("Integration", () => {
 
     it("should fail to create a loan with passed due date", async () => {
       const { loanCore, mockERC20, assetWrapper, user } = await setupTestContext();
-      const collateralTokenId = await createCnft(assetWrapper, user);
+      const collateralTokenId = await createWnft(assetWrapper, user);
       const terms = createLoanTerms(mockERC20.address, {
         collateralTokenId,
         dueDate: await blockchainTime.secondsFromNow(-1000),
@@ -179,7 +179,7 @@ describe("Integration", () => {
 
     it("should fail to create a loan with reused collateral", async () => {
       const { loanCore, mockERC20, assetWrapper, user } = await setupTestContext();
-      const collateralTokenId = await createCnft(assetWrapper, user);
+      const collateralTokenId = await createWnft(assetWrapper, user);
       const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
       await createLoan(loanCore, user, terms);
