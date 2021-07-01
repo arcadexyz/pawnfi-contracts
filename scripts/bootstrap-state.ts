@@ -15,14 +15,14 @@ export async function main(): Promise<void> {
     const [deployer, ...signers] = (await ethers.getSigners()).slice(0, 6);
 
     console.log(SECTION_SEPARATOR);
-    console.log("Deploying resources...");
+    console.log("Deploying resources...\n");
     const {
         assetWrapper
     } = await deploy();
 
     // Mint some NFTs
     console.log(SECTION_SEPARATOR);
-    console.log("Deploying NFTs...");
+    console.log("Deploying NFTs...\n");
     const erc721Factory = await ethers.getContractFactory("ERC721PresetMinterPauserAutoId");
     const erc1155Factory = await ethers.getContractFactory("ERC1155PresetMinterPauser");
 
@@ -37,7 +37,7 @@ export async function main(): Promise<void> {
 
     // Mint some ERC20s
     console.log(SECTION_SEPARATOR);
-    console.log("Deploying Tokens...")
+    console.log("Deploying Tokens...\n")
     const erc20Factory = await ethers.getContractFactory("ERC20PresetMinterPauser");
 
     const weth = await erc20Factory.deploy("Wrapped Ether", "WETH");
@@ -51,7 +51,7 @@ export async function main(): Promise<void> {
 
     // Distribute NFTs and ERC20s
     console.log(SECTION_SEPARATOR);
-    console.log("Distributing assets...");
+    console.log("Distributing assets...\n");
 
     async function mintTokens(target: string, [wethAmount, pawnAmount, usdAmount]: [number, number, number]) {
         const mints = [
@@ -96,8 +96,6 @@ export async function main(): Promise<void> {
     await mintTokens(signers[4].address, [50, 2222.2, 12.1]);
     await mintNFTs(signers[4].address, [1, 12, 1, 6]);
 
-    
-    console.log(SECTION_SEPARATOR);
     console.log("Initial balances:");
     for (const i in signers) {
         const signer = signers[i];
@@ -117,42 +115,112 @@ export async function main(): Promise<void> {
 
     // Wrap some assets
     console.log(SECTION_SEPARATOR);
-    console.log("Wrapping assets...");
+    console.log("Wrapping assets...\n");
     
-    let signer = signers[1];
-    const aw1 = await assetWrapper.connect(signer);
+    const signer1 = signers[1];
+    const aw1 = await assetWrapper.connect(signer1);
     
     // Deposit 1 punk and 1000 usd for bundle 1
-    await aw1.initializeBundle(signer.address);
-    const aw1Bundle1Id = await aw1.tokenOfOwnerByIndex(signer.address, 0);
-    const aw1Punk1Id = await punks.tokenOfOwnerByIndex(signer.address, 0);
+    await aw1.initializeBundle(signer1.address);
+    const aw1Bundle1Id = await aw1.tokenOfOwnerByIndex(signer1.address, 0);
+    const aw1Punk1Id = await punks.tokenOfOwnerByIndex(signer1.address, 0);
 
+    await punks.connect(signer1).approve(aw1.address, aw1Punk1Id);
     await aw1.depositERC721(punks.address, aw1Punk1Id, aw1Bundle1Id);
+
+    await usd.connect(signer1).approve(aw1.address, ethers.utils.parseEther("1000"));
     await aw1.depositERC20(usd.address, ethers.utils.parseEther("1000"), aw1Bundle1Id);
-    console.log(`Signer ${signer.address} created a bundle with 1 PawnFiPunk and 1000 PUSD`);
+    console.log(`Signer ${signer1.address} created a bundle with 1 PawnFiPunk and 1000 PUSD`);
 
     // Deposit 1 punk and 2 beats edition 0 for bundle 2
-    await aw1.initializeBundle(signer.address);
-    const aw1Bundle2Id = await aw1.tokenOfOwnerByIndex(signer.address, 1);
-    const aw1Punk2Id = await punks.tokenOfOwnerByIndex(signer.address, 1);
+    await aw1.initializeBundle(signer1.address);
+    const aw1Bundle2Id = await aw1.tokenOfOwnerByIndex(signer1.address, 1);
+    const aw1Punk2Id = await punks.tokenOfOwnerByIndex(signer1.address, 1);
 
+    await punks.connect(signer1).approve(aw1.address, aw1Punk2Id);
     await aw1.depositERC721(punks.address, aw1Punk2Id, aw1Bundle2Id);
-    console.log(`Signer ${signer.address} created a bundle with 1 PawnFiPunk 2 PawnBeats Edition 0`);
 
-    const aw3 = await assetWrapper.connect(signers[3]);
-    await aw3.initializeBundle(signers[3].address);
+    await beats.connect(signer1).setApprovalForAll(aw1.address, true);
+    await aw1.depositERC1155(beats.address, 0, 2, aw1Bundle2Id);
+    console.log(`Signer ${signer1.address} created a bundle with 1 PawnFiPunk ands 2 PawnBeats Edition 0`);
 
+    const signer3 = signers[3];
+    const aw3 = await assetWrapper.connect(signer3);
+    
     // Deposit 2 punks and 1 weth for bundle 1
+    await aw3.initializeBundle(signer3.address);
+    const aw3Bundle1Id = await aw3.tokenOfOwnerByIndex(signer3.address, 0);
+    const aw3Punk1Id = await punks.tokenOfOwnerByIndex(signer3.address, 0);
+    const aw3Punk2Id = await punks.tokenOfOwnerByIndex(signer3.address, 1);
+
+    await punks.connect(signer3).approve(aw3.address, aw3Punk1Id);
+    await punks.connect(signer3).approve(aw3.address, aw3Punk2Id);
+    await aw3.depositERC721(punks.address, aw3Punk1Id, aw3Bundle1Id);
+    await aw3.depositERC721(punks.address, aw3Punk2Id, aw3Bundle1Id);
+
+    await weth.connect(signer3).approve(aw3.address, ethers.utils.parseEther("1"));
+    await aw3.depositERC20(weth.address, ethers.utils.parseEther("1"), aw3Bundle1Id);
+    console.log(`Signer ${signer3.address} created a bundle with 2 PawnFiPunks and 1 WETH`);
+
     // Deposit 1 punk for bundle 2
+    await aw3.initializeBundle(signer3.address);
+    const aw3Bundle2Id = await aw3.tokenOfOwnerByIndex(signer3.address, 1);
+    const aw3Punk3Id = await punks.tokenOfOwnerByIndex(signer3.address, 2);
+
+    await punks.connect(signer3).approve(aw3.address, aw3Punk3Id);
+    await aw3.depositERC721(punks.address, aw3Punk3Id, aw3Bundle2Id);
+    console.log(`Signer ${signer3.address} created a bundle with 1 PawnFiPunk`);
+
     // Deposit 1 art, 4 beats edition 0, and 2000 usd for bundle 3
+    await aw3.initializeBundle(signer3.address);
+    const aw3Bundle3Id = await aw3.tokenOfOwnerByIndex(signer3.address, 2);
+    const aw3Art1Id = await art.tokenOfOwnerByIndex(signer3.address, 0);
 
-    const aw4 = await assetWrapper.connect(signers[4]);
-    await aw4.initializeBundle(signers[4].address);
+    await art.connect(signer3).approve(aw3.address, aw3Art1Id);
+    await aw3.depositERC721(art.address, aw3Art1Id, aw3Bundle3Id);
 
+    await beats.connect(signer3).setApprovalForAll(aw3.address, true);
+    await aw3.depositERC1155(beats.address, 0, 4, aw3Bundle3Id);
+
+    await usd.connect(signer3).approve(aw3.address, ethers.utils.parseEther("2000"));
+    await aw3.depositERC20(usd.address, ethers.utils.parseEther("2000"), aw3Bundle3Id);
+    console.log(`Signer ${signer3.address} created a bundle with 1 PawnArt, 4 PawnBeats Edition 0, and 2000 PUSD`);
+
+    const signer4 = signers[4];
+    const aw4 = await assetWrapper.connect(signer4);
+    
     // Deposit 3 arts and 1000 pawn for bundle 1
+    await aw4.initializeBundle(signer4.address);
+    const aw4Bundle1Id = await aw4.tokenOfOwnerByIndex(signer4.address, 0);
+    const aw4Art1Id = await art.tokenOfOwnerByIndex(signer4.address, 0);
+    const aw4Art2Id = await art.tokenOfOwnerByIndex(signer4.address, 1);
+    const aw4Art3Id = await art.tokenOfOwnerByIndex(signer4.address, 2);
+
+    await art.connect(signer4).approve(aw4.address, aw4Art1Id);
+    await art.connect(signer4).approve(aw4.address, aw4Art2Id);
+    await art.connect(signer4).approve(aw4.address, aw4Art3Id);
+    await aw4.depositERC721(art.address, aw4Art1Id, aw4Bundle1Id);
+    await aw4.depositERC721(art.address, aw4Art2Id, aw4Bundle1Id);
+    await aw4.depositERC721(art.address, aw4Art3Id, aw4Bundle1Id);
+
+    await pawnToken.connect(signer4).approve(aw4.address, ethers.utils.parseEther("1000"));
+    await aw4.depositERC20(pawnToken.address, ethers.utils.parseEther("1000"), aw4Bundle1Id);
+    console.log(`Signer ${signer4.address} created a bundle with 4 PawnArts and 1000 PAWN`);
+
     // Deposit 1 punk and 1 beats edition 1 for bundle 2
+    await aw4.initializeBundle(signer4.address);
+    const aw4Bundle2Id = await aw3.tokenOfOwnerByIndex(signer4.address, 1);
+    const aw4Punk1Id = await punks.tokenOfOwnerByIndex(signer4.address, 0);
 
+    await punks.connect(signer4).approve(aw4.address, aw4Punk1Id);
+    await aw4.depositERC721(punks.address, aw4Punk1Id, aw4Bundle2Id);
 
+    await beats.connect(signer4).setApprovalForAll(aw4.address, true);
+    await aw4.depositERC1155(beats.address, 1, 1, aw4Bundle2Id);
+    console.log(`Signer ${signer4.address} created a bundle with 1 PawnFiPunk and 1 PawnBeats Edition 1`);
+
+    console.log(SECTION_SEPARATOR);
+    console.log("Initializing loans...\n");
 
     // Start some loans
     // 1 will borrow from 2
