@@ -138,7 +138,7 @@ describe("OriginationController", () => {
       ).to.be.revertedWith("Origination: sender not participant");
     });
 
-    it("Reverts if cNFT not approved", async () => {
+    it("Reverts if wNFT not approved", async () => {
       const {
         originationController,
         mockERC20,
@@ -159,7 +159,7 @@ describe("OriginationController", () => {
       );
 
       await approve(mockERC20, lender, originationController.address, loanTerms.principal);
-      // no approval of cNFT token
+      // no approval of wNFT token
       await expect(
         originationController
           .connect(lender)

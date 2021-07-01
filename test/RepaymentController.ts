@@ -32,7 +32,7 @@ describe("RepaymentController", () => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const [deployer, borrower, lender, otherParty] = signers;
 
-    const mockCollateral = <MockERC721>await deploy("MockERC721", deployer, ["Mock Collateral", "McNFT"]);
+    const mockCollateral = <MockERC721>await deploy("MockERC721", deployer, ["Mock Collateral", "MwNFT"]);
     const mockLoanCore = <MockLoanCore>await deploy("MockLoanCore", deployer, []);
 
     const borrowerNoteAddress = await mockLoanCore.borrowerNote();

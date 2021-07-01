@@ -110,7 +110,7 @@ describe("Integration", () => {
     };
   };
 
-  const createCnft = async (assetWrapper: AssetWrapper, user: SignerWithAddress) => {
+  const createWnft = async (assetWrapper: AssetWrapper, user: SignerWithAddress) => {
     const tx = await assetWrapper.initializeBundle(await user.getAddress());
     const receipt = await tx.wait();
     if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
@@ -124,7 +124,7 @@ describe("Integration", () => {
     it("should successfully create a loan", async () => {
       const { originationController, mockERC20, loanCore, assetWrapper, lender, borrower } = await setupTestContext();
 
-      const bundleId = await createCnft(assetWrapper, borrower);
+      const bundleId = await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
       await mint(mockERC20, lender, loanTerms.principal);
 
@@ -148,10 +148,10 @@ describe("Integration", () => {
         .to.emit(loanCore, "LoanStarted");
     });
 
-    it("should fail to start loan if cNFT is withdrawn", async () => {
+    it("should fail to start loan if wNFT is withdrawn", async () => {
       const { originationController, mockERC20, assetWrapper, lender, borrower } = await setupTestContext();
 
-      const bundleId = await createCnft(assetWrapper, borrower);
+      const bundleId = await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
       await mint(mockERC20, lender, loanTerms.principal);
 
@@ -198,7 +198,7 @@ describe("Integration", () => {
     it("should fail to create a loan with passed due date", async () => {
       const { originationController, mockERC20, assetWrapper, lender, borrower } = await setupTestContext();
 
-      const bundleId = await createCnft(assetWrapper, borrower);
+      const bundleId = await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, {
         collateralTokenId: bundleId,
         dueDate: await blockchainTime.secondsFromNow(-1000),
@@ -232,7 +232,7 @@ describe("Integration", () => {
 
     const initializeLoan = async (context: TestContext): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
-      const bundleId = await createCnft(assetWrapper, borrower);
+      const bundleId = await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
       await mint(mockERC20, lender, loanTerms.principal);
 
@@ -332,7 +332,7 @@ describe("Integration", () => {
     const initializeLoan = async (context: TestContext): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
       const dueDate = await blockchainTime.secondsFromNow(1000);
-      const bundleId = await createCnft(assetWrapper, borrower);
+      const bundleId = await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId, dueDate });
       await mint(mockERC20, lender, loanTerms.principal);
 
