@@ -4,6 +4,8 @@ import { Contract } from "ethers";
 import { ethers } from "hardhat";
 
 import { main as deploy } from "./deploy";
+import { LoanTerms } from "../test/utils/types";
+import { createLoanTermsSignature } from "../test/utils/eip712";
 
 const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n"
 const SUBSECTION_SEPARATOR = "-".repeat(10);
@@ -17,7 +19,10 @@ export async function main(): Promise<void> {
     console.log(SECTION_SEPARATOR);
     console.log("Deploying resources...\n");
     const {
-        assetWrapper
+        assetWrapper,
+        originationController,
+        repaymentController,
+        borrowerNote
     } = await deploy();
 
     // Mint some NFTs
@@ -87,7 +92,7 @@ export async function main(): Promise<void> {
     await mintTokens(signers[1].address, [0, 2000, 10000]);
     await mintNFTs(signers[1].address, [5, 0, 2, 1]);
 
-    await mintTokens(signers[2].address, [450, 0.5, 5000]);
+    await mintTokens(signers[2].address, [450, 350.5, 5000]);
     await mintNFTs(signers[2].address, [0, 0, 1, 0]);
 
     await mintTokens(signers[3].address, [2, 50000, 7777]);
@@ -130,7 +135,7 @@ export async function main(): Promise<void> {
 
     await usd.connect(signer1).approve(aw1.address, ethers.utils.parseEther("1000"));
     await aw1.depositERC20(usd.address, ethers.utils.parseEther("1000"), aw1Bundle1Id);
-    console.log(`Signer ${signer1.address} created a bundle with 1 PawnFiPunk and 1000 PUSD`);
+    console.log(`(Bundle 1) Signer ${signer1.address} created a bundle with 1 PawnFiPunk and 1000 PUSD`);
 
     // Deposit 1 punk and 2 beats edition 0 for bundle 2
     await aw1.initializeBundle(signer1.address);
@@ -142,7 +147,7 @@ export async function main(): Promise<void> {
 
     await beats.connect(signer1).setApprovalForAll(aw1.address, true);
     await aw1.depositERC1155(beats.address, 0, 2, aw1Bundle2Id);
-    console.log(`Signer ${signer1.address} created a bundle with 1 PawnFiPunk ands 2 PawnBeats Edition 0`);
+    console.log(`(Bundle 2) Signer ${signer1.address} created a bundle with 1 PawnFiPunk ands 2 PawnBeats Edition 0`);
 
     const signer3 = signers[3];
     const aw3 = await assetWrapper.connect(signer3);
@@ -160,7 +165,7 @@ export async function main(): Promise<void> {
 
     await weth.connect(signer3).approve(aw3.address, ethers.utils.parseEther("1"));
     await aw3.depositERC20(weth.address, ethers.utils.parseEther("1"), aw3Bundle1Id);
-    console.log(`Signer ${signer3.address} created a bundle with 2 PawnFiPunks and 1 WETH`);
+    console.log(`(Bundle 3) Signer ${signer3.address} created a bundle with 2 PawnFiPunks and 1 WETH`);
 
     // Deposit 1 punk for bundle 2
     await aw3.initializeBundle(signer3.address);
@@ -169,7 +174,7 @@ export async function main(): Promise<void> {
 
     await punks.connect(signer3).approve(aw3.address, aw3Punk3Id);
     await aw3.depositERC721(punks.address, aw3Punk3Id, aw3Bundle2Id);
-    console.log(`Signer ${signer3.address} created a bundle with 1 PawnFiPunk`);
+    console.log(`(Bundle 4) Signer ${signer3.address} created a bundle with 1 PawnFiPunk`);
 
     // Deposit 1 art, 4 beats edition 0, and 2000 usd for bundle 3
     await aw3.initializeBundle(signer3.address);
@@ -184,7 +189,7 @@ export async function main(): Promise<void> {
 
     await usd.connect(signer3).approve(aw3.address, ethers.utils.parseEther("2000"));
     await aw3.depositERC20(usd.address, ethers.utils.parseEther("2000"), aw3Bundle3Id);
-    console.log(`Signer ${signer3.address} created a bundle with 1 PawnArt, 4 PawnBeats Edition 0, and 2000 PUSD`);
+    console.log(`(Bundle 5) Signer ${signer3.address} created a bundle with 1 PawnArt, 4 PawnBeats Edition 0, and 2000 PUSD`);
 
     const signer4 = signers[4];
     const aw4 = await assetWrapper.connect(signer4);
@@ -205,7 +210,7 @@ export async function main(): Promise<void> {
 
     await pawnToken.connect(signer4).approve(aw4.address, ethers.utils.parseEther("1000"));
     await aw4.depositERC20(pawnToken.address, ethers.utils.parseEther("1000"), aw4Bundle1Id);
-    console.log(`Signer ${signer4.address} created a bundle with 4 PawnArts and 1000 PAWN`);
+    console.log(`(Bundle 6) Signer ${signer4.address} created a bundle with 4 PawnArts and 1000 PAWN`);
 
     // Deposit 1 punk and 1 beats edition 1 for bundle 2
     await aw4.initializeBundle(signer4.address);
@@ -217,28 +222,225 @@ export async function main(): Promise<void> {
 
     await beats.connect(signer4).setApprovalForAll(aw4.address, true);
     await aw4.depositERC1155(beats.address, 1, 1, aw4Bundle2Id);
-    console.log(`Signer ${signer4.address} created a bundle with 1 PawnFiPunk and 1 PawnBeats Edition 1`);
+    console.log(`(Bundle 7) Signer ${signer4.address} created a bundle with 1 PawnFiPunk and 1 PawnBeats Edition 1`);
 
     console.log(SECTION_SEPARATOR);
     console.log("Initializing loans...\n");
 
     // Start some loans
+    const signer2 = signers[2];
+    const oneDayMs = 1000 * 60 * 60 * 24;
+    const oneWeekMs = oneDayMs * 7;
+    const oneMonthMs = oneDayMs * 30;
+
+    const dateFromNow = (msToAdd: number) => Math.floor(new Date(Date.now() + msToAdd).getTime() / 1000);
+
     // 1 will borrow from 2
+    const loan1Terms: LoanTerms = {
+        dueDate: dateFromNow(oneWeekMs),
+        principal: ethers.utils.parseEther("10"),
+        interest: ethers.utils.parseEther("1.5"),
+        collateralTokenId: aw1Bundle1Id,
+        payableCurrency: weth.address
+    };
+
+    const { v: loan1V, r: loan1R, s: loan1S } = await createLoanTermsSignature(
+        originationController.address,
+        "OriginationController",
+        loan1Terms,
+        signer1,
+    );
+
+    await weth.connect(signer2).approve(originationController.address, ethers.utils.parseEther("10"));
+    await assetWrapper.connect(signer1).approve(originationController.address, aw1Bundle1Id);
+
+    // Borrower signed, so lender will initialize
+    await originationController.connect(signer2).initializeLoan(
+        loan1Terms, 
+        signer1.address, 
+        signer2.address, 
+        loan1V,
+        loan1R,
+        loan1S
+    );
+
+    console.log(`(Loan 1) Signer ${signer1.address} borrowed 10 WETH at 15% interest from ${signer2.address} against Bundle 1`);
+
     // 1 will borrow from 3
+    const loan2Terms: LoanTerms = {
+        dueDate: dateFromNow(oneWeekMs - 10000),
+        principal: ethers.utils.parseEther("10000"),
+        interest: ethers.utils.parseEther("500"),
+        collateralTokenId: aw1Bundle2Id,
+        payableCurrency: pawnToken.address
+    };
+
+    const { v: loan2V, r: loan2R, s: loan2S } = await createLoanTermsSignature(
+        originationController.address,
+        "OriginationController",
+        loan2Terms,
+        signer1,
+    );
+
+    await pawnToken.connect(signer3).approve(originationController.address, ethers.utils.parseEther("10000"));
+    await assetWrapper.connect(signer1).approve(originationController.address, aw1Bundle2Id);
+
+    // Borrower signed, so lender will initialize
+    await originationController.connect(signer3).initializeLoan(
+        loan2Terms,
+        signer1.address,
+        signer3.address,
+        loan2V,
+        loan2R,
+        loan2S
+    );
+
+    console.log(`(Loan 2) Signer ${signer1.address} borrowed 10000 PAWN at 5% interest from ${signer3.address} against Bundle 2`);
+
     // 3 will borrow from 2
+    const loan3Terms: LoanTerms = {
+        dueDate: dateFromNow(oneDayMs - 10000),
+        principal: ethers.utils.parseEther("1000"),
+        interest: ethers.utils.parseEther("80"),
+        collateralTokenId: aw3Bundle1Id,
+        payableCurrency: usd.address
+    };
+
+    const { v: loan3V, r: loan3R, s: loan3S } = await createLoanTermsSignature(
+        originationController.address,
+        "OriginationController",
+        loan3Terms,
+        signer3,
+    );
+
+    await usd.connect(signer2).approve(originationController.address, ethers.utils.parseEther("1000"));
+    await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle1Id);
+
+    // Borrower signed, so lender will initialize
+    await originationController.connect(signer2).initializeLoan(
+        loan3Terms,
+        signer3.address,
+        signer2.address,
+        loan3V,
+        loan3R,
+        loan3S
+    );
+
+    console.log(`(Loan 3) Signer ${signer3.address} borrowed 1000 PUSD at 8% interest from ${signer2.address} against Bundle 3`);
+
     // 3 will open a second loan from 2
+    const loan4Terms: LoanTerms = {
+        dueDate: dateFromNow(oneMonthMs),
+        principal: ethers.utils.parseEther("1000"),
+        interest: ethers.utils.parseEther("140"),
+        collateralTokenId: aw3Bundle2Id,
+        payableCurrency: usd.address
+    };
+
+    const { v: loan4V, r: loan4R, s: loan4S } = await createLoanTermsSignature(
+        originationController.address,
+        "OriginationController",
+        loan4Terms,
+        signer3,
+    );
+
+    await usd.connect(signer2).approve(originationController.address, ethers.utils.parseEther("1000"));
+    await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle2Id);
+
+    // Borrower signed, so lender will initialize
+    await originationController.connect(signer2).initializeLoan(
+        loan4Terms,
+        signer3.address,
+        signer2.address,
+        loan4V,
+        loan4R,
+        loan4S
+    );
+
+    console.log(`(Loan 4) Signer ${signer3.address} borrowed 1000 PUSD at 14% interest from ${signer2.address} against Bundle 4`);
+    
     // 3 will also borrow from 4
+    const loan5Terms: LoanTerms = {
+        dueDate: dateFromNow(300000),
+        principal: ethers.utils.parseEther("20"),
+        interest: ethers.utils.parseEther("0.4"),
+        collateralTokenId: aw3Bundle3Id,
+        payableCurrency: weth.address
+    };
+
+    const { v: loan5V, r: loan5R, s: loan5S } = await createLoanTermsSignature(
+        originationController.address,
+        "OriginationController",
+        loan5Terms,
+        signer3,
+    );
+
+    await weth.connect(signer4).approve(originationController.address, ethers.utils.parseEther("20"));
+    await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle3Id);
+
+    // Borrower signed, so lender will initialize
+    await originationController.connect(signer4).initializeLoan(
+        loan5Terms,
+        signer3.address,
+        signer4.address,
+        loan5V,
+        loan5R,
+        loan5S
+    );
+
+    console.log(`(Loan 5) Signer ${signer3.address} borrowed 20 WETH at 2% interest from ${signer4.address} against Bundle 5`);
+
     // 4 will borrow from 2
+    const loan6Terms: LoanTerms = {
+        dueDate: dateFromNow(oneWeekMs),
+        principal: ethers.utils.parseEther("300.33"),
+        interest: ethers.utils.parseEther("18.0198"),
+        collateralTokenId: aw4Bundle1Id,
+        payableCurrency: pawnToken.address
+    };
+
+    const { v: loan6V, r: loan6R, s: loan6S } = await createLoanTermsSignature(
+        originationController.address,
+        "OriginationController",
+        loan6Terms,
+        signer4,
+    );
+
+    await pawnToken.connect(signer2).approve(originationController.address, ethers.utils.parseEther("300.33"));
+    await assetWrapper.connect(signer4).approve(originationController.address, aw4Bundle1Id);
+
+    // Borrower signed, so lender will initialize
+    await originationController.connect(signer2).initializeLoan(
+        loan6Terms,
+        signer4.address,
+        signer2.address,
+        loan6V,
+        loan6R,
+        loan6S
+    );
+
+    console.log(`(Loan 6) Signer ${signer4.address} borrowed 300.33 PAWN at 6% interest from ${signer2.address} against Bundle 6`);
 
     // Payoff a couple loans (not all)
+    // Not setting up any claims because of timing issues.
+    console.log(SECTION_SEPARATOR);
+    console.log("Repaying (some) loans...\n");
+
     // 1 will pay off loan from 3
+    const loan1BorrowerNoteId = await borrowerNote.tokenOfOwnerByIndex(signer1.address, 1);
+    console.log("SIGNER 1 BALANCE", await getBalance(pawnToken, signer1.address));
+    await pawnToken.connect(signer1).approve(repaymentController.address, ethers.utils.parseEther("10500"));
+    await repaymentController.repay(loan1BorrowerNoteId);
+
+    console.log(`(Loan 2) Borrower ${signer1.address} repaid 10500 PAWN to ${signer3.address}`);
+
     // 3 will pay off one loan from 2
 
     // End state:
     // 0 is clean
     // 1 has 2 bundles and 1 open borrow, one closed borrow
     // 2 has two open lends and one closed lend
-    // 3 has 3 bundles, two open borrows, and one closed borrow
+    // 3 has 3 bundles, two open borrows, one closed borrow, and one closed lend
     // 4 has 1 bundle, an unused bundle, one open lend and one open borrow
 }
 

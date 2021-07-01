@@ -37,15 +37,18 @@ export async function main(
   const loanCore = await LoanCore.deploy(assetWrapper.address, feeController.address);
   await loanCore.deployed();
 
-  const borrowerNote = await loanCore.borrowerNote();
-  const lenderNote = await loanCore.lenderNote();
+  const promissoryNoteFactory = await ethers.getContractFactory("PromissoryNote");
+  const borrowerNoteAddr = await loanCore.borrowerNote();
+  const borrowerNote = await promissoryNoteFactory.attach(borrowerNoteAddr);
+  const lenderNoteAddr = await loanCore.lenderNote();
+  const lenderNote = await promissoryNoteFactory.attach(lenderNoteAddr);
 
   console.log("LoanCore deployed to:", loanCore.address);
-  console.log("BorrowerNote deployed to:", borrowerNote);
-  console.log("LenderNote deployed to:", lenderNote);
+  console.log("BorrowerNote deployed to:", borrowerNoteAddr);
+  console.log("LenderNote deployed to:", lenderNoteAddr);
 
   const RepaymentController = await ethers.getContractFactory("RepaymentController");
-  const repaymentController = await RepaymentController.deploy(loanCore.address, borrowerNote, lenderNote);
+  const repaymentController = await RepaymentController.deploy(loanCore.address, borrowerNoteAddr, lenderNoteAddr);
   await repaymentController.deployed();
   const updateRepaymentControllerPermissions = await loanCore.grantRole(REPAYER_ROLE, repaymentController.address);
   await updateRepaymentControllerPermissions.wait();
