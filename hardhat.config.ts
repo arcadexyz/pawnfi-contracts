@@ -79,7 +79,7 @@ const config: HardhatUserConfig = {
       },
       chainId: chainIds.hardhat,
       gasMultiplier: 10,
-    }
+    },
   },
   paths: {
     artifacts: "./artifacts",
