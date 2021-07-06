@@ -80,13 +80,6 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
-        // The following line could be removed to save gas
-        // as it will be implicitly ensured in startLoan when we take ownership of the collateral
-        require(
-            collateralToken.ownerOf(terms.collateralTokenId) != address(0),
-            "LoanCore::create: nonexistent collateral"
-        );
-
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
 
@@ -120,13 +113,11 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
         loans[loanId] = LoanLibrary.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanLibrary.LoanState.Active);
-        SafeERC20.safeTransfer(
-            IERC20(data.terms.payableCurrency),
-            borrower,
-            getPrincipalLessFees(data.terms.principal)
-        );
+        uint256 principalLessFees = getPrincipalLessFees(data.terms.principal);
+        // Update token balance opportunistically to prevent reentrance
+        updateTokenBalance(IERC20(data.terms.payableCurrency), principalLessFees);
+        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), borrower, principalLessFees);
 
-        updateTokenBalance(IERC20(data.terms.payableCurrency));
         emit LoanStarted(loanId, lender, borrower);
     }
 
@@ -152,11 +143,12 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
+        // Update token balance opportunistically to prevent reentrance
+        updateTokenBalance(IERC20(data.terms.payableCurrency), returnAmount);
+
         // asset and collateral redistribution
         SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), lender, returnAmount);
         collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
-
-        updateTokenBalance(IERC20(data.terms.payableCurrency));
 
         emit LoanRepaid(loanId);
     }
@@ -194,8 +186,8 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     /**
      * @dev Update the internal state of our token balance for the given token
      */
-    function updateTokenBalance(IERC20 token) internal {
-        tokenBalances[address(token)] = token.balanceOf(address(this));
+    function updateTokenBalance(IERC20 token, uint256 amount) internal {
+        tokenBalances[address(token)] = token.balanceOf(address(this)).sub(amount);
     }
 
     /**
