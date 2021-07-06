@@ -560,7 +560,7 @@ describe("LoanCore", () => {
         .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("475577");
+      expect(gasUsed.toString()).to.equal("475735");
     });
   });
 
@@ -690,7 +690,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).repay(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("123118");
+      expect(gasUsed.toString()).to.equal("123199");
     });
   });
 
