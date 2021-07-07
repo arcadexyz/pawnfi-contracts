@@ -168,13 +168,6 @@ describe("LoanCore", () => {
       await expect(loanCore.connect(other).createLoan(terms)).to.emit(loanCore, "LoanCreated");
     });
 
-    it("should fail to create a loan with nonexistent collateral", async () => {
-      const { loanCore, mockERC20, user } = await setupTestContext();
-      const terms = createLoanTerms(mockERC20.address);
-
-      await expect(createLoan(loanCore, user, terms)).to.be.revertedWith("ERC721: owner query for nonexistent token");
-    });
-
     it("should fail to create a loan with passed due date", async () => {
       const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
       const collateralTokenId = await mintERC721(mockAssetWrapper, user);
@@ -216,7 +209,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(user).createLoan(terms);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("182750");
+      expect(gasUsed.toString()).to.equal("175036");
     });
   });
 
