@@ -3,13 +3,9 @@ import { LoanTerms } from "../test/utils/types";
 import { createLoanTermsSignature } from "../test/utils/eip712";
 import { Contract } from "ethers";
 import {
-  AssetWrapper,
   MockERC1155,
   MockERC20,
   MockERC721,
-  OriginationController,
-  PromissoryNote,
-  RepaymentController,
 } from "../typechain";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
@@ -144,10 +140,10 @@ export async function deployNFTs(): Promise<DeployedNFT> {
 
 export async function wrapAssetsAndMakeLoans(
   signers: SignerWithAddress[],
-  assetWrapper: AssetWrapper,
-  originationController: OriginationController,
-  borrowerNote: PromissoryNote,
-  repaymentController: RepaymentController,
+  assetWrapper: Contract,
+  originationController: Contract,
+  borrowerNote: Contract,
+  repaymentController: Contract,
   punks: MockERC721,
   usd: MockERC20,
   beats: MockERC1155,
