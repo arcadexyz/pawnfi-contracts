@@ -2,11 +2,7 @@ import { ethers } from "hardhat";
 import { LoanTerms } from "../test/utils/types";
 import { createLoanTermsSignature } from "../test/utils/eip712";
 import { Contract } from "ethers";
-import {
-  MockERC1155,
-  MockERC20,
-  MockERC721,
-} from "../typechain";
+import { MockERC1155, MockERC20, MockERC721 } from "../typechain";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
