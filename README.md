@@ -121,6 +121,5 @@ The same can be done for non-local instances like Ropsten or Mainnet, but a priv
 
 ## Local Development
 
-1. In one window, run `npx hardhat node`.  Wait for it to load
-1. In another window run either `yarn bootstrap-no-loans` or `yarn bootstrap-with-loans`.  Both will deploy our smart contracts, create a collection of ERC20 and ERC721/ERC1155 NFTs, and distribute them amongst the first 5 signers, skipping the first one since it deploys the smart contract.  The second target will also wrap assets, and create loans.
-
+1. In one window, run `npx hardhat node`. Wait for it to load
+1. In another window run either `yarn bootstrap-no-loans` or `yarn bootstrap-with-loans`. Both will deploy our smart contracts, create a collection of ERC20 and ERC721/ERC1155 NFTs, and distribute them amongst the first 5 signers, skipping the first one since it deploys the smart contract. The second target will also wrap assets, and create loans.

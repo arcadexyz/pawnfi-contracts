@@ -3,11 +3,7 @@
 import { ethers } from "hardhat";
 
 import { main as deploy } from "./deploy";
-import {
-  deployNFTs,
-  mintAndDistribute,
-  SECTION_SEPARATOR,
-} from "./bootstrap-tools";
+import { deployNFTs, mintAndDistribute, SECTION_SEPARATOR } from "./bootstrap-tools";
 
 export async function main(): Promise<void> {
   // Bootstrap five accounts only.

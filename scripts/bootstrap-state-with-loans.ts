@@ -3,12 +3,7 @@
 import { ethers } from "hardhat";
 
 import { main as deploy } from "./deploy";
-import {
-  deployNFTs,
-  mintAndDistribute,
-  SECTION_SEPARATOR,
-  wrapAssetsAndMakeLoans
-} from "./bootstrap-tools";
+import { deployNFTs, mintAndDistribute, SECTION_SEPARATOR, wrapAssetsAndMakeLoans } from "./bootstrap-tools";
 
 export async function main(): Promise<void> {
   // Bootstrap five accounts only.
@@ -34,8 +29,19 @@ export async function main(): Promise<void> {
   // Wrap some assets
   console.log(SECTION_SEPARATOR);
   console.log("Wrapping assets...\n");
-  await wrapAssetsAndMakeLoans(signers, assetWrapper, originationController, borrowerNote,
-    repaymentController, punks, usd, beats, weth, art, pawnToken);
+  await wrapAssetsAndMakeLoans(
+    signers,
+    assetWrapper,
+    originationController,
+    borrowerNote,
+    repaymentController,
+    punks,
+    usd,
+    beats,
+    weth,
+    art,
+    pawnToken,
+  );
 
   // End state:
   // 0 is clean (but has a bunch of tokens and NFTs)

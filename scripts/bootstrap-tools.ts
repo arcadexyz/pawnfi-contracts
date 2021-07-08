@@ -1,7 +1,17 @@
-import {ethers} from "hardhat";
-import {LoanTerms} from "../test/utils/types";
-import {createLoanTermsSignature} from "../test/utils/eip712";
-import {Contract} from "ethers";
+import { ethers } from "hardhat";
+import { LoanTerms } from "../test/utils/types";
+import { createLoanTermsSignature } from "../test/utils/eip712";
+import { Contract } from "ethers";
+import {
+  AssetWrapper,
+  MockERC1155,
+  MockERC20,
+  MockERC721,
+  OriginationController,
+  PromissoryNote,
+  RepaymentController,
+} from "../typechain";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
 export const SUBSECTION_SEPARATOR = "-".repeat(10);
@@ -14,15 +24,29 @@ async function getBalanceERC1155(asset: Contract, id: number, addr: string): Pro
   return (await asset.balanceOf(addr, id)).toString();
 }
 
-export async function mintTokens(target: string, [wethAmount, pawnAmount, usdAmount]: [number, number, number],
-                                 weth: any, pawnToken: any, usd: any) {
+// interface mintable {
+//   mint: (target: string, )
+// }
+
+export async function mintTokens(
+  target: string,
+  [wethAmount, pawnAmount, usdAmount]: [number, number, number],
+  weth: MockERC20,
+  pawnToken: MockERC20,
+  usd: MockERC20,
+): Promise<void> {
   await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
   await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
   await usd.mint(target, ethers.utils.parseEther(usdAmount.toString()));
 }
 
-export async function mintNFTs(target: string, [numPunks, numArts, numBeats0, numBeats1]: [number, number, number, number],
-                               punks: any, art: any, beats: any) {
+export async function mintNFTs(
+  target: string,
+  [numPunks, numArts, numBeats0, numBeats1]: [number, number, number, number],
+  punks: MockERC721,
+  art: MockERC721,
+  beats: MockERC1155,
+): Promise<void> {
   for (let i = 0; i < numPunks; i++) {
     await punks.mint(target);
   }
@@ -34,7 +58,15 @@ export async function mintNFTs(target: string, [numPunks, numArts, numBeats0, nu
   await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], "0x00");
 }
 
-export async function mintAndDistribute(signers: any, weth: any, pawnToken: any, usd: any, punks: any, art: any, beats: any) {
+export async function mintAndDistribute(
+  signers: SignerWithAddress[],
+  weth: MockERC20,
+  pawnToken: MockERC20,
+  usd: MockERC20,
+  punks: MockERC721,
+  art: MockERC721,
+  beats: MockERC1155,
+): Promise<void> {
   // Give a bunch of everything to signer[0]
   await mintTokens(signers[0].address, [1000, 500000, 2000000], weth, pawnToken, usd);
   await mintNFTs(signers[0].address, [20, 20, 20, 20], punks, art, beats);
@@ -55,7 +87,7 @@ export async function mintAndDistribute(signers: any, weth: any, pawnToken: any,
   console.log("Initial balances:");
   for (const i in signers) {
     const signer = signers[i];
-    const {address: signerAddr} = signer;
+    const { address: signerAddr } = signer;
 
     console.log(SUBSECTION_SEPARATOR);
     console.log(`Signer ${i}: ${signerAddr}`);
@@ -70,19 +102,27 @@ export async function mintAndDistribute(signers: any, weth: any, pawnToken: any,
   }
 }
 
+interface DeployedNFT {
+  punks: MockERC721;
+  art: MockERC721;
+  beats: MockERC1155;
+  weth: MockERC20;
+  pawnToken: MockERC20;
+  usd: MockERC20;
+}
 
-export const deployNFTs = async () => {
+export async function deployNFTs(): Promise<DeployedNFT> {
   console.log("Deploying NFTs...\n");
   const erc721Factory = await ethers.getContractFactory("ERC721PresetMinterPauserAutoId");
   const erc1155Factory = await ethers.getContractFactory("ERC1155PresetMinterPauser");
 
-  const punks = await erc721Factory.deploy("PawnFiPunks", "PFPUNKS", "");
+  const punks = <MockERC721>await erc721Factory.deploy("PawnFiPunks", "PFPUNKS", "");
   console.log("(ERC721) PawnFiPunks deployed to:", punks.address);
 
-  const art = await erc721Factory.deploy("PawnArt.io", "PWART", "");
+  const art = <MockERC721>await erc721Factory.deploy("PawnArt.io", "PWART", "");
   console.log("(ERC721) PawnArt.io deployed to:", art.address);
 
-  const beats = await erc1155Factory.deploy("");
+  const beats = <MockERC1155>await erc1155Factory.deploy("");
   console.log("(ERC1155) PawnBeats deployed to:", beats.address);
 
   // Deploy some ERC20s
@@ -90,22 +130,31 @@ export const deployNFTs = async () => {
   console.log("Deploying Tokens...\n");
   const erc20Factory = await ethers.getContractFactory("ERC20PresetMinterPauser");
 
-  const weth = await erc20Factory.deploy("Wrapped Ether", "WETH");
+  const weth = <MockERC20>await erc20Factory.deploy("Wrapped Ether", "WETH");
   console.log("(ERC20) WETH deployed to:", weth.address);
 
-  const pawnToken = await erc20Factory.deploy("PawnToken", "PAWN");
+  const pawnToken = <MockERC20>await erc20Factory.deploy("PawnToken", "PAWN");
   console.log("(ERC20) PAWN deployed to:", pawnToken.address);
 
-  const usd = await erc20Factory.deploy("USD Stabecloin", "PUSD");
+  const usd = <MockERC20>await erc20Factory.deploy("USD Stabecloin", "PUSD");
   console.log("(ERC20) PUSD deployed to:", usd.address);
 
-  return { punks, art, beats, weth, pawnToken, usd};
+  return { punks, art, beats, weth, pawnToken, usd };
 }
 
-export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, originationController: any, borrowerNote: any,
-                                      repaymentController: any, punks: any, usd: any, beats: any, weth: any,
-                                      art: any, pawnToken: any) {
-
+export async function wrapAssetsAndMakeLoans(
+  signers: SignerWithAddress[],
+  assetWrapper: AssetWrapper,
+  originationController: OriginationController,
+  borrowerNote: PromissoryNote,
+  repaymentController: RepaymentController,
+  punks: MockERC721,
+  usd: MockERC20,
+  beats: MockERC1155,
+  weth: MockERC20,
+  art: MockERC721,
+  pawnToken: MockERC20,
+): Promise<void> {
   const signer1 = signers[1];
   const aw1 = await assetWrapper.connect(signer1);
 
@@ -230,7 +279,7 @@ export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, or
     payableCurrency: weth.address,
   };
 
-  const {v: loan1V, r: loan1R, s: loan1S} = await createLoanTermsSignature(
+  const { v: loan1V, r: loan1R, s: loan1S } = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan1Terms,
@@ -258,7 +307,7 @@ export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, or
     payableCurrency: pawnToken.address,
   };
 
-  const {v: loan2V, r: loan2R, s: loan2S} = await createLoanTermsSignature(
+  const { v: loan2V, r: loan2R, s: loan2S } = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan2Terms,
@@ -286,7 +335,7 @@ export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, or
     payableCurrency: usd.address,
   };
 
-  const {v: loan3V, r: loan3R, s: loan3S} = await createLoanTermsSignature(
+  const { v: loan3V, r: loan3R, s: loan3S } = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan3Terms,
@@ -314,7 +363,7 @@ export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, or
     payableCurrency: usd.address,
   };
 
-  const {v: loan4V, r: loan4R, s: loan4S} = await createLoanTermsSignature(
+  const { v: loan4V, r: loan4R, s: loan4S } = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan4Terms,
@@ -342,7 +391,7 @@ export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, or
     payableCurrency: weth.address,
   };
 
-  const {v: loan5V, r: loan5R, s: loan5S} = await createLoanTermsSignature(
+  const { v: loan5V, r: loan5R, s: loan5S } = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan5Terms,
@@ -370,7 +419,7 @@ export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, or
     payableCurrency: pawnToken.address,
   };
 
-  const {v: loan6V, r: loan6R, s: loan6S} = await createLoanTermsSignature(
+  const { v: loan6V, r: loan6R, s: loan6S } = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan6Terms,
