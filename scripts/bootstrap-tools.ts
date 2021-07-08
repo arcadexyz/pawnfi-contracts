@@ -1,27 +1,77 @@
-/* eslint no-unused-vars: 0 */
+import {ethers} from "hardhat";
+import {LoanTerms} from "../test/utils/types";
+import {createLoanTermsSignature} from "../test/utils/eip712";
+import {Contract} from "ethers";
 
-import { Contract } from "ethers";
-import { ethers } from "hardhat";
+export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
+export const SUBSECTION_SEPARATOR = "-".repeat(10);
 
-import { main as deploy } from "./deploy";
-import { LoanTerms } from "../test/utils/types";
-import { createLoanTermsSignature } from "../test/utils/eip712";
+async function getBalance(asset: Contract, addr: string): Promise<string> {
+  return (await asset.balanceOf(addr)).toString();
+}
 
-const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
-const SUBSECTION_SEPARATOR = "-".repeat(10);
+async function getBalanceERC1155(asset: Contract, id: number, addr: string): Promise<string> {
+  return (await asset.balanceOf(addr, id)).toString();
+}
 
-export async function main(): Promise<void> {
-  // Bootstrap five accounts only.
-  // Skip the first account, since the
-  // first signer will be the deployer.
-  const [, ...signers] = (await ethers.getSigners()).slice(0, 6);
+export async function mintTokens(target: string, [wethAmount, pawnAmount, usdAmount]: [number, number, number],
+                                 weth: any, pawnToken: any, usd: any) {
+  await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
+  await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
+  await usd.mint(target, ethers.utils.parseEther(usdAmount.toString()));
+}
 
-  console.log(SECTION_SEPARATOR);
-  console.log("Deploying resources...\n");
-  const { assetWrapper, originationController, repaymentController, borrowerNote } = await deploy();
+export async function mintNFTs(target: string, [numPunks, numArts, numBeats0, numBeats1]: [number, number, number, number],
+                               punks: any, art: any, beats: any) {
+  for (let i = 0; i < numPunks; i++) {
+    await punks.mint(target);
+  }
 
-  // Mint some NFTs
-  console.log(SECTION_SEPARATOR);
+  for (let i = 0; i < numArts; i++) {
+    await art.mint(target);
+  }
+
+  await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], "0x00");
+}
+
+export async function mintAndDistribute(signers: any, weth: any, pawnToken: any, usd: any, punks: any, art: any, beats: any) {
+  // Give a bunch of everything to signer[0]
+  await mintTokens(signers[0].address, [1000, 500000, 2000000], weth, pawnToken, usd);
+  await mintNFTs(signers[0].address, [20, 20, 20, 20], punks, art, beats);
+
+  // Give a mix to signers[1] through signers[5]
+  await mintTokens(signers[1].address, [0, 2000, 10000], weth, pawnToken, usd);
+  await mintNFTs(signers[1].address, [5, 0, 2, 1], punks, art, beats);
+
+  await mintTokens(signers[2].address, [450, 350.5, 5000], weth, pawnToken, usd);
+  await mintNFTs(signers[2].address, [0, 0, 1, 0], punks, art, beats);
+
+  await mintTokens(signers[3].address, [2, 50000, 7777], weth, pawnToken, usd);
+  await mintNFTs(signers[3].address, [10, 3, 7, 0], punks, art, beats);
+
+  await mintTokens(signers[4].address, [50, 2222.2, 12.1], weth, pawnToken, usd);
+  await mintNFTs(signers[4].address, [1, 12, 1, 6], punks, art, beats);
+
+  console.log("Initial balances:");
+  for (const i in signers) {
+    const signer = signers[i];
+    const {address: signerAddr} = signer;
+
+    console.log(SUBSECTION_SEPARATOR);
+    console.log(`Signer ${i}: ${signerAddr}`);
+    console.log("PawnPunks balance:", await getBalance(punks, signerAddr));
+    console.log("PawnArt balance:", await getBalance(art, signerAddr));
+    console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, signerAddr));
+    console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, signerAddr));
+    console.log("ETH balance:", (await signer.getBalance()).toString());
+    console.log("WETH balance:", await getBalance(weth, signerAddr));
+    console.log("PAWN balance:", await getBalance(pawnToken, signerAddr));
+    console.log("PUSD balance:", await getBalance(usd, signerAddr));
+  }
+}
+
+
+export const deployNFTs = async () => {
   console.log("Deploying NFTs...\n");
   const erc721Factory = await ethers.getContractFactory("ERC721PresetMinterPauserAutoId");
   const erc1155Factory = await ethers.getContractFactory("ERC1155PresetMinterPauser");
@@ -35,7 +85,7 @@ export async function main(): Promise<void> {
   const beats = await erc1155Factory.deploy("");
   console.log("(ERC1155) PawnBeats deployed to:", beats.address);
 
-  // Mint some ERC20s
+  // Deploy some ERC20s
   console.log(SECTION_SEPARATOR);
   console.log("Deploying Tokens...\n");
   const erc20Factory = await ethers.getContractFactory("ERC20PresetMinterPauser");
@@ -49,65 +99,12 @@ export async function main(): Promise<void> {
   const usd = await erc20Factory.deploy("USD Stabecloin", "PUSD");
   console.log("(ERC20) PUSD deployed to:", usd.address);
 
-  // Distribute NFTs and ERC20s
-  console.log(SECTION_SEPARATOR);
-  console.log("Distributing assets...\n");
+  return { punks, art, beats, weth, pawnToken, usd};
+}
 
-  async function mintTokens(target: string, [wethAmount, pawnAmount, usdAmount]: [number, number, number]) {
-    await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
-    await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
-    await usd.mint(target, ethers.utils.parseEther(usdAmount.toString()));
-  }
-
-  async function mintNFTs(target: string, [numPunks, numArts, numBeats0, numBeats1]: [number, number, number, number]) {
-    for (let i = 0; i < numPunks; i++) {
-      await punks.mint(target);
-    }
-
-    for (let i = 0; i < numArts; i++) {
-      await art.mint(target);
-    }
-
-    await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], "0x00");
-  }
-
-  // Give a bunch of everything to signer[0]
-  await mintTokens(signers[0].address, [1000, 500000, 2000000]);
-  await mintNFTs(signers[0].address, [20, 20, 20, 20]);
-
-  // Give a mix to signers[1] through signers[5]
-  await mintTokens(signers[1].address, [0, 2000, 10000]);
-  await mintNFTs(signers[1].address, [5, 0, 2, 1]);
-
-  await mintTokens(signers[2].address, [450, 350.5, 5000]);
-  await mintNFTs(signers[2].address, [0, 0, 1, 0]);
-
-  await mintTokens(signers[3].address, [2, 50000, 7777]);
-  await mintNFTs(signers[3].address, [10, 3, 7, 0]);
-
-  await mintTokens(signers[4].address, [50, 2222.2, 12.1]);
-  await mintNFTs(signers[4].address, [1, 12, 1, 6]);
-
-  console.log("Initial balances:");
-  for (const i in signers) {
-    const signer = signers[i];
-    const { address: signerAddr } = signer;
-
-    console.log(SUBSECTION_SEPARATOR);
-    console.log(`Signer ${i}: ${signerAddr}`);
-    console.log("PawnPunks balance:", await getBalance(punks, signerAddr));
-    console.log("PawnArt balance:", await getBalance(art, signerAddr));
-    console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, signerAddr));
-    console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, signerAddr));
-    console.log("ETH balance:", (await signer.getBalance()).toString());
-    console.log("WETH balance:", await getBalance(weth, signerAddr));
-    console.log("PAWN balance:", await getBalance(pawnToken, signerAddr));
-    console.log("PUSD balance:", await getBalance(usd, signerAddr));
-  }
-
-  // Wrap some assets
-  console.log(SECTION_SEPARATOR);
-  console.log("Wrapping assets...\n");
+export async function wrapAssetsAndMakeLoans(signers: any, assetWrapper: any, originationController: any, borrowerNote: any,
+                                      repaymentController: any, punks: any, usd: any, beats: any, weth: any,
+                                      art: any, pawnToken: any) {
 
   const signer1 = signers[1];
   const aw1 = await assetWrapper.connect(signer1);
@@ -233,7 +230,7 @@ export async function main(): Promise<void> {
     payableCurrency: weth.address,
   };
 
-  const { v: loan1V, r: loan1R, s: loan1S } = await createLoanTermsSignature(
+  const {v: loan1V, r: loan1R, s: loan1S} = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan1Terms,
@@ -261,7 +258,7 @@ export async function main(): Promise<void> {
     payableCurrency: pawnToken.address,
   };
 
-  const { v: loan2V, r: loan2R, s: loan2S } = await createLoanTermsSignature(
+  const {v: loan2V, r: loan2R, s: loan2S} = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan2Terms,
@@ -289,7 +286,7 @@ export async function main(): Promise<void> {
     payableCurrency: usd.address,
   };
 
-  const { v: loan3V, r: loan3R, s: loan3S } = await createLoanTermsSignature(
+  const {v: loan3V, r: loan3R, s: loan3S} = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan3Terms,
@@ -317,7 +314,7 @@ export async function main(): Promise<void> {
     payableCurrency: usd.address,
   };
 
-  const { v: loan4V, r: loan4R, s: loan4S } = await createLoanTermsSignature(
+  const {v: loan4V, r: loan4R, s: loan4S} = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan4Terms,
@@ -338,14 +335,14 @@ export async function main(): Promise<void> {
 
   // 3 will also borrow from 4
   const loan5Terms: LoanTerms = {
-    dueDate: dateFromNow(300000),
+    dueDate: dateFromNow(900000),
     principal: ethers.utils.parseEther("20"),
     interest: ethers.utils.parseEther("0.4"),
     collateralTokenId: aw3Bundle3Id,
     payableCurrency: weth.address,
   };
 
-  const { v: loan5V, r: loan5R, s: loan5S } = await createLoanTermsSignature(
+  const {v: loan5V, r: loan5R, s: loan5S} = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan5Terms,
@@ -373,7 +370,7 @@ export async function main(): Promise<void> {
     payableCurrency: pawnToken.address,
   };
 
-  const { v: loan6V, r: loan6R, s: loan6S } = await createLoanTermsSignature(
+  const {v: loan6V, r: loan6R, s: loan6S} = await createLoanTermsSignature(
     originationController.address,
     "OriginationController",
     loan6Terms,
@@ -414,30 +411,4 @@ export async function main(): Promise<void> {
   console.log(SECTION_SEPARATOR);
   console.log("Bootstrapping complete!");
   console.log(SECTION_SEPARATOR);
-
-  // End state:
-  // 0 is clean (but has a bunch of tokens and NFTs)
-  // 1 has 2 bundles and 1 open borrow, one closed borrow
-  // 2 has two open lends and one closed lend
-  // 3 has 3 bundles, two open borrows, one closed borrow, and one closed lend
-  // 4 has 1 bundle, an unused bundle, one open lend and one open borrow
-}
-
-async function getBalance(asset: Contract, addr: string): Promise<string> {
-  return (await asset.balanceOf(addr)).toString();
-}
-
-async function getBalanceERC1155(asset: Contract, id: number, addr: string): Promise<string> {
-  return (await asset.balanceOf(addr, id)).toString();
-}
-
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-if (require.main === module) {
-  main()
-    .then(() => process.exit(0))
-    .catch((error: Error) => {
-      console.error(error);
-      process.exit(1);
-    });
 }
