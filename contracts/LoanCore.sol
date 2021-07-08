@@ -39,9 +39,6 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     // 10k bps per whole
     uint256 private constant BPS_DENOMINATOR = 10_000;
 
-    // the last known balances by ERC20 token address
-    mapping(address => uint256) private tokenBalances;
-
     constructor(IERC721 _collateralToken, IFeeController _feeController) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(FEE_CLAIMER_ROLE, _msgSender());
@@ -99,13 +96,10 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         LoanLibrary.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
-        // Ensure collateral and principal were deposited
-        require(
-            collateralToken.ownerOf(data.terms.collateralTokenId) == address(this),
-            "LoanCore::start: collateral not sent"
-        );
-        uint256 received = tokensReceived(IERC20(data.terms.payableCurrency));
-        require(received >= data.terms.principal, "LoanCore::start: Insufficient lender deposit");
+
+        // Pull collateral token and principal
+        collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
+        SafeERC20.safeTransferFrom(IERC20(data.terms.payableCurrency), _msgSender(), address(this), data.terms.principal);
 
         // Distribute notes and principal
         loans[loanId].state = LoanLibrary.LoanState.Active;
@@ -113,10 +107,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
         loans[loanId] = LoanLibrary.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanLibrary.LoanState.Active);
-        uint256 principalLessFees = getPrincipalLessFees(data.terms.principal);
-        // Update token balance opportunistically to prevent reentrance
-        updateTokenBalance(IERC20(data.terms.payableCurrency), principalLessFees);
-        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), borrower, principalLessFees);
+        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), borrower, getPrincipalLessFees(data.terms.principal));
 
         emit LoanStarted(loanId, lender, borrower);
     }
@@ -131,8 +122,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         // ensure repayment was valid
         uint256 returnAmount = data.terms.principal.add(data.terms.interest);
-        uint256 received = tokensReceived(IERC20(data.terms.payableCurrency));
-        require(received >= returnAmount, "LoanCore::repay: Insufficient repayment");
+        SafeERC20.safeTransferFrom(IERC20(data.terms.payableCurrency), _msgSender(), address(this), returnAmount);
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
         address borrower = borrowerNote.ownerOf(data.borrowerNoteId);
@@ -142,9 +132,6 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         loans[loanId].state = LoanLibrary.LoanState.Repaid;
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
-
-        // Update token balance opportunistically to prevent reentrance
-        updateTokenBalance(IERC20(data.terms.payableCurrency), returnAmount);
 
         // asset and collateral redistribution
         SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), lender, returnAmount);
@@ -174,20 +161,6 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);
 
         emit LoanClaimed(loanId);
-    }
-
-    /**
-     * @dev Check the amount of tokens received for a given ERC20 token since last checked
-     */
-    function tokensReceived(IERC20 token) internal view returns (uint256 amount) {
-        amount = token.balanceOf(address(this)).sub(tokenBalances[address(token)]);
-    }
-
-    /**
-     * @dev Update the internal state of our token balance for the given token
-     */
-    function updateTokenBalance(IERC20 token, uint256 amount) internal {
-        tokenBalances[address(token)] = token.balanceOf(address(this)).sub(amount);
     }
 
     /**
