@@ -44,9 +44,10 @@ contract RepaymentController is IRepaymentController {
         SafeERC20.safeTransferFrom(
             IERC20(terms.payableCurrency),
             msg.sender,
-            address(loanCore),
+            address(this),
             terms.principal.add(terms.interest)
         );
+        IERC20(terms.payableCurrency).approve(address(loanCore), terms.principal.add(terms.interest));
 
         // call repay function in loan core
         loanCore.repay(loanId);

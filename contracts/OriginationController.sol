@@ -57,9 +57,10 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         require(externalSigner == lender || externalSigner == borrower, "Origination: signer not participant");
         require(externalSigner != _msgSender(), "Origination: approved own loan");
 
-        SafeERC20.safeTransferFrom(IERC20(loanTerms.payableCurrency), lender, loanCore, loanTerms.principal);
-
-        IERC721(assetWrapper).transferFrom(borrower, loanCore, loanTerms.collateralTokenId);
+        SafeERC20.safeTransferFrom(IERC20(loanTerms.payableCurrency), lender, address(this), loanTerms.principal);
+        IERC20(loanTerms.payableCurrency).approve(loanCore, loanTerms.principal);
+        IERC721(assetWrapper).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
+        IERC721(assetWrapper).approve(loanCore, loanTerms.collateralTokenId);
 
         uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);
         ILoanCore(loanCore).startLoan(lender, borrower, loanId);
