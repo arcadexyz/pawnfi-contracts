@@ -118,3 +118,8 @@ $ yarn coverage
 In order to deploy the contracts to a local hardhat instance, run `yarn hardhat run scripts/deploy.ts`.
 
 The same can be done for non-local instances like Ropsten or Mainnet, but a private key for the address to deploy from must be supplied in `hardhat.config.ts` as specified in https://hardhat.org/config/.
+
+## Local Development
+
+1. In one window, run `npx hardhat node`. Wait for it to load
+1. In another window run either `yarn bootstrap-no-loans` or `yarn bootstrap-with-loans`. Both will deploy our smart contracts, create a collection of ERC20 and ERC721/ERC1155 NFTs, and distribute them amongst the first 5 signers, skipping the first one since it deploys the smart contract. The second target will also wrap assets, and create loans.

@@ -76,6 +76,8 @@
     "solc-0.8": "npm:solc@^0.8.0",
     "solidity-docgen": "^0.5.13",
     "test": "hardhat test",
-    "typechain": "hardhat typechain"
+    "typechain": "hardhat typechain",
+    "bootstrap-with-loans": "npx hardhat --network localhost run scripts/bootstrap-state-with-loans.ts",
+    "bootstrap-no-loans": "npx hardhat --network localhost run scripts/bootstrap-state-no-loans.ts"
   }
 }

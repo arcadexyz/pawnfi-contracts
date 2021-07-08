@@ -18,6 +18,7 @@ const chainIds = {
   ganache: 1337,
   goerli: 5,
   hardhat: 31337,
+  localhost: 31337,
   kovan: 42,
   mainnet: 1,
   rinkeby: 4,
@@ -72,6 +73,13 @@ const config: HardhatUserConfig = {
     kovan: createTestnetConfig("kovan"),
     rinkeby: createTestnetConfig("rinkeby"),
     ropsten: createTestnetConfig("ropsten"),
+    localhost: {
+      accounts: {
+        mnemonic,
+      },
+      chainId: chainIds.hardhat,
+      gasMultiplier: 10,
+    },
   },
   paths: {
     artifacts: "./artifacts",
