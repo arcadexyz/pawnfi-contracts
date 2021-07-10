@@ -260,7 +260,6 @@ describe("OriginationController", () => {
       const {
         originationController,
         mockERC20,
-        loanCore,
         assetWrapper,
         user: lender,
         other: borrower,
@@ -285,7 +284,7 @@ describe("OriginationController", () => {
           .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
       )
         .to.emit(mockERC20, "Transfer")
-        .withArgs(await lender.getAddress(), loanCore.address, loanTerms.principal);
+        .withArgs(await lender.getAddress(), originationController.address, loanTerms.principal);
     });
 
     describe("initializeLoanWithCollateralPermit", () => {
@@ -349,7 +348,6 @@ describe("OriginationController", () => {
           originationController,
           mockERC20,
           assetWrapper,
-          loanCore,
           user: lender,
           other: borrower,
         } = await setupTestContext();
@@ -379,7 +377,6 @@ describe("OriginationController", () => {
         );
 
         await approve(mockERC20, lender, originationController.address, loanTerms.principal);
-
         await expect(
           originationController
             .connect(lender)
@@ -397,7 +394,7 @@ describe("OriginationController", () => {
             ),
         )
           .to.emit(mockERC20, "Transfer")
-          .withArgs(await lender.getAddress(), loanCore.address, loanTerms.principal);
+          .withArgs(await lender.getAddress(), originationController.address, loanTerms.principal);
       });
     });
   });
