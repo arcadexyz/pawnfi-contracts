@@ -96,10 +96,14 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         LoanLibrary.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
         require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
-
         // Pull collateral token and principal
         collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
-        SafeERC20.safeTransferFrom(IERC20(data.terms.payableCurrency), _msgSender(), address(this), data.terms.principal);
+        SafeERC20.safeTransferFrom(
+            IERC20(data.terms.payableCurrency),
+            _msgSender(),
+            address(this),
+            data.terms.principal
+        );
 
         // Distribute notes and principal
         loans[loanId].state = LoanLibrary.LoanState.Active;
@@ -107,8 +111,11 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
         loans[loanId] = LoanLibrary.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanLibrary.LoanState.Active);
-        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), borrower, getPrincipalLessFees(data.terms.principal));
-
+        SafeERC20.safeTransfer(
+            IERC20(data.terms.payableCurrency),
+            borrower,
+            getPrincipalLessFees(data.terms.principal)
+        );
         emit LoanStarted(loanId, lender, borrower);
     }
 
