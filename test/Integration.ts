@@ -251,11 +251,12 @@ describe("Integration", () => {
       const receipt = await tx.wait();
 
       let loanId;
-      if (receipt && receipt.events && receipt.events.length === 9) {
+
+      if (receipt && receipt.events && receipt.events.length == 15) {
         const LoanCreatedLog = new hre.ethers.utils.Interface([
           "event LoanStarted(uint256 loanId, address lender, address borrower)",
         ]);
-        const log = LoanCreatedLog.parseLog(receipt.events[8]);
+        const log = LoanCreatedLog.parseLog(receipt.events[14]);
         loanId = log.args.loanId;
       } else {
         throw new Error("Unable to initialize loan");
@@ -351,11 +352,11 @@ describe("Integration", () => {
       const receipt = await tx.wait();
 
       let loanId;
-      if (receipt && receipt.events && receipt.events.length === 9) {
+      if (receipt && receipt.events && receipt.events.length == 15) {
         const LoanCreatedLog = new hre.ethers.utils.Interface([
           "event LoanStarted(uint256 loanId, address lender, address borrower)",
         ]);
-        const log = LoanCreatedLog.parseLog(receipt.events[8]);
+        const log = LoanCreatedLog.parseLog(receipt.events[14]);
         loanId = log.args.loanId;
       } else {
         throw new Error("Unable to initialize loan");

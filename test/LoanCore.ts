@@ -209,7 +209,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(user).createLoan(terms);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("175024");
+      expect(gasUsed.toString()).to.equal("175036");
     });
   });
 
