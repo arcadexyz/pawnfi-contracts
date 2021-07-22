@@ -24,7 +24,8 @@ export async function main(): Promise<void> {
   // Distribute NFTs and ERC20s
   console.log(SECTION_SEPARATOR);
   console.log("Distributing assets...\n");
-  await mintAndDistribute(signers, weth, pawnToken, usd, punks, art, beats);
+  const addresses = signers.map(s => s.address);
+  await mintAndDistribute(addresses, weth, pawnToken, usd, punks, art, beats);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
