@@ -51,7 +51,7 @@ export async function mintNFTs(
 }
 
 export async function mintAndDistribute(
-  signers: SignerWithAddress[],
+  addresses: string[],
   weth: MockERC20,
   pawnToken: MockERC20,
   usd: MockERC20,
@@ -59,38 +59,39 @@ export async function mintAndDistribute(
   art: MockERC721,
   beats: MockERC1155,
 ): Promise<void> {
-  // Give a bunch of everything to signer[0]
-  await mintTokens(signers[0].address, [1000, 500000, 2000000], weth, pawnToken, usd);
-  await mintNFTs(signers[0].address, [20, 20, 20, 20], punks, art, beats);
+  const provider = await ethers.getDefaultProvider();
 
-  // Give a mix to signers[1] through signers[5]
-  await mintTokens(signers[1].address, [0, 2000, 10000], weth, pawnToken, usd);
-  await mintNFTs(signers[1].address, [5, 0, 2, 1], punks, art, beats);
+  // Give a bunch of everything to addresses[0]
+  await mintTokens(addresses[0], [1000, 500000, 2000000], weth, pawnToken, usd);
+  await mintNFTs(addresses[0], [20, 20, 20, 20], punks, art, beats);
 
-  await mintTokens(signers[2].address, [450, 350.5, 5000], weth, pawnToken, usd);
-  await mintNFTs(signers[2].address, [0, 0, 1, 0], punks, art, beats);
+  // Give a mix to addresses[1] through addresses[5]
+  await mintTokens(addresses[1], [0, 2000, 10000], weth, pawnToken, usd);
+  await mintNFTs(addresses[1], [5, 0, 2, 1], punks, art, beats);
 
-  await mintTokens(signers[3].address, [2, 50000, 7777], weth, pawnToken, usd);
-  await mintNFTs(signers[3].address, [10, 3, 7, 0], punks, art, beats);
+  await mintTokens(addresses[2], [450, 350.5, 5000], weth, pawnToken, usd);
+  await mintNFTs(addresses[2], [0, 0, 1, 0], punks, art, beats);
 
-  await mintTokens(signers[4].address, [50, 2222.2, 12.1], weth, pawnToken, usd);
-  await mintNFTs(signers[4].address, [1, 12, 1, 6], punks, art, beats);
+  await mintTokens(addresses[3], [2, 50000, 7777], weth, pawnToken, usd);
+  await mintNFTs(addresses[3], [10, 3, 7, 0], punks, art, beats);
+
+  await mintTokens(addresses[4], [50, 2222.2, 12.1], weth, pawnToken, usd);
+  await mintNFTs(addresses[4], [1, 12, 1, 6], punks, art, beats);
 
   console.log("Initial balances:");
-  for (const i in signers) {
-    const signer = signers[i];
-    const { address: signerAddr } = signer;
+  for (const i in addresses) {
+    const address = addresses[i];
 
     console.log(SUBSECTION_SEPARATOR);
-    console.log(`Signer ${i}: ${signerAddr}`);
-    console.log("PawnPunks balance:", await getBalance(punks, signerAddr));
-    console.log("PawnArt balance:", await getBalance(art, signerAddr));
-    console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, signerAddr));
-    console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, signerAddr));
-    console.log("ETH balance:", (await signer.getBalance()).toString());
-    console.log("WETH balance:", await getBalance(weth, signerAddr));
-    console.log("PAWN balance:", await getBalance(pawnToken, signerAddr));
-    console.log("PUSD balance:", await getBalance(usd, signerAddr));
+    console.log(`Signer ${i}: ${address}`);
+    console.log("PawnPunks balance:", await getBalance(punks, address));
+    console.log("PawnArt balance:", await getBalance(art, address));
+    console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, address));
+    console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, address));
+    console.log("ETH balance:", (await provider.getBalance(addresses)).toString());
+    console.log("WETH balance:", await getBalance(weth, address));
+    console.log("PAWN balance:", await getBalance(pawnToken, address));
+    console.log("PUSD balance:", await getBalance(usd, address));
   }
 }
 
