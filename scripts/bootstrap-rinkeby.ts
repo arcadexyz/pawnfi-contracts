@@ -2,7 +2,6 @@
 
 import { ethers } from "hardhat";
 
-import { main as deploy } from "./deploy";
 import { MockERC1155, MockERC20, MockERC721 } from "../typechain";
 import { mintAndDistributeRinkeby, SECTION_SEPARATOR } from "./bootstrap-tools";
 
