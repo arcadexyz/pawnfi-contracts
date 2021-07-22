@@ -61,6 +61,7 @@ export async function mintAndDistribute(
 ): Promise<void> {
   const provider = await ethers.getDefaultProvider();
 
+
   // Give a bunch of everything to addresses[0]
   await mintTokens(addresses[0], [1000, 500000, 2000000], weth, pawnToken, usd);
   await mintNFTs(addresses[0], [20, 20, 20, 20], punks, art, beats);
@@ -88,7 +89,41 @@ export async function mintAndDistribute(
     console.log("PawnArt balance:", await getBalance(art, address));
     console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, address));
     console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, address));
-    console.log("ETH balance:", (await provider.getBalance(addresses)).toString());
+    console.log("ETH balance:", (await provider.getBalance(address)).toString());
+    console.log("WETH balance:", await getBalance(weth, address));
+    console.log("PAWN balance:", await getBalance(pawnToken, address));
+    console.log("PUSD balance:", await getBalance(usd, address));
+  }
+}
+
+export async function mintAndDistributeRinkeby(
+  addresses: string[],
+  weth: MockERC20,
+  pawnToken: MockERC20,
+  usd: MockERC20,
+  punks: MockERC721,
+  art: MockERC721,
+  beats: MockERC1155,
+): Promise<void> {
+  const provider = await ethers.getDefaultProvider();
+
+  for (const address of addresses) {
+    // Give a bunch of everything to address
+    await mintTokens(address, [1000, 500000, 2000000], weth, pawnToken, usd);
+    await mintNFTs(address, [20, 20, 20, 20], punks, art, beats);
+  }
+
+  console.log("Initial balances:");
+  for (const i in addresses) {
+    const address = addresses[i];
+
+    console.log(SUBSECTION_SEPARATOR);
+    console.log(`Signer ${i}: ${address}`);
+    console.log("PawnPunks balance:", await getBalance(punks, address));
+    console.log("PawnArt balance:", await getBalance(art, address));
+    console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, address));
+    console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, address));
+    console.log("ETH balance:", (await provider.getBalance(address)).toString());
     console.log("WETH balance:", await getBalance(weth, address));
     console.log("PAWN balance:", await getBalance(pawnToken, address));
     console.log("PUSD balance:", await getBalance(usd, address));
