@@ -61,7 +61,6 @@ export async function mintAndDistribute(
 ): Promise<void> {
   const provider = await ethers.getDefaultProvider();
 
-
   // Give a bunch of everything to addresses[0]
   await mintTokens(addresses[0], [1000, 500000, 2000000], weth, pawnToken, usd);
   await mintNFTs(addresses[0], [20, 20, 20, 20], punks, art, beats);
