@@ -74,13 +74,19 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         onlyRole(ORIGINATOR_ROLE)
         returns (uint256 loanId)
     {
-        require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
+        require(terms.relDueDate > 0, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
 
-        loans[loanId] = LoanLibrary.LoanData(0, 0, terms, LoanLibrary.LoanState.Created);
+        loans[loanId] = LoanLibrary.LoanData(
+            0,
+            0,
+            terms,
+            LoanLibrary.LoanState.Created,
+            block.timestamp + terms.relDueDate
+        );
         collateralInUse[terms.collateralTokenId] = true;
         emit LoanCreated(terms, loanId);
     }
@@ -110,7 +116,13 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        loans[loanId] = LoanLibrary.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanLibrary.LoanState.Active);
+        loans[loanId] = LoanLibrary.LoanData(
+            borrowerNoteId,
+            lenderNoteId,
+            data.terms,
+            LoanLibrary.LoanState.Active,
+            data.dueDate
+        );
         SafeERC20.safeTransfer(
             IERC20(data.terms.payableCurrency),
             borrower,
@@ -155,7 +167,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         // Ensure valid initial loan state
         require(data.state == LoanLibrary.LoanState.Active, "LoanCore::claim: Invalid loan state");
-        require(data.terms.dueDate < block.timestamp, "LoanCore::claim: Loan not expired");
+        require(data.dueDate < block.timestamp, "LoanCore::claim: Loan not expired");
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
 
