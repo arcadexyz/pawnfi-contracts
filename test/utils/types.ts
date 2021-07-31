@@ -9,7 +9,7 @@ export enum LoanState {
 }
 
 export interface LoanTerms {
-  dueDate: BigNumberish;
+  relDueDate: BigNumberish;
   principal: BigNumber;
   interest: BigNumber;
   collateralTokenId: BigNumber;
@@ -21,4 +21,5 @@ export interface LoanData {
   borrowerNoteId: BigNumber;
   lenderNoteId: BigNumber;
   state: LoanState;
+  dueDate: BigNumberish;
 }
