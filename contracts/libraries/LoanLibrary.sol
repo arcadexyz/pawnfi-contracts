@@ -24,8 +24,8 @@ library LoanLibrary {
      * @dev The raw terms of a loan
      */
     struct LoanTerms {
-        // Timestamp representing the due date of the loan
-        uint256 dueDate;
+        // The number of seconds representing relative due date of the loan
+        uint256 durationSecs;
         // The amount of principal in terms of the payableCurrency
         uint256 principal;
         // The amount of interest in terms of the payableCurrency
@@ -48,5 +48,7 @@ library LoanLibrary {
         LoanTerms terms;
         // The current state of the loan
         LoanState state;
+        // Timestamp representing absolute due date date of the loan
+        uint256 dueDate;
     }
 }

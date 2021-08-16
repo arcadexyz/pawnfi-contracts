@@ -24,14 +24,14 @@ describe("PromissoryNote", () => {
   const createLoanTerms = (
     payableCurrency: string,
     {
-      dueDate = new Date(new Date().getTime() + 3600000).getTime(),
+      durationSecs = 360000,
       principal = hre.ethers.utils.parseEther("100"),
       interest = hre.ethers.utils.parseEther("1"),
       collateralTokenId = BigNumber.from(1),
     }: Partial<LoanTerms> = {},
   ): LoanTerms => {
     return {
-      dueDate,
+      durationSecs,
       principal,
       interest,
       collateralTokenId,

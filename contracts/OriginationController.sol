@@ -18,7 +18,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
     bytes32 private immutable _LOAN_TERMS_TYPEHASH =
         keccak256(
             // solhint-disable-next-line max-line-length
-            "LoanTerms(uint256 dueDate,uint256 principal,uint256 interest,uint256 collateralTokenId,address payableCurrency)"
+            "LoanTerms(uint256 durationSecs,uint256 principal,uint256 interest,uint256 collateralTokenId,address payableCurrency)"
         );
 
     constructor(address _loanCore, address _assetWrapper) EIP712("OriginationController", "1") {
@@ -44,7 +44,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
             keccak256(
                 abi.encode(
                     _LOAN_TERMS_TYPEHASH,
-                    loanTerms.dueDate,
+                    loanTerms.durationSecs,
                     loanTerms.principal,
                     loanTerms.interest,
                     loanTerms.collateralTokenId,

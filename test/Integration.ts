@@ -95,14 +95,14 @@ describe("Integration", () => {
   const createLoanTerms = (
     payableCurrency: string,
     {
-      dueDate = new Date(new Date().getTime() + 3600000).getTime(),
+      durationSecs = 3600000,
       principal = hre.ethers.utils.parseEther("100"),
       interest = hre.ethers.utils.parseEther("1"),
       collateralTokenId = BigNumber.from(1),
     }: Partial<LoanTerms> = {},
   ): LoanTerms => {
     return {
-      dueDate,
+      durationSecs,
       principal,
       interest,
       collateralTokenId,
@@ -201,7 +201,7 @@ describe("Integration", () => {
       const bundleId = await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, {
         collateralTokenId: bundleId,
-        dueDate: await blockchainTime.secondsFromNow(-1000),
+        durationSecs: 0,
       });
       await mint(mockERC20, lender, loanTerms.principal);
 
@@ -332,9 +332,9 @@ describe("Integration", () => {
 
     const initializeLoan = async (context: TestContext): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
-      const dueDate = await blockchainTime.secondsFromNow(1000);
+      const durationSecs = 1000;
       const bundleId = await createWnft(assetWrapper, borrower);
-      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId, dueDate });
+      const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId, durationSecs });
       await mint(mockERC20, lender, loanTerms.principal);
 
       const { v, r, s } = await createLoanTermsSignature(
@@ -387,7 +387,7 @@ describe("Integration", () => {
       expect(await assetWrapper.ownerOf(bundleId)).to.equal(await lender.getAddress());
     });
 
-    it("fails if not past dueDate", async () => {
+    it("fails if not past durationSecs", async () => {
       const context = await setupTestContext();
       const { repaymentController, lender } = context;
       const { loanData } = await initializeLoan(context);

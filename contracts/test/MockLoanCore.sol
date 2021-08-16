@@ -42,14 +42,15 @@ contract MockLoanCore is ILoanCore {
     function createLoan(LoanLibrary.LoanTerms calldata terms) external override returns (uint256 loanId) {
         LoanLibrary.LoanTerms memory _loanTerms =
             LoanLibrary.LoanTerms(
-                terms.dueDate,
+                terms.durationSecs,
                 terms.principal,
                 terms.interest,
                 terms.collateralTokenId,
                 terms.payableCurrency
             );
 
-        LoanLibrary.LoanData memory _loanData = LoanLibrary.LoanData(0, 0, _loanTerms, LoanLibrary.LoanState.Created);
+        LoanLibrary.LoanData memory _loanData =
+            LoanLibrary.LoanData(0, 0, _loanTerms, LoanLibrary.LoanState.Created, terms.durationSecs);
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
@@ -78,7 +79,13 @@ contract MockLoanCore is ILoanCore {
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
         LoanLibrary.LoanData memory data = loans[loanId];
-        loans[loanId] = LoanLibrary.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanLibrary.LoanState.Active);
+        loans[loanId] = LoanLibrary.LoanData(
+            borrowerNoteId,
+            lenderNoteId,
+            data.terms,
+            LoanLibrary.LoanState.Active,
+            data.dueDate
+        );
 
         emit LoanStarted(loanId, lender, borrower);
     }

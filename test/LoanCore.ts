@@ -73,14 +73,14 @@ describe("LoanCore", () => {
   const createLoanTerms = (
     payableCurrency: string,
     {
-      dueDate = new Date(new Date().getTime() + 3600000).getTime(),
+      durationSecs = 360000,
       principal = hre.ethers.utils.parseEther("100"),
       interest = hre.ethers.utils.parseEther("1"),
       collateralTokenId = BigNumber.from(1),
     }: Partial<LoanTerms> = {},
   ): LoanTerms => {
     return {
-      dueDate,
+      durationSecs,
       principal,
       interest,
       collateralTokenId,
@@ -106,7 +106,7 @@ describe("LoanCore", () => {
    * Assert equality between two LoanTerms objects
    */
   const assertTermsEquality = (actual: LoanTerms, expected: LoanTerms) => {
-    expect(actual.dueDate).to.equal(expected.dueDate);
+    expect(actual.durationSecs).to.equal(expected.durationSecs);
     expect(actual.principal).to.equal(expected.principal);
     expect(actual.interest).to.equal(expected.interest);
     expect(actual.collateralTokenId).to.equal(expected.collateralTokenId);
@@ -173,7 +173,7 @@ describe("LoanCore", () => {
       const collateralTokenId = await mintERC721(mockAssetWrapper, user);
       const terms = createLoanTerms(mockERC20.address, {
         collateralTokenId,
-        dueDate: await blockchainTime.secondsFromNow(-1000),
+        durationSecs: 0,
       });
 
       await expect(createLoan(loanCore, user, terms)).to.be.revertedWith("LoanCore::create: Loan is already expired");
@@ -209,7 +209,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(user).createLoan(terms);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("175036");
+      expect(gasUsed.toString()).to.equal("197208");
     });
   });
 
@@ -496,7 +496,7 @@ describe("LoanCore", () => {
         terms: { collateralTokenId, interest, principal },
         borrower,
         lender,
-      } = await setupLoan(undefined, { dueDate: await blockchainTime.secondsFromNow(1000) });
+      } = await setupLoan(undefined, { durationSecs: 1000 });
       // run originator controller logic inline then invoke loanCore
       // borrower is originator with originator role
       await mockAssetWrapper
@@ -622,7 +622,7 @@ describe("LoanCore", () => {
         .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("466966");
+      expect(gasUsed.toString()).to.equal("469268");
     });
   });
 
@@ -709,7 +709,7 @@ describe("LoanCore", () => {
 
     it("should fail if the loan is already claimed", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
+        durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
 
@@ -759,7 +759,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).repay(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("129275");
+      expect(gasUsed.toString()).to.equal("130337");
     });
   });
 
@@ -798,7 +798,7 @@ describe("LoanCore", () => {
 
     it("should successfully claim loan", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
+        durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
 
@@ -809,7 +809,7 @@ describe("LoanCore", () => {
 
     it("Rejects calls from non-repayer", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, other, terms } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
+        durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
       await blockchainTime.increaseTime(1001);
@@ -844,7 +844,7 @@ describe("LoanCore", () => {
 
     it("should fail if the loan is already claimed", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
+        durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
 
@@ -863,7 +863,7 @@ describe("LoanCore", () => {
 
     it("should fail when paused", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
+        durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
 
@@ -875,7 +875,7 @@ describe("LoanCore", () => {
 
     it("gas [ @skip-on-coverage ]", async () => {
       const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
-        dueDate: await blockchainTime.secondsFromNow(1000),
+        durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
 
@@ -884,7 +884,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).claim(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("104175");
+      expect(gasUsed.toString()).to.equal("105236");
     });
   });
 
