@@ -74,7 +74,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         onlyRole(ORIGINATOR_ROLE)
         returns (uint256 loanId)
     {
-        require(terms.relDueDate > 0, "LoanCore::create: Loan is already expired");
+        require(terms.durationSecs > 0, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
 
         loanId = loanIdTracker.current();
@@ -85,7 +85,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
             0,
             terms,
             LoanLibrary.LoanState.Created,
-            block.timestamp + terms.relDueDate
+            block.timestamp + terms.durationSecs
         );
         collateralInUse[terms.collateralTokenId] = true;
         emit LoanCreated(terms, loanId);

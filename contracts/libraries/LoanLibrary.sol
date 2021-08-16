@@ -25,7 +25,7 @@ library LoanLibrary {
      */
     struct LoanTerms {
         // The number of seconds representing relative due date of the loan
-        uint256 relDueDate;
+        uint256 durationSecs;
         // The amount of principal in terms of the payableCurrency
         uint256 principal;
         // The amount of interest in terms of the payableCurrency

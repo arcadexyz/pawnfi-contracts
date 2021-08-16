@@ -59,9 +59,9 @@ describe("RepaymentController", () => {
     // token Id is 0 since it's the first one minted
     const collateralTokenId = 0;
 
-    const relDueDate = 60 * 60 * 24 * 14;
+    const durationSecs = 60 * 60 * 24 * 14;
     const terms = {
-      relDueDate: relDueDate,
+      durationSecs: durationSecs,
       principal: utils.parseEther(TEST_LOAN_PRINCIPAL.toString()),
       interest: utils.parseEther(TEST_LOAN_INTEREST.toString()),
       collateralTokenId,

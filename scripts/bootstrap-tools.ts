@@ -264,7 +264,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 1 will borrow from 2
   const loan1Terms: LoanTerms = {
-    relDueDate: relSecondsFromMs(oneWeekMs),
+    durationSecs: relSecondsFromMs(oneWeekMs),
     principal: ethers.utils.parseEther("10"),
     interest: ethers.utils.parseEther("1.5"),
     collateralTokenId: aw1Bundle1Id,
@@ -292,7 +292,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 1 will borrow from 3
   const loan2Terms: LoanTerms = {
-    relDueDate: relSecondsFromMs(oneWeekMs) - 10,
+    durationSecs: relSecondsFromMs(oneWeekMs) - 10,
     principal: ethers.utils.parseEther("10000"),
     interest: ethers.utils.parseEther("500"),
     collateralTokenId: aw1Bundle2Id,
@@ -320,7 +320,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 3 will borrow from 2
   const loan3Terms: LoanTerms = {
-    relDueDate: relSecondsFromMs(oneDayMs) - 10,
+    durationSecs: relSecondsFromMs(oneDayMs) - 10,
     principal: ethers.utils.parseEther("1000"),
     interest: ethers.utils.parseEther("80"),
     collateralTokenId: aw3Bundle1Id,
@@ -348,7 +348,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 3 will open a second loan from 2
   const loan4Terms: LoanTerms = {
-    relDueDate: relSecondsFromMs(oneMonthMs),
+    durationSecs: relSecondsFromMs(oneMonthMs),
     principal: ethers.utils.parseEther("1000"),
     interest: ethers.utils.parseEther("140"),
     collateralTokenId: aw3Bundle2Id,
@@ -376,7 +376,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 3 will also borrow from 4
   const loan5Terms: LoanTerms = {
-    relDueDate: relSecondsFromMs(900000),
+    durationSecs: relSecondsFromMs(900000),
     principal: ethers.utils.parseEther("20"),
     interest: ethers.utils.parseEther("0.4"),
     collateralTokenId: aw3Bundle3Id,
@@ -404,7 +404,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 4 will borrow from 2
   const loan6Terms: LoanTerms = {
-    relDueDate: relSecondsFromMs(oneWeekMs),
+    durationSecs: relSecondsFromMs(oneWeekMs),
     principal: ethers.utils.parseEther("300.33"),
     interest: ethers.utils.parseEther("18.0198"),
     collateralTokenId: aw4Bundle1Id,
