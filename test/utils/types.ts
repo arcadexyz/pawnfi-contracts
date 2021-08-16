@@ -9,7 +9,7 @@ export enum LoanState {
 }
 
 export interface LoanTerms {
-  relDueDate: BigNumberish;
+  durationSecs: BigNumberish;
   principal: BigNumber;
   interest: BigNumber;
   collateralTokenId: BigNumber;

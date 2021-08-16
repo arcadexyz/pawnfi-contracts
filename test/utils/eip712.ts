@@ -35,7 +35,7 @@ const typedPermitData: TypeData = {
 const typedLoanTermsData: TypeData = {
   types: {
     LoanTerms: [
-      { name: "relDueDate", type: "uint256" },
+      { name: "durationSecs", type: "uint256" },
       { name: "principal", type: "uint256" },
       { name: "interest", type: "uint256" },
       { name: "collateralTokenId", type: "uint256" },
