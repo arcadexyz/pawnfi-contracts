@@ -26,7 +26,11 @@ contract MockERC20WithDecimals is ERC20PresetMinterPauser {
     /**
      * @dev Initializes ERC20 token
      */
-    constructor(string memory name, string memory symbol, uint8 decimals) ERC20PresetMinterPauser(name, symbol) {
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint8 decimals
+    ) ERC20PresetMinterPauser(name, symbol) {
         _decimals = decimals;
     }
 
