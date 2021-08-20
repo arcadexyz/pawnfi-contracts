@@ -29,7 +29,7 @@ export async function mintTokens(
 ): Promise<void> {
   await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
   await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
-  await usd.mint(target, ethers.utils.parseEther(usdAmount.toString()));
+  await usd.mint(target, ethers.utils.parseUnits(usdAmount.toString(), 6));
 }
 
 export async function mintNFTs(
@@ -121,6 +121,7 @@ export async function deployNFTs(): Promise<DeployedNFT> {
   console.log(SECTION_SEPARATOR);
   console.log("Deploying Tokens...\n");
   const erc20Factory = await ethers.getContractFactory("ERC20PresetMinterPauser");
+  const erc20WithDecimalsFactory = await ethers.getContractFactory("MockERC20WithDecimals");
 
   const weth = <MockERC20>await erc20Factory.deploy("Wrapped Ether", "WETH");
   console.log("(ERC20) WETH deployed to:", weth.address);
@@ -128,7 +129,7 @@ export async function deployNFTs(): Promise<DeployedNFT> {
   const pawnToken = <MockERC20>await erc20Factory.deploy("PawnToken", "PAWN");
   console.log("(ERC20) PAWN deployed to:", pawnToken.address);
 
-  const usd = <MockERC20>await erc20Factory.deploy("USD Stabecloin", "PUSD");
+  const usd = <MockERC20>await erc20WithDecimalsFactory.deploy("USD Stablecoin", "PUSD", 6);
   console.log("(ERC20) PUSD deployed to:", usd.address);
 
   return { punks, art, beats, weth, pawnToken, usd };
@@ -158,8 +159,8 @@ export async function wrapAssetsAndMakeLoans(
   await punks.connect(signer1).approve(aw1.address, aw1Punk1Id);
   await aw1.depositERC721(punks.address, aw1Punk1Id, aw1Bundle1Id);
 
-  await usd.connect(signer1).approve(aw1.address, ethers.utils.parseEther("1000"));
-  await aw1.depositERC20(usd.address, ethers.utils.parseEther("1000"), aw1Bundle1Id);
+  await usd.connect(signer1).approve(aw1.address, ethers.utils.parseUnits("1000", 6));
+  await aw1.depositERC20(usd.address, ethers.utils.parseUnits("1000", 6), aw1Bundle1Id);
   console.log(`(Bundle 1) Signer ${signer1.address} created a bundle with 1 PawnFiPunk and 1000 PUSD`);
 
   // Deposit 1 punk and 2 beats edition 0 for bundle 2
@@ -212,8 +213,8 @@ export async function wrapAssetsAndMakeLoans(
   await beats.connect(signer3).setApprovalForAll(aw3.address, true);
   await aw3.depositERC1155(beats.address, 0, 4, aw3Bundle3Id);
 
-  await usd.connect(signer3).approve(aw3.address, ethers.utils.parseEther("2000"));
-  await aw3.depositERC20(usd.address, ethers.utils.parseEther("2000"), aw3Bundle3Id);
+  await usd.connect(signer3).approve(aw3.address, ethers.utils.parseUnits("2000", 6));
+  await aw3.depositERC20(usd.address, ethers.utils.parseUnits("2000", 6), aw3Bundle3Id);
   console.log(
     `(Bundle 5) Signer ${signer3.address} created a bundle with 1 PawnArt, 4 PawnBeats Edition 0, and 2000 PUSD`,
   );
@@ -321,8 +322,8 @@ export async function wrapAssetsAndMakeLoans(
   // 3 will borrow from 2
   const loan3Terms: LoanTerms = {
     durationSecs: relSecondsFromMs(oneDayMs) - 10,
-    principal: ethers.utils.parseEther("1000"),
-    interest: ethers.utils.parseEther("80"),
+    principal: ethers.utils.parseUnits("1000", 6),
+    interest: ethers.utils.parseUnits("80", 6),
     collateralTokenId: aw3Bundle1Id,
     payableCurrency: usd.address,
   };
@@ -334,7 +335,7 @@ export async function wrapAssetsAndMakeLoans(
     signer3,
   );
 
-  await usd.connect(signer2).approve(originationController.address, ethers.utils.parseEther("1000"));
+  await usd.connect(signer2).approve(originationController.address, ethers.utils.parseUnits("1000", 6));
   await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle1Id);
 
   // Borrower signed, so lender will initialize
@@ -349,8 +350,8 @@ export async function wrapAssetsAndMakeLoans(
   // 3 will open a second loan from 2
   const loan4Terms: LoanTerms = {
     durationSecs: relSecondsFromMs(oneMonthMs),
-    principal: ethers.utils.parseEther("1000"),
-    interest: ethers.utils.parseEther("140"),
+    principal: ethers.utils.parseUnits("1000", 6),
+    interest: ethers.utils.parseUnits("140", 6),
     collateralTokenId: aw3Bundle2Id,
     payableCurrency: usd.address,
   };
@@ -362,7 +363,7 @@ export async function wrapAssetsAndMakeLoans(
     signer3,
   );
 
-  await usd.connect(signer2).approve(originationController.address, ethers.utils.parseEther("1000"));
+  await usd.connect(signer2).approve(originationController.address, ethers.utils.parseUnits("1000", 6));
   await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle2Id);
 
   // Borrower signed, so lender will initialize
@@ -444,7 +445,7 @@ export async function wrapAssetsAndMakeLoans(
 
   // 3 will pay off one loan from 2
   const loan4BorrowerNoteId = await borrowerNote.tokenOfOwnerByIndex(signer3.address, 1);
-  await usd.connect(signer3).approve(repaymentController.address, ethers.utils.parseEther("1140"));
+  await usd.connect(signer3).approve(repaymentController.address, ethers.utils.parseUnits("1140", 6));
   await repaymentController.connect(signer3).repay(loan4BorrowerNoteId);
 
   console.log(`(Loan 4) Borrower ${signer3.address} repaid 1140 PUSD to ${signer2.address}`);
