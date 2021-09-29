@@ -157,4 +157,23 @@ describe("PunkRouter", () => {
             );
         });
     });
+  });
+
+  describe("Withdraw CryptoPunk held by PunkRouter", function () {
+    it("should successfully withdraw punk", async () => {
+      const { punks, punkRouter, other, punkIndex } = await setupTestContextForDepositStuck();
+      await expect(punkRouter.withdrawPunk(punkIndex, other.address))
+        .to.emit(punks, "Transfer")
+        .withArgs(punkRouter.address, other.address, 1)
+        .to.emit(punks, "PunkTransfer")
+        .withArgs(punkRouter.address, other.address, punkIndex);
+    });
+
+    it("should fail if not designated admin", async () => {
+      const { punkRouter, owner, other, punkIndex } = await setupTestContextForDepositStuck();
+      await expect(punkRouter.connect(other).withdrawPunk(punkIndex, owner.address)).to.be.revertedWith(
+        "Ownable: caller is not the owner",
+      );
+    });
+  });
 });
