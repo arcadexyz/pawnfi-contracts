@@ -27,6 +27,14 @@ interface TestContextForDepositStuck {
     punkRouter: PunkRouter;
 }
 
+interface TestContextForDepositStuck {
+  owner: Signer;
+  other: Signer;
+  punks: CryptoPunksMarket;
+  punkIndex: number;
+  punkRouter: PunkRouter;
+}
+
 describe("PunkRouter", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
