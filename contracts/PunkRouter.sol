@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IWrappedPunks.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IPunks.sol";
@@ -10,7 +11,7 @@ import "./interfaces/IPunks.sol";
  * @dev {ERC721} Router contract allowing users to automatically
  *  wrap and deposit original cryptopunks into the AssetWrapper
  */
-contract PunkRouter is ERC721Holder {
+contract PunkRouter is ERC721Holder, Ownable {
     IAssetWrapper public assetWrapper;
     IWrappedPunks public wrappedPunks;
     IPunks public punks;
@@ -44,13 +45,23 @@ contract PunkRouter is ERC721Holder {
         IPunks _punks = punks;
         IWrappedPunks _wrappedPunks = wrappedPunks;
         IAssetWrapper _assetWrapper = assetWrapper;
-        address owner = _punks.punkIndexToAddress(punkIndex);
-        require(owner == msg.sender, "PunkRouter: not owner");
+        address punkOwner = _punks.punkIndexToAddress(punkIndex);
+        require(punkOwner == msg.sender, "PunkRouter: not owner");
         _punks.buyPunk(punkIndex);
         _punks.transferPunk(proxy, punkIndex);
 
         _wrappedPunks.mint(punkIndex);
         _wrappedPunks.approve(address(_assetWrapper), punkIndex);
         _assetWrapper.depositERC721(address(_wrappedPunks), punkIndex, bundleId);
+    }
+
+    /**
+     * @dev Withdraw the crypto punk that is accidentally held by the PunkRouter contract
+     *
+     * @param punkIndex The index of the CryptoPunk to withdraw
+     * @param to The address of the new owner
+     */
+    function withdrawPunk(uint256 punkIndex, address to) external onlyOwner {
+        punks.transferPunk(to, punkIndex);
     }
 }

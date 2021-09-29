@@ -18,6 +18,14 @@ interface TestContext {
   signers: Signer[];
 }
 
+interface TestContextForDepositStuck {
+  owner: Signer;
+  other: Signer;
+  punks: CryptoPunksMarket;
+  punkIndex: number;
+  punkRouter: PunkRouter;
+}
+
 describe("PunkRouter", () => {
   /**
    * Sets up a test context, deploying new contracts and returning them for use in a test
@@ -39,6 +47,23 @@ describe("PunkRouter", () => {
       user: signers[0],
       other: signers[1],
       signers: signers.slice(2),
+    };
+  };
+
+  const setupTestContextForDepositStuck = async (): Promise<TestContextForDepositStuck> => {
+    const { punks, punkRouter, user, other } = await setupTestContext();
+    const punkIndex = 1234;
+    // claim ownership of punk
+    await punks.setInitialOwner(await user.getAddress(), punkIndex);
+    await punks.allInitialOwnersAssigned();
+    // simulate depositPunk and stucked after buyPunk
+    await punks.connect(user).transferPunk(punkRouter.address, punkIndex);
+    return {
+      owner: user,
+      other,
+      punkIndex,
+      punks,
+      punkRouter,
     };
   };
 
@@ -102,6 +127,24 @@ describe("PunkRouter", () => {
       const bundleId = await initializeBundle(assetWrapper, user);
       await expect(punkRouter.connect(other).depositPunk(punkIndex, bundleId)).to.be.revertedWith(
         "PunkRouter: not owner",
+      );
+    });
+  });
+
+  describe("Withdraw CryptoPunk held by PunkRouter", function () {
+    it("should successfully withdraw punk", async () => {
+      const { punks, punkRouter, owner, other, punkIndex } = await setupTestContextForDepositStuck();
+      await expect(punkRouter.withdrawPunk(punkIndex, other.address))
+        .to.emit(punks, "Transfer")
+        .withArgs(punkRouter.address, other.address, 1)
+        .to.emit(punks, "PunkTransfer")
+        .withArgs(punkRouter.address, other.address, punkIndex);
+    });
+
+    it("should fail if not designated admin", async () => {
+      const { punkRouter, owner, other, punkIndex } = await setupTestContextForDepositStuck();
+      await expect(punkRouter.connect(other).withdrawPunk(punkIndex, owner.address)).to.be.revertedWith(
+        "Ownable: caller is not the owner",
       );
     });
   });
