@@ -11,6 +11,7 @@ import "./interfaces/ILoanCore.sol";
 import "./interfaces/IERC721Permit.sol";
 
 contract OriginationController is Context, IOriginationController, EIP712 {
+    using SafeERC20 for IERC20;
     address public loanCore;
     address public assetWrapper;
 
@@ -57,9 +58,9 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         require(externalSigner == lender || externalSigner == borrower, "Origination: signer not participant");
         require(externalSigner != _msgSender(), "Origination: approved own loan");
 
-        SafeERC20.safeTransferFrom(IERC20(loanTerms.payableCurrency), lender, address(this), loanTerms.principal);
+        IERC20(loanTerms.payableCurrency).safeTransferFrom(lender, address(this), loanTerms.principal);
         IERC20(loanTerms.payableCurrency).approve(loanCore, loanTerms.principal);
-        IERC721(assetWrapper).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
+        IERC721(assetWrapper).safeTransferFrom(borrower, address(this), loanTerms.collateralTokenId);
         IERC721(assetWrapper).approve(loanCore, loanTerms.collateralTokenId);
 
         uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);

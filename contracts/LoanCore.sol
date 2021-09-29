@@ -21,6 +21,7 @@ import "./PromissoryNote.sol";
 contract LoanCore is ILoanCore, AccessControl, Pausable {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     bytes32 public constant ORIGINATOR_ROLE = keccak256("ORIGINATOR_ROLE");
     bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
@@ -103,13 +104,9 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         // Ensure valid initial loan state
         require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
         // Pull collateral token and principal
-        collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
-        SafeERC20.safeTransferFrom(
-            IERC20(data.terms.payableCurrency),
-            _msgSender(),
-            address(this),
-            data.terms.principal
-        );
+        collateralToken.safeTransferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
+
+        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), data.terms.principal);
 
         // Distribute notes and principal
         loans[loanId].state = LoanLibrary.LoanState.Active;
@@ -123,11 +120,8 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
             LoanLibrary.LoanState.Active,
             data.dueDate
         );
-        SafeERC20.safeTransfer(
-            IERC20(data.terms.payableCurrency),
-            borrower,
-            getPrincipalLessFees(data.terms.principal)
-        );
+
+        IERC20(data.terms.payableCurrency).safeTransfer(borrower, getPrincipalLessFees(data.terms.principal));
         emit LoanStarted(loanId, lender, borrower);
     }
 
@@ -141,7 +135,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         // ensure repayment was valid
         uint256 returnAmount = data.terms.principal.add(data.terms.interest);
-        SafeERC20.safeTransferFrom(IERC20(data.terms.payableCurrency), _msgSender(), address(this), returnAmount);
+        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), returnAmount);
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
         address borrower = borrowerNote.ownerOf(data.borrowerNoteId);
@@ -153,8 +147,8 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         borrowerNote.burn(data.borrowerNoteId);
 
         // asset and collateral redistribution
-        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), lender, returnAmount);
-        collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
+        IERC20(data.terms.payableCurrency).safeTransfer(lender, returnAmount);
+        collateralToken.safeTransferFrom(address(this), borrower, data.terms.collateralTokenId);
 
         emit LoanRepaid(loanId);
     }
@@ -177,7 +171,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         borrowerNote.burn(data.borrowerNoteId);
 
         // collateral redistribution
-        collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);
+        collateralToken.safeTransferFrom(address(this), lender, data.terms.collateralTokenId);
 
         emit LoanClaimed(loanId);
     }
@@ -214,7 +208,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     function claimFees(IERC20 token) external onlyRole(FEE_CLAIMER_ROLE) {
         // any token balances remaining on this contract are fees owned by the protocol
         uint256 amount = token.balanceOf(address(this));
-        SafeERC20.safeTransfer(token, _msgSender(), amount);
+        token.safeTransfer(_msgSender(), amount);
         emit FeesClaimed(address(token), _msgSender(), amount);
     }
 
