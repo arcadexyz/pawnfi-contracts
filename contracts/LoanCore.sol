@@ -104,7 +104,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         // Ensure valid initial loan state
         require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
         // Pull collateral token and principal
-        collateralToken.safeTransferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
+        collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
 
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), data.terms.principal);
 
@@ -150,7 +150,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         // asset and collateral redistribution
         IERC20(data.terms.payableCurrency).safeTransfer(lender, returnAmount);
-        collateralToken.safeTransferFrom(address(this), borrower, data.terms.collateralTokenId);
+        collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
 
         emit LoanRepaid(loanId);
     }
@@ -175,7 +175,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         borrowerNote.burn(data.borrowerNoteId);
 
         // collateral redistribution
-        collateralToken.safeTransferFrom(address(this), lender, data.terms.collateralTokenId);
+        collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);
 
         emit LoanClaimed(loanId);
     }

@@ -59,7 +59,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
 
         IERC20(loanTerms.payableCurrency).safeTransferFrom(lender, address(this), loanTerms.principal);
         IERC20(loanTerms.payableCurrency).approve(loanCore, loanTerms.principal);
-        IERC721(assetWrapper).safeTransferFrom(borrower, address(this), loanTerms.collateralTokenId);
+        IERC721(assetWrapper).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
         IERC721(assetWrapper).approve(loanCore, loanTerms.collateralTokenId);
 
         uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);
