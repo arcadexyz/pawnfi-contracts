@@ -133,7 +133,7 @@ describe("PunkRouter", () => {
 
   describe("Withdraw CryptoPunk held by PunkRouter", function () {
     it("should successfully withdraw punk", async () => {
-      const { punks, punkRouter, other, punkIndex } = await setupTestContextForDepositStuck();
+      const { punks, punkRouter, owner, other, punkIndex } = await setupTestContextForDepositStuck();
       await expect(punkRouter.withdrawPunk(punkIndex, other.address))
         .to.emit(punks, "Transfer")
         .withArgs(punkRouter.address, other.address, 1)
