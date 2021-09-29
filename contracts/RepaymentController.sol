@@ -14,6 +14,7 @@ import "./interfaces/IRepaymentController.sol";
 
 contract RepaymentController is IRepaymentController {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     ILoanCore private loanCore;
     IPromissoryNote private borrowerNote;
@@ -41,12 +42,8 @@ contract RepaymentController is IRepaymentController {
         LoanLibrary.LoanTerms memory terms = loanCore.getLoan(loanId).terms;
 
         // withdraw principal plus interest from borrower and send to loan core
-        SafeERC20.safeTransferFrom(
-            IERC20(terms.payableCurrency),
-            msg.sender,
-            address(this),
-            terms.principal.add(terms.interest)
-        );
+
+        IERC20(terms.payableCurrency).safeTransferFrom(msg.sender, address(this), terms.principal.add(terms.interest));
         IERC20(terms.payableCurrency).approve(address(loanCore), terms.principal.add(terms.interest));
 
         // call repay function in loan core
