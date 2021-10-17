@@ -155,21 +155,19 @@ contract FlashRollover is IFlashLoanReceiver {
         ASSET_WRAPPER.approve(address(ORIGINATION_CONTROLLER), terms.collateralTokenId);
 
         // start new loan
-        ORIGINATION_CONTROLLER.initializeLoan(newLoanTerms, borrower, lender, v, r, s);
+        uint256 newLoanId = ORIGINATION_CONTROLLER.initializeLoan(newLoanTerms, borrower, lender, v, r, s);
+        LoanLibrary.LoanData memory newLoanData = LOAN_CORE.getLoan(newLoanId);
 
-        // transfer new borrower note back to original borrower
-        // Figure out new borrower Note id
-        // BORROWER_NOTE.transfer(borrower, newB)
-        // COLLATERAL IN USE?
+        // Send note and leftover principal to borrower
+        BORROWER_NOTE.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
 
-        // Send leftover principal to borrower
         if (leftoverPrincipal > 0) {
             IERC20(newLoanTerms.payableCurrency).transfer(borrower, leftoverPrincipal);
         }
-        // Approve all amounts
+
+        // Approve all amounts for flash loan repayment
         IERC20(assets[0]).approve(address(LENDING_POOL), flashAmountDue);
 
         return true;
-
     }
 }

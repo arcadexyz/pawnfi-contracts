@@ -147,6 +147,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
+        collateralInUse[data.terms.collateralTokenId] = false;
 
         // asset and collateral redistribution
         IERC20(data.terms.payableCurrency).safeTransfer(lender, returnAmount);
@@ -173,6 +174,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
+        collateralInUse[data.terms.collateralTokenId] = false;
 
         // collateral redistribution
         collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);

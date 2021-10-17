@@ -26,7 +26,7 @@ interface IOriginationController {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external;
+    ) external returns (uint256 loanId);
 
     /**
      * @dev creates a new loan, with permit attached
@@ -48,5 +48,5 @@ interface IOriginationController {
         bytes32 collateralR,
         bytes32 collateralS,
         uint256 permitDeadline
-    ) external;
+    ) external returns (uint256 loanId);
 }
