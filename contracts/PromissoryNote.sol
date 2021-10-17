@@ -52,7 +52,7 @@ contract PromissoryNote is
      * contract, provided it is an instance of LoanCore.
      *
      * Grants `DEFAULT_ADMIN_ROLE` to the account that deploys the contract. Admins
-  
+
      */
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) ERC721Permit(name) {
