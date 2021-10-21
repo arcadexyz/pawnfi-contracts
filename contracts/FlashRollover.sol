@@ -111,6 +111,7 @@ contract FlashRollover is IFlashLoanReceiver {
         (uint256 loanId, LoanLibrary.LoanTerms memory newLoanTerms, uint8 v, bytes32 r, bytes32 s) =
             abi.decode(params, (uint256, LoanLibrary.LoanTerms, uint8, bytes32, bytes32));
 
+        // TODO: Take premium from borrower wallet
         uint256 flashAmountDue = amounts[0].add(premiums[0]);
 
         // Make sure new loan, minus pawn fees, is more than flash amount due
