@@ -1,17 +1,39 @@
-# Solidity Template
+## ![Pawn.fi](logo.png)
 
-My favourite setup for writing Solidity smart contracts.
+---
 
-- [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
-- [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
-- [Ethers](https://github.com/ethers-io/ethers.js/): renowned Ethereum library and wallet implementation
-- [Waffle](https://github.com/EthWorks/Waffle): tooling for writing comprehensive smart contract tests
-- [Solhint](https://github.com/protofire/solhint): linter
-- [Solcover](https://github.com/sc-forks/solidity-coverage) code coverage
-- [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
+Pawn.fi protocol facilitates trustless borrowing, lending, and escrow of NFT assets on the Ethereum blockchain.
 
-This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
-template" button at the top of the page.
+## Overview
+
+Pawn.fi builds infrastructure for NFT liquidity. We enable the financialization of non-fungible assets, commonly referred to as NFTs. They represent a natural evolution of storing value and attributing ownership for unique assets.
+
+The Pawn.fi protocol facilitates trustless off-chain order matching using structured digital signatures to validate loan term attestations from borrowers and lenders. Loans are settled on-chain and held in decentralized escrow
+, co-opting cryptographic security guarantees offered by Ethereum.
+
+### Features
+
+#### Asset Wrapping
+
+wNFT (Wrapped NFT) - Deposit hybrid assets (ERC721, ERC1155, ERC20) minting an NFT that represents the basket.
+PunkRouter Support for a gas-saving single transaction to wrap CryptoPunks into Wrapped CryptoPunks (conforming to ERC721) and deposit into your Asset Wrapper.
+
+#### Borrowing
+
+Loan Requests - Borrowers can make loan requests setting terms such as funding ccy (ERC20), duration, interest amount, for term
+loans of at least 1 day in duration collateralized by their wNFT.
+Trustless Matching - Lenders can fund a loan request trustlessly and once countersigned, either lender or borrower can marshal a loan for on-chain settlement.
+Borrower Note - Upon settling a loan on-chain, the funding amount is disbursed to the borrower's address, the wNFT encapsulating the assets collateralizing the loan are transferred to the lenders address, and the borrower receives a borrower note (ERC721) that represents their claim to the assets upon loan repayment.
+No Prepayment Penalty - Loans can be paid off any time to recoup assets held in escrow on-chain with the protocol.
+
+#### Lending
+
+Loan Offers - Lenders can make loan offers for loan requests that are Open to Offers.
+Trustless Matching - Borrowers can settle a loan by accepting a loan offer trustlessly since the Lender has digitally signed the terms of the offer and approved the funding amount for those terms to the protocol.
+Lender Note - Upon settling a loan on-chain, the lender transfers the funding amount from their wallet to the borrower's and receive a lender note (ERC721) that represents their claim on the wNFT encapsulating the assets collateralizing the loan (and therefore a claim on the assets themselves) if the loan were to default.
+Trustless Claims - Simple logic embedded in the protocol dictates whether a loan is in default. If the funding amount + interest amount have not been paid by the end of the loan duration, the loan is claimable by anyone. The wNFT, and therefore assets collateralizing the defaulted loan, are transferred on-chain to the address that owns the lender note.
+
+More details can be found here: https://docs.pawn.fi
 
 ## Usage
 
