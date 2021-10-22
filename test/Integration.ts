@@ -235,7 +235,7 @@ describe("Integration", () => {
 
     const initializeLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
-      const bundleId = terms?.collateralTokenId ?? await createWnft(assetWrapper, borrower);
+      const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
       if (terms) Object.assign(loanTerms, terms);
 
@@ -314,7 +314,9 @@ describe("Integration", () => {
         .withArgs(loanId);
 
       // create a new loan with the same bundleId
-      const { loanId: newLoanId } = await initializeLoan(context, { collateralTokenId: hre.ethers.BigNumber.from(bundleId) });
+      const { loanId: newLoanId } = await initializeLoan(context, {
+        collateralTokenId: hre.ethers.BigNumber.from(bundleId),
+      });
 
       // initializeLoan asserts loan created successfully based on logs, so test that new loan is a new instance
       expect(newLoanId !== loanId);
@@ -359,7 +361,7 @@ describe("Integration", () => {
     const initializeLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
       const durationSecs = 1000;
-      const bundleId = terms?.collateralTokenId ?? await createWnft(assetWrapper, borrower);
+      const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId, durationSecs });
       if (terms) Object.assign(loanTerms, terms);
       await mint(mockERC20, lender, loanTerms.principal);
@@ -430,7 +432,9 @@ describe("Integration", () => {
       // create a new loan with the same bundleId
       // transfer the collateral back to the original borrower
       await assetWrapper.connect(lender).transferFrom(await lender.getAddress(), await borrower.getAddress(), bundleId);
-      const { loanId: newLoanId } = await initializeLoan(context, { collateralTokenId: hre.ethers.BigNumber.from(bundleId) });
+      const { loanId: newLoanId } = await initializeLoan(context, {
+        collateralTokenId: hre.ethers.BigNumber.from(bundleId),
+      });
 
       // initializeLoan asserts loan created successfully based on logs, so test that new loan is a new instance
       expect(newLoanId !== loanId);
