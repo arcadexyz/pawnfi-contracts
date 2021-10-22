@@ -17,6 +17,7 @@ import { deploy } from "./utils/contracts";
 import { approve, mint } from "./utils/erc20";
 import { LoanTerms, LoanData } from "./utils/types";
 import { createLoanTermsSignature } from "./utils/eip712";
+import { brotliCompress } from "zlib";
 
 const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
@@ -233,10 +234,12 @@ describe("Integration", () => {
       loanData: LoanData;
     }
 
-    const initializeLoan = async (context: TestContext): Promise<LoanDef> => {
+    const initializeLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
-      const bundleId = await createWnft(assetWrapper, borrower);
+      const bundleId = terms?.collateralTokenId ?? await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+      if (terms) Object.assign(loanTerms, terms);
+
       await mint(mockERC20, lender, loanTerms.principal);
 
       const { v, r, s } = await createLoanTermsSignature(
@@ -297,6 +300,27 @@ describe("Integration", () => {
       expect(postLenderBalance.sub(preLenderBalance)).to.equal(loanTerms.principal.add(loanTerms.interest));
     });
 
+    it("should allow the collateral to be reused after repay", async () => {
+      const context = await setupTestContext();
+      const { repaymentController, mockERC20, loanCore, borrower } = context;
+      const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
+
+      await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
+      await mockERC20
+        .connect(borrower)
+        .approve(repaymentController.address, loanTerms.principal.add(loanTerms.interest));
+
+      await expect(repaymentController.connect(borrower).repay(loanData.borrowerNoteId))
+        .to.emit(loanCore, "LoanRepaid")
+        .withArgs(loanId);
+
+      // create a new loan with the same bundleId
+      const { loanId: newLoanId } = await initializeLoan(context, { collateralTokenId: hre.ethers.BigNumber.from(bundleId) });
+
+      // initializeLoan asserts loan created successfully based on logs, so test that new loan is a new instance
+      expect(newLoanId !== loanId);
+    });
+
     it("fails if payable currency is not approved", async () => {
       const context = await setupTestContext();
       const { repaymentController, mockERC20, borrower } = context;
@@ -333,11 +357,12 @@ describe("Integration", () => {
       loanData: LoanData;
     }
 
-    const initializeLoan = async (context: TestContext): Promise<LoanDef> => {
+    const initializeLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
       const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
       const durationSecs = 1000;
-      const bundleId = await createWnft(assetWrapper, borrower);
+      const bundleId = terms?.collateralTokenId ?? await createWnft(assetWrapper, borrower);
       const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId, durationSecs });
+      if (terms) Object.assign(loanTerms, terms);
       await mint(mockERC20, lender, loanTerms.principal);
 
       const { v, r, s } = await createLoanTermsSignature(
@@ -388,6 +413,28 @@ describe("Integration", () => {
 
       // post-repaid state
       expect(await assetWrapper.ownerOf(bundleId)).to.equal(await lender.getAddress());
+    });
+
+    it("should allow the collateral to be reused after claim", async () => {
+      const context = await setupTestContext();
+      const { repaymentController, assetWrapper, loanCore, lender, borrower } = context;
+      const { loanId, loanData, bundleId } = await initializeLoan(context);
+
+      // pre-repaid state
+      expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCore.address);
+      await blockchainTime.increaseTime(5000);
+
+      await expect(repaymentController.connect(lender).claim(loanData.lenderNoteId))
+        .to.emit(loanCore, "LoanClaimed")
+        .withArgs(loanId);
+
+      // create a new loan with the same bundleId
+      // transfer the collateral back to the original borrower
+      await assetWrapper.connect(lender).transferFrom(await lender.getAddress(), await borrower.getAddress(), bundleId);
+      const { loanId: newLoanId } = await initializeLoan(context, { collateralTokenId: hre.ethers.BigNumber.from(bundleId) });
+
+      // initializeLoan asserts loan created successfully based on logs, so test that new loan is a new instance
+      expect(newLoanId !== loanId);
     });
 
     it("fails if not past durationSecs", async () => {
