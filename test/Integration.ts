@@ -137,13 +137,16 @@ describe("Integration", () => {
 
       await approve(mockERC20, lender, originationController.address, loanTerms.principal);
       await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
+
       await expect(
         originationController
           .connect(lender)
           .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
       )
         .to.emit(mockERC20, "Transfer")
-        .withArgs(await lender.getAddress(), loanCore.address, loanTerms.principal)
+        .withArgs(await lender.getAddress(), originationController.address, loanTerms.principal)
+        .to.emit(mockERC20, "Transfer")
+        .withArgs(originationController.address, loanCore.address, loanTerms.principal)
         .to.emit(loanCore, "LoanCreated")
         .to.emit(loanCore, "LoanStarted");
     });
