@@ -143,6 +143,8 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
         // state changes and cleanup
         // NOTE: these must be performed before assets are released to prevent reentrance
         loans[loanId].state = LoanLibrary.LoanState.Repaid;
+        collateralInUse[data.terms.collateralTokenId] = false;
+
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
@@ -167,6 +169,8 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         // NOTE: these must be performed before assets are released to prevent reentrance
         loans[loanId].state = LoanLibrary.LoanState.Defaulted;
+        collateralInUse[data.terms.collateralTokenId] = false;
+
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
