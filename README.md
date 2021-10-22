@@ -1,4 +1,4 @@
-<img width="1500" alt="pawnfi-logo-black" src="https://user-images.githubusercontent.com/1355694/138524255-a44c2c26-54a8-48ac-bcea-a10667e5a58d.png">
+<img width="3589" alt="pawnf-logo-blue-on-light" src="https://user-images.githubusercontent.com/1355694/138525930-bda64163-2a3e-4358-8cd6-b86556d88611.png">
 
 
 The [Pawn](https://pawn.fi) protocol facilitates trustless borrowing, lending, and escrow of NFT assets on EVM blockchains. This repository contains the core contracts that power the protocol, written in Solidity.
