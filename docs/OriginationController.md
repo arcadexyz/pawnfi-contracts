@@ -16,6 +16,7 @@ Deploys the contract with references to the specified `LoanCore` and `AssetWrapp
 contracts. Also initializes a domain separator and version for `EIP712` signatures
 for collateral permits.
 
+### `intializeLoan`
 ```
 function initializeLoan(
     LoanLibrary.LoanTerms calldata loanTerms,
@@ -39,6 +40,7 @@ Requirements:
 - The external signer must be the borrower or lender.
 - The collateral must be approved with withdrawal by the `OriginationController`.
 
+### `initializeLoanWithCollateralPermit`
 ```
 function initializeLoanWithCollateralPermit(
     LoanLibrary.LoanTerms calldata loanTerms,

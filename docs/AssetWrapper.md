@@ -12,14 +12,14 @@ underlying assets.
 
 ## API
 
-### `initializeBundle(address to) →` (external)
+### `initializeBundle(address to) →` _(external)_
 
 Creates a new bundle token for `to`. Its token ID will be
 automatically assigned returned, and available on the emitted `Transfer` event.
 
 See [ERC721-_safeMint](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_safeMint-address-uint256-).
 
-### `depositERC20(address tokenAddress, uint256 amount, uint256 bundleId)` (external)
+### `depositERC20(address tokenAddress, uint256 amount, uint256 bundleId)` _(external)_
 
 Deposit ERC20 tokens into a given bundle.
 
@@ -31,7 +31,7 @@ Requirements:
 
 Emits a `DepositERC20` event.
 
-### `depositERC721(address tokenAddress, uint256 tokenId, uint256 bundleId)` (external)
+### `depositERC721(address tokenAddress, uint256 tokenId, uint256 bundleId)` _(external)_
 
 Deposit an ERC721 token into a given bundle.
 
@@ -43,7 +43,7 @@ Requirements:
 
 Emits a `DepositERC721` event.
 
-### `depositERC1155(address tokenAddress, uint256 tokenId, uint256 amount, uint256 bundleId)` (external)
+### `depositERC1155(address tokenAddress, uint256 tokenId, uint256 amount, uint256 bundleId)` _(external)_
 
 Deposit an ERC1155 token into a given bundle.
 
@@ -55,7 +55,7 @@ Requirements:
 
 Emits a `DepositERC1155` event.
 
-### `depositETH(uint256 bundleId)` (external)
+### `depositETH(uint256 bundleId)` _(external)_
 
 Deposit ETH into a given bundle. ETH should be sent in `msg.value`.
 
@@ -65,7 +65,7 @@ Requirements:
 
 Emits a `DepositETH` event.
 
-### `withdraw(uint256 bundleId)` (external)
+### `withdraw(uint256 bundleId)` _(external)_
 
 Withdraw all assets in the given bundle, returning them to `msg.sender`.
 
@@ -76,15 +76,15 @@ Requirements:
 
 Emits a `Withdraw` event.
 
-### `_beforeTokenTransfer(address from, address to, uint256 tokenId)` (internal)
+### `_beforeTokenTransfer(address from, address to, uint256 tokenId)` _(internal)_
 
 Hook that is called before any token transfer.
 
 See [IERC721-_beforeTokenTransfer](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_beforeTokenTransfer-address-address-uint256-).
 
-### `supportsInterface(bytes4 interfaceId) → bool` (public)
+### `supportsInterface(bytes4 interfaceId) → bool` _(pubic)_
 
-See [IERC165-supportsInterface}](https://docs.openzeppelin.com/contracts/3.x/api/introspection#IERC165-supportsInterface-bytes4-).
+See [IERC165-supportsInterface](https://docs.openzeppelin.com/contracts/3.x/api/introspection#IERC165-supportsInterface-bytes4-).
 
 ## Events
 

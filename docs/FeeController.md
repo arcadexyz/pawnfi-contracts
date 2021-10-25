@@ -11,13 +11,13 @@ Fees may be assessed based on the following attributes:
 
 ## API
 
-### `setOriginationFee(uint256 _originationFee)` (external)
+### `setOriginationFee(uint256 _originationFee)` _(external)_
 
 Set the origination fee to the given value. Can only be called by contract owner.
 
 Emits `UpdateOriginationFee`.
 
-### `getOriginationFee() → uint256` (public)
+### `getOriginationFee() → uint256` _(pubic)_
 
 Get the current origination fee in bps.
 

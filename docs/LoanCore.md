@@ -58,7 +58,7 @@ struct LoanData {
 ```
 
 ## API
-### `constructor(contract IERC721 _collateralToken, contract IFeeController _feeController)` (public)
+### `constructor(contract IERC721 _collateralToken, contract IFeeController _feeController)` _(pubic)_
 
 Create the `LoanCore` contract. Requires references to `_collateralToken` (an instance of `AssetWrapper`)
 and `_feeController` (an instance of `FeeController`).
@@ -66,11 +66,11 @@ and `_feeController` (an instance of `FeeController`).
 The constructor will grant `DEFAULT_ADMIN_ROLE` and `FEE_CLAIMER_ROLE` to the deployer. It will also
 deploy two instances of `PromissoryNote` - one for the `borrowerNote` and one for the `lenderNote`.
 
-### `getLoan(uint256 loanId) → struct LoanData loanData` (external)
+### `getLoan(uint256 loanId) → struct LoanData loanData` _(external)_
 
 Get LoanData by loanId (see `LoanData` struct definitiona above).
 
-### `createLoan(struct LoanTerms terms) → uint256 loanId` (external)
+### `createLoan(struct LoanTerms terms) → uint256 loanId` _(external)_
 
 Create a loan object with the given terms. This function created a loan record
 in memory and reserves the collateral so it cannot be used by other loans, but
@@ -80,7 +80,7 @@ Can only be called by `ORIGINATOR_ROLE` (should be an instance of `OriginationCo
 
 Emits a `LoanCreated` event.
 
-### `startLoan(address lender, address borrower, uint256 loanId)` (external)
+### `startLoan(address lender, address borrower, uint256 loanId)` _(external)_
 
 Start a loan with the given borrower and lender, using the terms of the
 `loanId` already instantiated in `createLoan`.
@@ -97,7 +97,7 @@ Requirements:
 
 Emits a `LoanStarted` event.
 
-### `repay(uint256 loanId)` (external)
+### `repay(uint256 loanId)` _(external)_
 
 Repay the given loan for the specified `loanId`.
 
@@ -118,7 +118,7 @@ Requirements:
 
 Emits a `LoanRepaid` event.
 
-### `claim(uint256 loanId)` (external)
+### `claim(uint256 loanId)` _(external)_
 
 Claim the collateral of the given loan, as long as the loan has not been repaid by the
 due date.
@@ -134,12 +134,12 @@ Requirements:
 
 Emits a `LoanClaimed` event.
 
-### `getPrincipalLessFees(uint256 principal) → uint256` (internal)
+### `getPrincipalLessFees(uint256 principal) → uint256` _(internal)_
 
 Take a principal value and return the amount less protocol fees. Reads from
 `FeeController` to get the current origination fee value.
 
-### `setFeeController(contract IFeeController _newController)` (external)
+### `setFeeController(contract IFeeController _newController)` _(external)_
 
 Set the fee controller to a new value. The new argument must support
 the `FeeController` interface.
@@ -148,7 +148,7 @@ Requirements:
 
 - Can only be called by `FEE_CLAIMER_ROLE`.
 
-### `claimFees(contract IERC20 token)` (external)
+### `claimFees(contract IERC20 token)` _(external)_
 
 Claim the protocol fees for the given token. All fees will be withdrawn
 to the caller.
@@ -171,7 +171,7 @@ Emitted when a loan is created, but not yet started. Exposes terms and unique ID
 
 ### `LoanStarted(uint256 loanId, address lender, address borrower)`
 
-Emitted when a loan is started and principal is distributed ot the borrower.
+Emitted when a loan is started and principal is distributed to the borrower.
 
 ### `LoanRepaid(uint256 loanId)`
 

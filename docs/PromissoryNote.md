@@ -20,7 +20,7 @@ when an instance of `LoanCore` is deployed.
 
 ## API
 
-### `constructor(string name, string symbol)` (public)
+### `constructor(string name, string symbol)` _(pubic)_
 
 Creates the borrowor note contract linked to a specific `LoanCore` instance.
 The loan core reference is non-upgradeable. Passes `name` and `symbol` to the
@@ -29,7 +29,7 @@ The loan core reference is non-upgradeable. Passes `name` and `symbol` to the
 Grants `PAUSER_ROLE`, `MINTER_ROLE`, and `BURNER_ROLE` to the sender
 contract, provided it is an instance of LoanCore.
 
-### `mint(address to)` (external)
+### `mint(address to)` _(external)_
 
 Creates a new token for `to`. Its token ID will be automatically
 assigned (and available on the emitted `IERC721-Transfer` event), and the token
@@ -41,7 +41,7 @@ Requirements:
 
 - the caller must have the `MINTER_ROLE`.
 
-### `burn(uint256 tokenId)` (external)
+### `burn(uint256 tokenId)` _(external)_
 
 Burns `tokenId`. See [ERC721-\_burn](https://docs.openzeppelin.com/contracts/4.x/api/token/erc721#ERC721-_burn-uint256-).
 
@@ -51,13 +51,13 @@ Requirements:
   The loan core contract can only burn a loan that is finished:
   either repaid or claimed.
 
-### `supportsInterface(bytes4 interfaceId) → bool` (public)
+### `supportsInterface(bytes4 interfaceId) → bool` _(pubic)_
 
 Override of `supportsInterface` for `AccessControlEnumerable`, `ERC721`, `ERC721Enumerable`.
 
 See [IERC165-supportsInterface](https://docs.openzeppelin.com/contracts/4.x/api/utils#IERC165-supportsInterface-bytes4-).
 
-### `_beforeTokenTransfer(address from, address to, uint256 amount)` (internal)
+### `_beforeTokenTransfer(address from, address to, uint256 amount)` _(internal)_
 
 override of `_beforeTokenTransfer` for `ERC721`, `ERC721Enumerable`, `ERC721Pausable`.
 
