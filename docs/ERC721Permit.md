@@ -12,26 +12,32 @@ account doesn't need to send a transaction, and thus is not required to hold Eth
 
 ### `constructor(string name)` (internal)
 
-Initializes the `EIP712` domain separator using the `name` parameter, and setting `version` to `"1"`.
-
-It's a good idea to use the same `name` that is defined as the ERC721 token name.
-
+Initializes the `EIP712` domain separator using the `name` parameter, and setting `version` to `"1"`. `name` should be the same
+as the `ERC721` token name.
 ### `permit(address owner, address spender, uint256 tokenId, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` (public)
 
-Allows `spender` to spend `tokenID` which is owned by`owner`,
-     * given ``owner``'s signed approval.
-     *
-     * Emits an {Approval} event.
+Allows `spender` to spend `tokenID` which is owned by`owner`, given the signed approval of `owner`.
+
+Requirements:
+- `spender` cannot be the zero address.
+- `owner` must be the owner of `tokenId`.
+- `deadline` must be a timestamp in the future.
+- `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
+over the EIP712-formatted function arguments.
+- the signature must use ``owner``'s current nonce (see {nonces}).
+
+For more information on the signature format, see the
+[relevant EIP section](https://eips.ethereum.org/EIPS/eip-2612#specification).
 ### `nonces(address owner) → uint256` (public)
 
-See {IERC721Permit-nonces}.
-
+Returns the current nonce for `owner`. This value must be
+included whenever a signature is generated for `permit`.
+Every successful call to `permit` increases ``owner``'s nonce by one. This
+prevents a signature from being used multiple times.
 ### `DOMAIN_SEPARATOR() → bytes32` (external)
 
-See {IERC721Permit-DOMAIN_SEPARATOR}.
+Returns the domain separator used in the encoding of the signature for `permit`, as defined by [EIP712](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/draft-EIP712.sol).
 
 ### `_useNonce(address owner) → uint256 current` (internal)
 
-"Consume a nonce": return the current value and increment.
-
-_Available since v4.1._
+Consumes a nonce: return the current nonce value for the owner and and increments it.
