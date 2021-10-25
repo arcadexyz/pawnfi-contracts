@@ -160,3 +160,28 @@ Requirements:
 Emits a `FeesClaimed` event.
 
 ## Events
+
+### `Initialized(address collateralToken, address borrowerNote, address lenderNote)`
+
+Emitted on contract deployment to expose location of dependent contracts.
+
+### `LoanCreated(LoanLibrary.LoanTerms terms, uint256 loanId)`
+
+Emitted when a loan is created, but not yet started. Exposes terms and unique ID of loan.
+
+### `LoanStarted(uint256 loanId, address lender, address borrower)`
+
+Emitted when a loan is started and principal is distributed ot the borrower.
+
+### `LoanRepaid(uint256 loanId)`
+
+Emitted when a loan is repaid by the borrower.
+
+### `LoanClaimed(uint256 loanId)`
+
+Emitted when a loan in default has collateral claimed by the lender.
+
+### `FeesClaimed(address token, address to, uint256 amount)`
+
+Emitted when protocol fees are withdrawn from the contract.
+

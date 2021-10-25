@@ -15,6 +15,14 @@ Fees may be assessed based on the following attributes:
 
 Set the origination fee to the given value. Can only be called by contract owner.
 
+Emits `UpdateOriginationFee`.
+
 ### `getOriginationFee() → uint256` (public)
 
 Get the current origination fee in bps.
+
+## Events
+
+### `UpdateOriginationFee(uint256 _newFee)`
+
+Emitted when the origination fee is changed. All fees are expressed in bps.
