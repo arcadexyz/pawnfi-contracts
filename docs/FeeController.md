@@ -9,6 +9,8 @@ Fees may be assessed based on the following attributes:
 - Amount of tokens being staked, etc
 - Due dates/penalty payments
 
+## API
+
 ### `setOriginationFee(uint256 _originationFee)` (external)
 
 Set the origination fee to the given value. Can only be called by contract owner.

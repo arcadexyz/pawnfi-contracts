@@ -10,6 +10,8 @@ the `permit` method, which can be used to change an account's ERC721 allowance (
 by presenting a message signed by the account. By not relying on `{IERC721-approve}`, the token holder
 account doesn't need to send a transaction, and thus is not required to hold Ether at all.
 
+## API
+
 ### `constructor(string name)` (internal)
 
 Initializes the `EIP712` domain separator using the `name` parameter, and setting `version` to `"1"`. `name` should be the same

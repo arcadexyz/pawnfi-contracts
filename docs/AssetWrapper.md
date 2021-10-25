@@ -10,7 +10,7 @@ can then be used or traded as an asset in its own right.
 At any time, the holder of the bundle NFT can redeem it for the
 underlying assets.
 
-## Contract API
+## API
 
 ### `initializeBundle(address to) →` (external)
 
