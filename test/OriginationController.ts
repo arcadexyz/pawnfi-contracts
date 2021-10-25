@@ -312,12 +312,11 @@ describe("OriginationController", () => {
           deadline: maxDeadline,
         };
 
-        const { v: collateralV, r: collateralR, s: collateralS } = await createPermitSignature(
-          assetWrapper.address,
-          await assetWrapper.name(),
-          permitData,
-          user,
-        );
+        const {
+          v: collateralV,
+          r: collateralR,
+          s: collateralS,
+        } = await createPermitSignature(assetWrapper.address, await assetWrapper.name(), permitData, user);
         const { v, r, s } = await createLoanTermsSignature(
           originationController.address,
           "OriginationController",
@@ -363,12 +362,11 @@ describe("OriginationController", () => {
           nonce: 0,
           deadline: maxDeadline,
         };
-        const { v: collateralV, r: collateralR, s: collateralS } = await createPermitSignature(
-          assetWrapper.address,
-          await assetWrapper.name(),
-          permitData,
-          borrower,
-        );
+        const {
+          v: collateralV,
+          r: collateralR,
+          s: collateralS,
+        } = await createPermitSignature(assetWrapper.address, await assetWrapper.name(), permitData, borrower);
         const { v, r, s } = await createLoanTermsSignature(
           originationController.address,
           "OriginationController",

@@ -41,17 +41,16 @@ contract OriginationController is Context, IOriginationController, EIP712 {
     ) public override {
         require(_msgSender() == lender || _msgSender() == borrower, "Origination: sender not participant");
 
-        bytes32 loanHash =
-            keccak256(
-                abi.encode(
-                    _LOAN_TERMS_TYPEHASH,
-                    loanTerms.durationSecs,
-                    loanTerms.principal,
-                    loanTerms.interest,
-                    loanTerms.collateralTokenId,
-                    loanTerms.payableCurrency
-                )
-            );
+        bytes32 loanHash = keccak256(
+            abi.encode(
+                _LOAN_TERMS_TYPEHASH,
+                loanTerms.durationSecs,
+                loanTerms.principal,
+                loanTerms.interest,
+                loanTerms.collateralTokenId,
+                loanTerms.payableCurrency
+            )
+        );
         bytes32 typedLoanHash = _hashTypedDataV4(loanHash);
         address externalSigner = ECDSA.recover(typedLoanHash, v, r, s);
 

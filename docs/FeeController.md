@@ -5,6 +5,7 @@ protocol where new fees can be added or modified based on different
 platform needs.
 
 Fees may be assessed based on the following attributes:
+
 - Type/size of loan being requested
 - Amount of tokens being staked, etc
 - Due dates/penalty payments

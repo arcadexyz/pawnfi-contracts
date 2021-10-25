@@ -21,6 +21,7 @@ repayment tokens and delegates logic to `LoanCore-repay`. Caller sends
 `borrowerNoteId` to reference the loan, which is then dereferenced to a loan ID.
 
 Requirements:
+
 - The loan must be in the `Active` state.
 - The repayment amount must be approved for withdrawal by the `RepaymentController`.
 
@@ -31,6 +32,7 @@ Used by the lender to claim collateral for a loan that is in default. Caller sen
 Sends the associated collateral token back to the holder of the `LenderNote.`
 
 Requirements:
+
 - The loan must be in the `Active` state.
 - The current time must be greater than the loan's due date.
 - The caller must be the owner of the associated `LenderNote`.

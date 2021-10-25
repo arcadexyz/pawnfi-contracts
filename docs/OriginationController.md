@@ -7,7 +7,6 @@ While `LoanCore` maintains the invariants of owed tokens and collateral for
 valid loan state, `OriginationController` is responsible for checking mutual
 loan consent by verifying the required signatures for loan creation.
 
-
 ### API
 
 ### `constructor(address _loanCore, address _assetWrapper)`
@@ -17,6 +16,7 @@ contracts. Also initializes a domain separator and version for `EIP712` signatur
 for collateral permits.
 
 ### `intializeLoan`
+
 ```
 function initializeLoan(
     LoanLibrary.LoanTerms calldata loanTerms,
@@ -35,12 +35,14 @@ withdraw the associated principal and collateral, and calls the loan initiation 
 in `LoanCore`.
 
 Requirements:
+
 - The caller must be the borrower or lender.
 - The external signer must not be `msg.sender`.
 - The external signer must be the borrower or lender.
 - The collateral must be approved with withdrawal by the `OriginationController`.
 
 ### `initializeLoanWithCollateralPermit`
+
 ```
 function initializeLoanWithCollateralPermit(
     LoanLibrary.LoanTerms calldata loanTerms,
@@ -63,6 +65,7 @@ After permission for the collateral withdrawal is validated, logic is delegated
 to `initializeLoan`.
 
 Requirements:
+
 - The caller must be the borrower or lender.
 - The external signer must not be `msg.sender`.
 - The external signer must be the borrower or lender.

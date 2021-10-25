@@ -58,6 +58,7 @@ struct LoanData {
 ```
 
 ## API
+
 ### `constructor(contract IERC721 _collateralToken, contract IFeeController _feeController)` _(pubic)_
 
 Create the `LoanCore` contract. Requires references to `_collateralToken` (an instance of `AssetWrapper`)
@@ -184,4 +185,3 @@ Emitted when a loan in default has collateral claimed by the lender.
 ### `FeesClaimed(address token, address to, uint256 amount)`
 
 Emitted when protocol fees are withdrawn from the contract.
-

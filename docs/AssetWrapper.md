@@ -17,7 +17,7 @@ underlying assets.
 Creates a new bundle token for `to`. Its token ID will be
 automatically assigned returned, and available on the emitted `Transfer` event.
 
-See [ERC721-_safeMint](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_safeMint-address-uint256-).
+See [ERC721-\_safeMint](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_safeMint-address-uint256-).
 
 ### `depositERC20(address tokenAddress, uint256 amount, uint256 bundleId)` _(external)_
 
@@ -27,7 +27,7 @@ Requirements:
 
 - The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
 - The tokens for deposit must be approved for withdrawal by the
-`AssetWrapper` contract.
+  `AssetWrapper` contract.
 
 Emits a `DepositERC20` event.
 
@@ -39,7 +39,7 @@ Requirements:
 
 - The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
 - The NFT for deposit must be approved for withdrawal by the
-`AssetWrapper` contract.
+  `AssetWrapper` contract.
 
 Emits a `DepositERC721` event.
 
@@ -51,7 +51,7 @@ Requirements:
 
 - The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
 - The NFT for deposit must be approved for withdrawal of `amount` by the
-`AssetWrapper` contract.
+  `AssetWrapper` contract.
 
 Emits a `DepositERC1155` event.
 
@@ -80,7 +80,7 @@ Emits a `Withdraw` event.
 
 Hook that is called before any token transfer.
 
-See [IERC721-_beforeTokenTransfer](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_beforeTokenTransfer-address-address-uint256-).
+See [IERC721-\_beforeTokenTransfer](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_beforeTokenTransfer-address-address-uint256-).
 
 ### `supportsInterface(bytes4 interfaceId) → bool` _(pubic)_
 

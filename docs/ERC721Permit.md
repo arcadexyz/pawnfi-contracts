@@ -16,26 +16,30 @@ account doesn't need to send a transaction, and thus is not required to hold Eth
 
 Initializes the `EIP712` domain separator using the `name` parameter, and setting `version` to `"1"`. `name` should be the same
 as the `ERC721` token name.
+
 ### `permit(address owner, address spender, uint256 tokenId, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` _(pubic)_
 
 Allows `spender` to spend `tokenID` which is owned by`owner`, given the signed approval of `owner`.
 
 Requirements:
+
 - `spender` cannot be the zero address.
 - `owner` must be the owner of `tokenId`.
 - `deadline` must be a timestamp in the future.
 - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
-over the EIP712-formatted function arguments.
-- the signature must use ``owner``'s current nonce (see {nonces}).
+  over the EIP712-formatted function arguments.
+- the signature must use `owner`'s current nonce (see {nonces}).
 
 For more information on the signature format, see the
 [relevant EIP section](https://eips.ethereum.org/EIPS/eip-2612#specification).
+
 ### `nonces(address owner) → uint256` _(pubic)_
 
 Returns the current nonce for `owner`. This value must be
 included whenever a signature is generated for `permit`.
-Every successful call to `permit` increases ``owner``'s nonce by one. This
+Every successful call to `permit` increases `owner`'s nonce by one. This
 prevents a signature from being used multiple times.
+
 ### `DOMAIN_SEPARATOR() → bytes32` _(external)_
 
 Returns the domain separator used in the encoding of the signature for `permit`, as defined by [EIP712](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/draft-EIP712.sol).

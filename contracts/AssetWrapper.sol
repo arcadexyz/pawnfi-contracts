@@ -72,7 +72,7 @@ contract AssetWrapper is
         _mint(to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
 
-        return _tokenIdTracker.current()
+        return _tokenIdTracker.current();
     }
 
     /**

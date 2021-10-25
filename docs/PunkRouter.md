@@ -19,8 +19,9 @@ punk ID, and the `bundleId` is the token ID of the bundle within the `AssetWrapp
 contract.
 
 Requirements:
+
 - The CryptoPunk at `punkIndex` must be offered for sale to this address for 0 ETH. This
-is equivalent to an approval for normal ERC721s - see the [CryptoPunks smart contract](https://github.com/larvalabs/cryptopunks/blob/master/contracts/CryptoPunksMarket.sol#L148) for more information.
+  is equivalent to an approval for normal ERC721s - see the [CryptoPunks smart contract](https://github.com/larvalabs/cryptopunks/blob/master/contracts/CryptoPunksMarket.sol#L148) for more information.
 - `msg.sender` must be the owner of the punk at `punkIndex`.
 
 ### `withdrawPunk(uint256 punkIndex, address to) external`

@@ -51,8 +51,9 @@ abstract contract ERC721Permit is ERC721, IERC721Permit, EIP712 {
         require(block.timestamp <= deadline, "ERC721Permit: expired deadline");
         require(owner == ERC721.ownerOf(tokenId), "ERC721Permit: not owner");
 
-        bytes32 structHash =
-            keccak256(abi.encode(_PERMIT_TYPEHASH, owner, spender, tokenId, _useNonce(owner), deadline));
+        bytes32 structHash = keccak256(
+            abi.encode(_PERMIT_TYPEHASH, owner, spender, tokenId, _useNonce(owner), deadline)
+        );
 
         bytes32 hash = _hashTypedDataV4(structHash);
 

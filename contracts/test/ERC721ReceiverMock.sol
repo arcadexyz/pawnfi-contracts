@@ -3,7 +3,12 @@
 pragma solidity ^0.8.0;
 
 contract ERC721ReceiverMock {
-    enum Error { None, RevertWithMessage, RevertWithoutMessage, Panic }
+    enum Error {
+        None,
+        RevertWithMessage,
+        RevertWithoutMessage,
+        Panic
+    }
 
     bytes4 private immutable _retval;
     Error private immutable _error;

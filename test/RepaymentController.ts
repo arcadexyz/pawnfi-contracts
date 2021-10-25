@@ -175,9 +175,9 @@ describe("RepaymentController", () => {
     it("reverts for a note ID not owned by caller", async () => {
       const { repaymentController, lender, borrower, mockLoanCore, loanData } = context;
 
-      const lenderNote = await (await ethers.getContractFactory("PromissoryNote")).attach(
-        await mockLoanCore.lenderNote(),
-      );
+      const lenderNote = await (
+        await ethers.getContractFactory("PromissoryNote")
+      ).attach(await mockLoanCore.lenderNote());
       await lenderNote
         .connect(lender)
         .transferFrom(await lender.getAddress(), await borrower.getAddress(), loanData.lenderNoteId);

@@ -40,17 +40,21 @@ contract MockLoanCore is ILoanCore {
      * @dev Create store a loan object with some given terms
      */
     function createLoan(LoanLibrary.LoanTerms calldata terms) external override returns (uint256 loanId) {
-        LoanLibrary.LoanTerms memory _loanTerms =
-            LoanLibrary.LoanTerms(
-                terms.durationSecs,
-                terms.principal,
-                terms.interest,
-                terms.collateralTokenId,
-                terms.payableCurrency
-            );
+        LoanLibrary.LoanTerms memory _loanTerms = LoanLibrary.LoanTerms(
+            terms.durationSecs,
+            terms.principal,
+            terms.interest,
+            terms.collateralTokenId,
+            terms.payableCurrency
+        );
 
-        LoanLibrary.LoanData memory _loanData =
-            LoanLibrary.LoanData(0, 0, _loanTerms, LoanLibrary.LoanState.Created, terms.durationSecs);
+        LoanLibrary.LoanData memory _loanData = LoanLibrary.LoanData(
+            0,
+            0,
+            _loanTerms,
+            LoanLibrary.LoanState.Created,
+            terms.durationSecs
+        );
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
