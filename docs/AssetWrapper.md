@@ -50,7 +50,7 @@ Requirements:
 `AssetWrapper` contract.
 ### `depositETH(uint256 bundleId)` (external)
 
-Deposit ETH into a given bundle.
+Deposit ETH into a given bundle. ETH should be sent in `msg.value`.
 
 Requirements:
 

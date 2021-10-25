@@ -24,7 +24,7 @@
     "dotenv": "^8.2.0",
     "eslint": "^7.11.0",
     "eslint-config-prettier": "^6.12.0",
-    "ethereum-waffle": "^3.2.0",
+    "ethereum-waffle": "^3.4.0",
     "ethereumjs-util": "^7.0.10",
     "ethers": "^5.0.32",
     "fs-extra": "^9.0.1",
@@ -44,6 +44,15 @@
     "ts-node": "^8.10.2",
     "typechain": "^4.0.1",
     "typescript": "<4.1.0"
+  },
+  "resolutions": {
+    "dot-prop": ">4.2.1",
+    "elliptic": ">=6.5.4",
+    "lodash": ">=4.17.21",
+    "node-fetch": ">2.6.1",
+    "set-value": ">4.0.1",
+    "underscore": ">=1.12.1",
+    "yargs-parser": ">=5.0.1"
   },
   "files": [
     "/contracts"
