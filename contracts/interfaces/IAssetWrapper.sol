@@ -43,7 +43,7 @@ interface IAssetWrapper {
      *
      * See {ERC721-_mint}.
      */
-    function initializeBundle(address to) external;
+    function initializeBundle(address to) external returns (uint256);
 
     /**
      * @dev Deposit some ERC20 tokens into a given bundle

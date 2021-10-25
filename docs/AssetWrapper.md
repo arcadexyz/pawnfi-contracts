@@ -1,6 +1,7 @@
-## `AssetWrapper`
+# `AssetWrapper`
 
-{ERC721} token allowing users to create bundles of assets.
+The AssetWrapper contract is a generalized bundle
+mechanism for ERC20, ERC721, and ERC1155 assets.
 
 Users can create new bundles, which grants them an NFT to
 reclaim all assets stored in the bundle. They can then
@@ -9,65 +10,67 @@ can then be used or traded as an asset in its own right.
 At any time, the holder of the bundle NFT can redeem it for the
 underlying assets.
 
-### `constructor(string name, string symbol)` (public)
+## Contract API
 
-Initializes the token with name and symbol parameters
-
-### `initializeBundle(address to)` (external)
+### `initializeBundle(address to) →` (external)
 
 Creates a new bundle token for `to`. Its token ID will be
-automatically assigned (and available on the emitted {IERC721-Transfer} event)
+automatically assigned returned, and available on the emitted `Transfer` event.
 
-See {ERC721-\_mint}.
+See [ERC721-_safeMint](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_safeMint-address-uint256-).
 
 ### `depositERC20(address tokenAddress, uint256 amount, uint256 bundleId)` (external)
 
-Deposit some ERC20 tokens into a given bundle
+Deposit ERC20 tokens into a given bundle.
 
 Requirements:
 
-- The bundle with id `bundleId` must have been initialized with {initializeBundle}
-- `amount` tokens from `msg.sender` on `tokenAddress` must have been approved to this contract
+- The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
+- The tokens for deposit must be approved for withdrawal by the
+`AssetWrapper` contract.
 
 ### `depositERC721(address tokenAddress, uint256 tokenId, uint256 bundleId)` (external)
 
-Deposit an ERC721 token into a given bundle
+Deposit an ERC721 token into a given bundle.
 
 Requirements:
 
-- The bundle with id `bundleId` must have been initialized with {initializeBundle}
-- The `tokenId` NFT from `msg.sender` on `tokenAddress` must have been approved to this contract
+- The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
+- The NFT for deposit must be approved for withdrawal by the
+`AssetWrapper` contract.
 
 ### `depositERC1155(address tokenAddress, uint256 tokenId, uint256 amount, uint256 bundleId)` (external)
 
-Deposit an ERC1155 token into a given bundle
+Deposit an ERC1155 token into a given bundle.
 
 Requirements:
 
-- The bundle with id `bundleId` must have been initialized with {initializeBundle}
-- The `tokenId` from `msg.sender` on `tokenAddress` must have been approved for at least `amount`to this contract
-
+- The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
+- The NFT for deposit must be approved for withdrawal of `amount` by the
+`AssetWrapper` contract.
 ### `depositETH(uint256 bundleId)` (external)
 
-Deposit some ETH into a given bundle
+Deposit ETH into a given bundle.
 
 Requirements:
 
-- The bundle with id `bundleId` must have been initialized with {initializeBundle}
+- The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
 
 ### `withdraw(uint256 bundleId)` (external)
 
-Withdraw all assets in the given bundle, returning them to the msg.sender
+Withdraw all assets in the given bundle, returning them to `msg.sender`.
 
 Requirements:
 
-- The bundle with id `bundleId` must have been initialized with {initializeBundle}
-- The bundle with id `bundleId` must be owned by or approved to msg.sender
+- The bundle with ID `bundleId` must have been initialized with `initializeBundle`.
+- The bundle with ID `bundleId` must be owned by or approved to `msg.sender`.
 
 ### `_beforeTokenTransfer(address from, address to, uint256 tokenId)` (internal)
 
-Hook that is called before any token transfer
+Hook that is called before any token transfer.
+
+See [IERC721-_beforeTokenTransfer](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_beforeTokenTransfer-address-address-uint256-).
 
 ### `supportsInterface(bytes4 interfaceId) → bool` (public)
 
-See {IERC165-supportsInterface}.
+See [IERC165-supportsInterface}](https://docs.openzeppelin.com/contracts/3.x/api/introspection#IERC165-supportsInterface-bytes4-).

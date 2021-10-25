@@ -1,7 +1,7 @@
-## `ERC721Permit`
+# `ERC721Permit`
 
-Implementation of the ERC721 Permit extension allowing approvals to be made via signatures, as defined in
-https://eips.ethereum.org/EIPS/eip-2612[EIP-2612].
+Implementation of the ERC721 Permit extension allowing approvals to be made
+via signatures, as defined in [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612).
 
 See https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/draft-EIP712.sol
 
