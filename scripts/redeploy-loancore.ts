@@ -4,7 +4,7 @@ import { ethers } from "hardhat";
 /**
  *  October 2021: LoanCore Redeploy
  *  This deploy addresses the issue of AssetWrapper re-use.
- *  The following contracts need to be re-deployed:
+ *  The following contracts need to be re-deployed for any LoanCore change:
  *      - LoanCore
  *      - BorrowerNote (implicit)
  *      - LenderNote (implicit)
@@ -14,6 +14,8 @@ import { ethers } from "hardhat";
  */
 
 export interface DeployedResources {
+    assetWrapper: Contract;
+    feeController: Contract;
     loanCore: Contract;
     borrowerNote: Contract;
     lenderNote: Contract;
@@ -32,6 +34,14 @@ export async function main(
     // to make sure everything is compiled
     // await run("compile");
 
+    // Attach to existing contracts
+    const AssetWrapper = await ethers.getContractFactory("AssetWrapper");
+    const assetWrapper = await AssetWrapper.attach(ASSET_WRAPPER_ADDRESS);
+
+    const FeeController = await ethers.getContractFactory("FeeController");
+    const feeController = await FeeController.attach(FEE_CONTROLLER_ADDRESS);
+
+    // Start deploying new contracts
     const LoanCore = await ethers.getContractFactory("LoanCore");
     const loanCore = await LoanCore.deploy(ASSET_WRAPPER_ADDRESS, FEE_CONTROLLER_ADDRESS);
     await loanCore.deployed();
@@ -66,6 +76,8 @@ export async function main(
     console.log("OriginationController deployed to:", originationController.address);
 
     return {
+        assetWrapper,
+        feeController,
         loanCore,
         borrowerNote,
         lenderNote,
