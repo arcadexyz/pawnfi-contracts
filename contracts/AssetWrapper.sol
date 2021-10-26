@@ -68,9 +68,11 @@ contract AssetWrapper is
     /**
      * @inheritdoc IAssetWrapper
      */
-    function initializeBundle(address to) external override {
+    function initializeBundle(address to) external override returns (uint256) {
         _mint(to, _tokenIdTracker.current());
         _tokenIdTracker.increment();
+
+        return _tokenIdTracker.current();
     }
 
     /**

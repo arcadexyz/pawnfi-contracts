@@ -18,9 +18,10 @@ contract UserProxy {
             return false;
         }
 
-        (bool result, ) =
-            // solhint-disable-next-line avoid-low-level-calls
-            punkContract.call(abi.encodeWithSignature("transferPunk(address,uint256)", _owner, punkIndex));
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool result, ) = punkContract.call(
+            abi.encodeWithSignature("transferPunk(address,uint256)", _owner, punkIndex)
+        );
 
         return result;
     }

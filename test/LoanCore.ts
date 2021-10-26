@@ -622,7 +622,7 @@ describe("LoanCore", () => {
         .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("469292");
+      expect(gasUsed.toString()).to.equal("499705");
     });
   });
 
@@ -708,7 +708,13 @@ describe("LoanCore", () => {
     });
 
     it("should fail if the loan is already claimed", async () => {
-      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
+      const {
+        mockERC20,
+        loanId,
+        loanCore,
+        user: borrower,
+        terms,
+      } = await setupLoan(undefined, {
         durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -759,7 +765,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).repay(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("132891");
+      expect(gasUsed.toString()).to.equal("212476");
     });
   });
 
@@ -797,7 +803,13 @@ describe("LoanCore", () => {
     };
 
     it("should successfully claim loan", async () => {
-      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
+      const {
+        mockERC20,
+        loanId,
+        loanCore,
+        user: borrower,
+        terms,
+      } = await setupLoan(undefined, {
         durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -808,7 +820,14 @@ describe("LoanCore", () => {
     });
 
     it("Rejects calls from non-repayer", async () => {
-      const { mockERC20, loanId, loanCore, user: borrower, other, terms } = await setupLoan(undefined, {
+      const {
+        mockERC20,
+        loanId,
+        loanCore,
+        user: borrower,
+        other,
+        terms,
+      } = await setupLoan(undefined, {
         durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -843,7 +862,13 @@ describe("LoanCore", () => {
     });
 
     it("should fail if the loan is already claimed", async () => {
-      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
+      const {
+        mockERC20,
+        loanId,
+        loanCore,
+        user: borrower,
+        terms,
+      } = await setupLoan(undefined, {
         durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -862,7 +887,13 @@ describe("LoanCore", () => {
     });
 
     it("should fail when paused", async () => {
-      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
+      const {
+        mockERC20,
+        loanId,
+        loanCore,
+        user: borrower,
+        terms,
+      } = await setupLoan(undefined, {
         durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -874,7 +905,13 @@ describe("LoanCore", () => {
     });
 
     it("gas [ @skip-on-coverage ]", async () => {
-      const { mockERC20, loanId, loanCore, user: borrower, terms } = await setupLoan(undefined, {
+      const {
+        mockERC20,
+        loanId,
+        loanCore,
+        user: borrower,
+        terms,
+      } = await setupLoan(undefined, {
         durationSecs: 1000,
       });
       await mockERC20.connect(borrower).mint(loanCore.address, terms.principal.add(terms.interest));
@@ -884,7 +921,7 @@ describe("LoanCore", () => {
       const tx = await loanCore.connect(borrower).claim(loanId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed;
-      expect(gasUsed.toString()).to.equal("107782");
+      expect(gasUsed.toString()).to.equal("172452");
     });
   });
 

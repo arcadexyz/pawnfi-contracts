@@ -272,12 +272,11 @@ export async function wrapAssetsAndMakeLoans(
     payableCurrency: weth.address,
   };
 
-  const { v: loan1V, r: loan1R, s: loan1S } = await createLoanTermsSignature(
-    originationController.address,
-    "OriginationController",
-    loan1Terms,
-    signer1,
-  );
+  const {
+    v: loan1V,
+    r: loan1R,
+    s: loan1S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan1Terms, signer1);
 
   await weth.connect(signer2).approve(originationController.address, ethers.utils.parseEther("10"));
   await assetWrapper.connect(signer1).approve(originationController.address, aw1Bundle1Id);
@@ -300,12 +299,11 @@ export async function wrapAssetsAndMakeLoans(
     payableCurrency: pawnToken.address,
   };
 
-  const { v: loan2V, r: loan2R, s: loan2S } = await createLoanTermsSignature(
-    originationController.address,
-    "OriginationController",
-    loan2Terms,
-    signer1,
-  );
+  const {
+    v: loan2V,
+    r: loan2R,
+    s: loan2S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan2Terms, signer1);
 
   await pawnToken.connect(signer3).approve(originationController.address, ethers.utils.parseEther("10000"));
   await assetWrapper.connect(signer1).approve(originationController.address, aw1Bundle2Id);
@@ -328,12 +326,11 @@ export async function wrapAssetsAndMakeLoans(
     payableCurrency: usd.address,
   };
 
-  const { v: loan3V, r: loan3R, s: loan3S } = await createLoanTermsSignature(
-    originationController.address,
-    "OriginationController",
-    loan3Terms,
-    signer3,
-  );
+  const {
+    v: loan3V,
+    r: loan3R,
+    s: loan3S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan3Terms, signer3);
 
   await usd.connect(signer2).approve(originationController.address, ethers.utils.parseUnits("1000", 6));
   await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle1Id);
@@ -356,12 +353,11 @@ export async function wrapAssetsAndMakeLoans(
     payableCurrency: usd.address,
   };
 
-  const { v: loan4V, r: loan4R, s: loan4S } = await createLoanTermsSignature(
-    originationController.address,
-    "OriginationController",
-    loan4Terms,
-    signer3,
-  );
+  const {
+    v: loan4V,
+    r: loan4R,
+    s: loan4S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan4Terms, signer3);
 
   await usd.connect(signer2).approve(originationController.address, ethers.utils.parseUnits("1000", 6));
   await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle2Id);
@@ -384,12 +380,11 @@ export async function wrapAssetsAndMakeLoans(
     payableCurrency: weth.address,
   };
 
-  const { v: loan5V, r: loan5R, s: loan5S } = await createLoanTermsSignature(
-    originationController.address,
-    "OriginationController",
-    loan5Terms,
-    signer3,
-  );
+  const {
+    v: loan5V,
+    r: loan5R,
+    s: loan5S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan5Terms, signer3);
 
   await weth.connect(signer4).approve(originationController.address, ethers.utils.parseEther("20"));
   await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle3Id);
@@ -412,12 +407,11 @@ export async function wrapAssetsAndMakeLoans(
     payableCurrency: pawnToken.address,
   };
 
-  const { v: loan6V, r: loan6R, s: loan6S } = await createLoanTermsSignature(
-    originationController.address,
-    "OriginationController",
-    loan6Terms,
-    signer4,
-  );
+  const {
+    v: loan6V,
+    r: loan6R,
+    s: loan6S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan6Terms, signer4);
 
   await pawnToken.connect(signer2).approve(originationController.address, ethers.utils.parseEther("300.33"));
   await assetWrapper.connect(signer4).approve(originationController.address, aw4Bundle1Id);

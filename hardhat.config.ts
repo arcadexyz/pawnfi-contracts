@@ -62,7 +62,7 @@ const config: HardhatUserConfig = {
     excludeContracts: [],
     src: "./contracts",
     coinmarketcap: process.env.COINMARKETCAP_API_KEY,
-    outputFile: process.env.REPORT_GAS_OUTPUT
+    outputFile: process.env.REPORT_GAS_OUTPUT,
   },
   networks: {
     hardhat: {
