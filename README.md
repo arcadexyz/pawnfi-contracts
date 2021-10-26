@@ -47,7 +47,7 @@ The Version 1 of the Pawn protocol uses the contracts described below for its op
 
 This contract holds ERC20, ERC721, and ERC1155 assets on behalf of another address. The Pawn protocol interacts with asset wrapped bundles, but bundles have no coupling to the Pawn protocol and can be used for other uses. Any collateral used in the Pawn protocol takes the form of an `AssetWrapper` bundle.
 
-<!-- TODO Add API spec link -->
+[AssetWrapper API Specification](docs/AssetWrapper.md)
 
 ### BorrowerNote
 
@@ -55,15 +55,14 @@ The BorrowerNote is an ERC721 asset that represents the borrower's obligation fo
 
 `BorrowerNote` and `LenderNote` are both instantiations of `PromissoryNote`, a generalized NFT contract that implements [ERC721Burnable](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721Burnable).
 
-<!-- TODO Add API spec link -->
-
+[PromissoryNote API Specification](docs/PromissoryNote.md)
 ### LenderNote
 
 The LenderNote is an ERC721 asset that represents the lender's rights for a specific loan in the Pawn protocol. The asset can be transferred like a normal ERC721 NFT, which transfers the rights of the lender to the recipient of the transfer. Holding the `LenderNote` attached to a specific loan gives the holder the right to any funds from loan repayments, and the right to claim a collateral bundle for a defaulted loan.
 
 `BorrowerNote` and `LenderNote` are both instantiations of `PromissoryNote`, a generalized NFT contract that implements [ERC721Burnable](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721Burnable).
 
-<!-- TODO Add API spec link -->
+[PromissoryNote API Specification](docs/PromissoryNote.md)
 
 ### LoanCore
 
@@ -71,25 +70,25 @@ The core invariants of the Pawn protocol are maintained here. `LoanCore` tracks 
 
 This contract also contains admin functionality where operators of the protocol can withdraw any accrued revenue from assessed protocol fees.
 
-<!-- TODO Add API spec link -->
+[LoanCore API Specification](docs/LoanCore.md)
 
 ### OriginationController
 
 This is an external-facing periphery contract that manages loan origination interactions with `LoanCore`. The `OriginationController` takes responsibility for transferring collateral assets from the borrower to `LoanCore`. This controller also checks the validity of origination signatures against the specified parties and loan terms.
 
-<!-- TODO Add API spec link -->
+[OriginationController API Specification](docs/OriginationController.md)
 
 ### RepaymentController
 
 This is an external-facing periphery contract that manages interactions with `LoanCore` that end the loan lifecycle. The `RepaymentController` takes responsibility for transferring repaid principal + interest from the borrower to `LoanCore` for disbursal to the lender, and returning collateral assets from `LoanCore` back to the borrower on a successful repayment. This controller also handles lender claims in case of default, and ensures ownership of the lender note before allowing a claim.
 
-<!-- TODO Add API spec link -->
+[RepaymentController API Specification](docs/RepaymentController.md)
 
 ## PunkRouter
 
 [CryptoPunks](https://www.larvalabs.com/cryptopunks) serve as valuable collateral within the NFT ecosystem, but they do not conform to the ERC721 standard. The `PunkRouter` uilizes the [Wrapped Punks](https://wrappedpunks.com/) contract to enable users to deposit CryptoPunks into `AssetWrapper` collateral bundles. This allows wrapping and depositing to a bundle to be an atomic operation.
 
-<!-- TODO Add API spec link -->
+[PunkRouter API Specification](docs/PunkRouter.md)
 
 ## Version 2
 
