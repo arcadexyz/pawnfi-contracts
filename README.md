@@ -56,6 +56,7 @@ The BorrowerNote is an ERC721 asset that represents the borrower's obligation fo
 `BorrowerNote` and `LenderNote` are both instantiations of `PromissoryNote`, a generalized NFT contract that implements [ERC721Burnable](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721Burnable).
 
 [PromissoryNote API Specification](docs/PromissoryNote.md)
+
 ### LenderNote
 
 The LenderNote is an ERC721 asset that represents the lender's rights for a specific loan in the Pawn protocol. The asset can be transferred like a normal ERC721 NFT, which transfers the rights of the lender to the recipient of the transfer. Holding the `LenderNote` attached to a specific loan gives the holder the right to any funds from loan repayments, and the right to claim a collateral bundle for a defaulted loan.
