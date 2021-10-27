@@ -46,7 +46,7 @@ jobs:
 
       - name: Test
         env:
-          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY\ }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
         run: yarn test
 
       - name: Coverage
