@@ -50,4 +50,6 @@ jobs:
         run: yarn test
 
       - name: Coverage
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
         run: yarn coverage
