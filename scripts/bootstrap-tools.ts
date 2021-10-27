@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
 export const SUBSECTION_SEPARATOR = "-".repeat(10);
 
-async function getBalance(asset: Contract, addr: string): Promise<string> {
+export async function getBalance(asset: Contract, addr: string): Promise<string> {
   return (await asset.balanceOf(addr)).toString();
 }
 
