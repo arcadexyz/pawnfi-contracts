@@ -40,7 +40,6 @@ if (!process.env.ALCHEMY_API_KEY) {
   alchemyApiKey = process.env.ALCHEMY_API_KEY;
 }
 
-
 function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig {
   const url = `https://eth-${network}.alchemyapi.io/v2/${alchemyApiKey}`;
   return {
@@ -68,7 +67,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`
+        url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`,
       },
       accounts: {
         mnemonic,
