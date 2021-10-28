@@ -82,7 +82,7 @@ Hook that is called before any token transfer.
 
 See [IERC721-\_beforeTokenTransfer](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721-_beforeTokenTransfer-address-address-uint256-).
 
-### `supportsInterface(bytes4 interfaceId) → bool` _(pubic)_
+### `supportsInterface(bytes4 interfaceId) → bool` _(public)_
 
 See [IERC165-supportsInterface](https://docs.openzeppelin.com/contracts/3.x/api/introspection#IERC165-supportsInterface-bytes4-).
 

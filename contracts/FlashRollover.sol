@@ -6,24 +6,15 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "./interfaces/ILendingPool.sol";
+import "./interfaces/IFlashRollover.sol";
+import "./interfaces/external/ILendingPool.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IOriginationController.sol";
 import "./interfaces/IRepaymentController.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 
-interface IFlashLoanReceiver {
-    function executeOperation(
-        address[] calldata assets,
-        uint256[] calldata amounts,
-        uint256[] calldata premiums,
-        address initiator,
-        bytes calldata params
-    ) external returns (bool);
-}
-
-contract FlashRollover is IFlashLoanReceiver {
+contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -45,40 +36,64 @@ contract FlashRollover is IFlashLoanReceiver {
     constructor(
         ILendingPoolAddressesProvider provider,
         ILoanCore loanCore,
+        ILoanCore legacyLoanCore,
         IOriginationController originationController,
         IRepaymentController repaymentController,
+        IRepaymentController legacyRepaymentController,
         IERC721 borrowerNote,
+        IERC721 legacyBorrowerNote,
         IERC721 lenderNote,
+        IERC721 legacyLenderNote,
         IERC721 assetWrapper,
         IFeeController feeController
     ) {
-        // TODO put in initializer
-
         ADDRESSES_PROVIDER = provider;
         LENDING_POOL = ILendingPool(provider.getLendingPool());
         LOAN_CORE = loanCore;
+        LEGACY_LOAN_CORE = legacyLoanCore;
         ORIGINATION_CONTROLLER = originationController;
         REPAYMENT_CONTROLLER = repaymentController;
+        LEGACY_REPAYMENT_CONTROLLER = legacyRepaymentController;
         BORROWER_NOTE = borrowerNote;
+        LEGACY_BORROWER_NOTE = legacyBorrowerNote;
         LENDER_NOTE = lenderNote;
+        LEGACY_LENDER_NOTE = legacyLenderNote;
         ASSET_WRAPPER = assetWrapper;
         FEE_CONTROLLER = feeController;
     }
 
     function rolloverLoan(
+        bool isLegacy,
         uint256 loanId,
         LoanLibrary.LoanTerms calldata newLoanTerms,
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    ) external override {
         // Get loan details
-        LoanLibrary.LoanData memory loanData = LOAN_CORE.getLoan(loanId);
+        LoanLibrary.LoanData memory loanData;
+        if (isLegacy) {
+            loanData = LEGACY_LOAN_CORE.getLoan(loanId);
+            uint256 borrowerNoteId = loanData.borrowerNoteId;
+
+            address borrower = LEGACY_BORROWER_NOTE.ownerOf(borrowerNoteId);
+            require(borrower == msg.sender, "Only borrower can roll over");
+        } else {
+            loanData = LOAN_CORE.getLoan(loanId);
+            uint256 borrowerNoteId = loanData.borrowerNoteId;
+
+            address borrower = BORROWER_NOTE.ownerOf(borrowerNoteId);
+            require(borrower == msg.sender, "Only borrower can roll over");
+
+        }
+
         LoanLibrary.LoanTerms memory terms = loanData.terms;
         uint256 amountDue = terms.principal.add(terms.interest);
 
         require(newLoanTerms.payableCurrency == terms.payableCurrency, "Currency mismatch");
         require(newLoanTerms.collateralTokenId == terms.collateralTokenId, "Collateral mismatch");
+
+        uint256 startBalance = IERC20(assets[0]).balanceOf(address(this))';
 
         address[] memory assets = new address[](1);
         assets[0] = terms.payableCurrency;
@@ -89,7 +104,7 @@ contract FlashRollover is IFlashLoanReceiver {
         uint256[] memory modes = new uint256[](1);
         modes[0] = 0;
 
-        bytes memory params = abi.encode(loanId, v, r, s);
+        bytes memory params = abi.encode(isLegacy, loanId, newLoanTerms, v, r, s);
 
         // Flash loan based on principal + interest
         LENDING_POOL.flashLoan(
@@ -101,6 +116,9 @@ contract FlashRollover is IFlashLoanReceiver {
             params,
             0 // TODO: Add referral code?
         );
+
+        // Should not have any funds leftover
+        require(IERC20(terms.payableCurrency).balanceOf(address(this)) == startBalance, "Nonzero balance after flash loan");
     }
 
     function executeOperation(
@@ -157,6 +175,8 @@ contract FlashRollover is IFlashLoanReceiver {
             IERC721 newLoanBorrowerNote
         ) = _getContracts(isLegacy);
 
+        require(IERC20(assets[0]).balanceOf(address(this)) == amounts[0], "Did not receive loan funds");
+
         uint256 flashAmountDue = amounts[0].add(premiums[0]);
 
         // Get loan details
@@ -176,8 +196,6 @@ contract FlashRollover is IFlashLoanReceiver {
             // Not enough - have borrower pay the difference
             IERC20(assets[0]).transferFrom(borrower, address(this), flashAmountDue - newPrincipal);
         }
-
-        require(newPrincipal > flashAmountDue, "Cannot repay flash loan with new principal");
 
         uint256 leftoverPrincipal;
         if (newPrincipal > flashAmountDue) {

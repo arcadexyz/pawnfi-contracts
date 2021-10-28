@@ -20,7 +20,7 @@ when an instance of `LoanCore` is deployed.
 
 ## API
 
-### `constructor(string name, string symbol)` _(pubic)_
+### `constructor(string name, string symbol)`
 
 Creates the borrowor note contract linked to a specific `LoanCore` instance.
 The loan core reference is non-upgradeable. Passes `name` and `symbol` to the
@@ -51,7 +51,7 @@ Requirements:
   The loan core contract can only burn a loan that is finished:
   either repaid or claimed.
 
-### `supportsInterface(bytes4 interfaceId) → bool` _(pubic)_
+### `supportsInterface(bytes4 interfaceId) → bool` _(public)_
 
 Override of `supportsInterface` for `AccessControlEnumerable`, `ERC721`, `ERC721Enumerable`.
 

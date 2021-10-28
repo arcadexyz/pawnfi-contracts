@@ -18,7 +18,7 @@ Set the origination fee to the given value. Can only be called by contract owner
 
 Emits `UpdateOriginationFee`.
 
-### `getOriginationFee() → uint256` _(pubic)_
+### `getOriginationFee() → uint256` _(public)_
 
 Get the current origination fee in bps.
 

@@ -59,7 +59,7 @@ struct LoanData {
 
 ## API
 
-### `constructor(contract IERC721 _collateralToken, contract IFeeController _feeController)` _(pubic)_
+### `constructor(contract IERC721 _collateralToken, contract IFeeController _feeController)`
 
 Create the `LoanCore` contract. Requires references to `_collateralToken` (an instance of `AssetWrapper`)
 and `_feeController` (an instance of `FeeController`).

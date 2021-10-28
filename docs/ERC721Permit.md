@@ -9,15 +9,14 @@ This contract [IERC721](https://docs.openzeppelin.com/contracts/3.x/api/token/er
 the `permit` method, which can be used to change an account's ERC721 allowance (see `IERC721-allowance`)
 by presenting a message signed by the account. By not relying on `IERC721-approve`, the token holder
 account doesn't need to send a transaction, and thus is not required to hold Ether at all.
-
 ## API
 
-### `constructor(string name)` _(internal)_
+### `constructor(string name)`
 
 Initializes the `EIP712` domain separator using the `name` parameter, and setting `version` to `"1"`. `name` should be the same
 as the `ERC721` token name.
 
-### `permit(address owner, address spender, uint256 tokenId, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` _(pubic)_
+### `permit(address owner, address spender, uint256 tokenId, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` _(public)_
 
 Allows `spender` to spend `tokenID` which is owned by`owner`, given the signed approval of `owner`.
 
@@ -33,7 +32,7 @@ Requirements:
 For more information on the signature format, see the
 [relevant EIP section](https://eips.ethereum.org/EIPS/eip-2612#specification).
 
-### `nonces(address owner) → uint256` _(pubic)_
+### `nonces(address owner) → uint256` _(public)_
 
 Returns the current nonce for `owner`. This value must be
 included whenever a signature is generated for `permit`.
