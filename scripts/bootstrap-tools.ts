@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
 export const SUBSECTION_SEPARATOR = "-".repeat(10);
 
-async function getBalance(asset: Contract, addr: string): Promise<string> {
+export async function getBalance(asset: Contract, addr: string): Promise<string> {
   return (await asset.balanceOf(addr)).toString();
 }
 
@@ -443,6 +443,36 @@ export async function wrapAssetsAndMakeLoans(
   await repaymentController.connect(signer3).repay(loan4BorrowerNoteId);
 
   console.log(`(Loan 4) Borrower ${signer3.address} repaid 1140 PUSD to ${signer2.address}`);
+
+  console.log(SECTION_SEPARATOR);
+  console.log("Reusing a bundle..\n");
+
+  // 3 will open a new loan from 2, reusing the bundle
+  const loan7Terms: LoanTerms = {
+    durationSecs: relSecondsFromMs(oneMonthMs),
+    principal: ethers.utils.parseUnits("500", 6),
+    interest: ethers.utils.parseUnits("5", 6),
+    collateralTokenId: aw3Bundle2Id,
+    payableCurrency: usd.address,
+  };
+
+  const {
+    v: loan7V,
+    r: loan7R,
+    s: loan7S,
+  } = await createLoanTermsSignature(originationController.address, "OriginationController", loan7Terms, signer3);
+
+  await usd.connect(signer2).approve(originationController.address, ethers.utils.parseUnits("1000", 6));
+  await assetWrapper.connect(signer3).approve(originationController.address, aw3Bundle2Id);
+
+  // Borrower signed, so lender will initialize
+  await originationController
+    .connect(signer2)
+    .initializeLoan(loan7Terms, signer3.address, signer2.address, loan7V, loan7R, loan7S);
+
+  console.log(
+    `(Loan 7) Signer ${signer3.address} re-borrowed 500 PUSD at 5% interest from ${signer2.address} against Bundle 4`,
+  );
 
   console.log(SECTION_SEPARATOR);
   console.log("Bootstrapping complete!");

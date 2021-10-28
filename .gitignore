@@ -23,3 +23,5 @@ yarn-error.log*
 .vscode
 
 gas_report.log
+.env
+cargs.js

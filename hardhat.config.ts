@@ -33,15 +33,15 @@ if (!process.env.MNEMONIC) {
   mnemonic = process.env.MNEMONIC;
 }
 
-let infuraApiKey: string;
-if (!process.env.INFURA_API_KEY) {
-  infuraApiKey = "test";
+let alchemyApiKey: string;
+if (!process.env.ALCHEMY_API_KEY) {
+  alchemyApiKey = "test";
 } else {
-  infuraApiKey = process.env.INFURA_API_KEY;
+  alchemyApiKey = process.env.ALCHEMY_API_KEY;
 }
 
 function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig {
-  const url: string = "https://" + network + ".infura.io/v3/" + infuraApiKey;
+  const url = `https://eth-${network}.alchemyapi.io/v2/${alchemyApiKey}`;
   return {
     accounts: {
       count: 10,
@@ -66,6 +66,9 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      forking: {
+        url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`,
+      },
       accounts: {
         mnemonic,
       },
