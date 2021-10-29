@@ -18,6 +18,13 @@ contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
+    /**
+     * Holds parameters passed through flash loan
+     * control flow that dictate terms of the new loan.
+     * Contains a signature by lender for same terms.
+     * isLegacy determines which loanCore to look for the
+     * old loan in.
+     */
     struct OperationData {
         bool isLegacy;
         uint256 loanId;
@@ -27,6 +34,12 @@ contract FlashRollover is IFlashRollover {
         bytes32 s;
     }
 
+    /**
+     * Defines the contracts that should be used for a
+     * flash loan operation. May change based on if the
+     * old loan is on the current loanCore or legacy (in
+     * which case it requires migration).
+     */
     struct OperationContracts {
         ILoanCore loanCore;
         IERC721 borrowerNote;
@@ -160,8 +173,12 @@ contract FlashRollover is IFlashRollover {
         address initiator,
         bytes calldata params
     ) external override returns (bool) {
+        // TODO: Security check.
+        // Can an attacker use this to drain borrower funds? Feels like maybe
+
+        require(msg.sender == address(LENDING_POOL), "Unknown lender");
         require(initiator == address(this), "Not initiator");
-        require(IERC20(assets[0]).balanceOf(address(this)) == amounts[0], "Did not receive loan funds");
+        require(IERC20(assets[0]).balanceOf(address(this)) >= amounts[0], "Did not receive loan funds");
 
         OperationData memory opData = abi.decode(params, (OperationData));
 
