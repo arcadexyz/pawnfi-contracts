@@ -57,8 +57,8 @@ Use this if the loan is being currently managed by a `LoanCore` contract whose a
 whose payload matches the `newLoanTerms`. `loanId` should be the loan that will be closed and rolled over.
 
 Requirements:
+
 - Must be called by the loan's borrower.
 - New loan terms must use same `collateralTokenId` as old loan.
 - New loan terms must use the same `payableCurrency` as old loan.
 - If new principal cannot repay flash loan, borrower must `approve` balance due for withdrawal by `FlashRollover` contract.
-

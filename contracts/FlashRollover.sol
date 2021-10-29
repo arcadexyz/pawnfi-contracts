@@ -18,6 +18,27 @@ contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
+    struct OperationData {
+        bool isLegacy;
+        uint256 loanId;
+        LoanLibrary.LoanTerms newLoanTerms;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
+
+    struct OperationContracts {
+        ILoanCore loanCore;
+        IERC721 borrowerNote;
+        IERC721 lenderNote;
+        IFeeController feeController;
+        IERC721 assetWrapper;
+        IRepaymentController repaymentController;
+        IOriginationController originationController;
+        ILoanCore newLoanLoanCore;
+        IERC721 newLoanBorrowerNote;
+    }
+
     ILendingPoolAddressesProvider public immutable ADDRESSES_PROVIDER;
     ILendingPool public immutable LENDING_POOL;
 
@@ -84,7 +105,6 @@ contract FlashRollover is IFlashRollover {
 
             address borrower = BORROWER_NOTE.ownerOf(borrowerNoteId);
             require(borrower == msg.sender, "Only borrower can roll over");
-
         }
 
         LoanLibrary.LoanTerms memory terms = loanData.terms;
@@ -93,7 +113,7 @@ contract FlashRollover is IFlashRollover {
         require(newLoanTerms.payableCurrency == terms.payableCurrency, "Currency mismatch");
         require(newLoanTerms.collateralTokenId == terms.collateralTokenId, "Collateral mismatch");
 
-        uint256 startBalance = IERC20(assets[0]).balanceOf(address(this))';
+        uint256 startBalance = IERC20(terms.payableCurrency).balanceOf(address(this));
 
         address[] memory assets = new address[](1);
         assets[0] = terms.payableCurrency;
@@ -104,7 +124,16 @@ contract FlashRollover is IFlashRollover {
         uint256[] memory modes = new uint256[](1);
         modes[0] = 0;
 
-        bytes memory params = abi.encode(isLegacy, loanId, newLoanTerms, v, r, s);
+        OperationData memory opData = OperationData({
+            isLegacy: isLegacy,
+            loanId: loanId,
+            newLoanTerms: newLoanTerms,
+            v: v,
+            r: r,
+            s: s
+        });
+
+        bytes memory params = abi.encode(opData);
 
         // Flash loan based on principal + interest
         LENDING_POOL.flashLoan(
@@ -118,7 +147,10 @@ contract FlashRollover is IFlashRollover {
         );
 
         // Should not have any funds leftover
-        require(IERC20(terms.payableCurrency).balanceOf(address(this)) == startBalance, "Nonzero balance after flash loan");
+        require(
+            IERC20(terms.payableCurrency).balanceOf(address(this)) == startBalance,
+            "Nonzero balance after flash loan"
+        );
     }
 
     function executeOperation(
@@ -127,115 +159,47 @@ contract FlashRollover is IFlashRollover {
         uint256[] calldata premiums,
         address initiator,
         bytes calldata params
-    ) external override returns (bool result) {
+    ) external override returns (bool) {
         require(initiator == address(this), "Not initiator");
+        require(IERC20(assets[0]).balanceOf(address(this)) == amounts[0], "Did not receive loan funds");
 
-        (
-            bool isLegacy,
-            uint256 loanId,
-            LoanLibrary.LoanTerms memory newLoanTerms,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = abi.decode(params, (bool, uint256, LoanLibrary.LoanTerms, uint8, bytes32, bytes32));
+        OperationData memory opData = abi.decode(params, (OperationData));
 
-        _executeOperation(
-            isLegacy,
-            assets,
-            amounts,
-            premiums,
-            loanId,
-            newLoanTerms,
-            v,
-            r,
-            s
-        );
+        return _executeOperation(assets, amounts, premiums, opData);
     }
 
     function _executeOperation(
-        bool isLegacy,
         address[] calldata assets,
         uint256[] calldata amounts,
         uint256[] calldata premiums,
-        uint256 loanId,
-        LoanLibrary.LoanTerms memory newLoanTerms,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        OperationData memory opData
     ) internal returns (bool) {
-        (
-            ILoanCore loanCore,
-            IERC721 borrowerNote,
-            IERC721 lenderNote,
-            IFeeController feeController,
-            IERC721 assetWrapper,
-            IRepaymentController repaymentController,
-            IOriginationController originationController,
-            ILoanCore newLoanLoanCore,
-            IERC721 newLoanBorrowerNote
-        ) = _getContracts(isLegacy);
-
-        require(IERC20(assets[0]).balanceOf(address(this)) == amounts[0], "Did not receive loan funds");
-
-        uint256 flashAmountDue = amounts[0].add(premiums[0]);
+        OperationContracts memory opContracts = _getContracts(opData.isLegacy);
 
         // Get loan details
-        LoanLibrary.LoanData memory loanData = loanCore.getLoan(loanId);
+        LoanLibrary.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
         uint256 borrowerNoteId = loanData.borrowerNoteId;
         require(borrowerNoteId != 0, "Cannot find note");
 
-        address borrower = borrowerNote.ownerOf(borrowerNoteId);
-        address lender = lenderNote.ownerOf(loanData.lenderNoteId);
+        address borrower = opContracts.borrowerNote.ownerOf(borrowerNoteId);
+        address lender = opContracts.lenderNote.ownerOf(loanData.lenderNoteId);
 
-        // Make sure new loan, minus pawn fees, can be repaid
-        uint256 newPrincipal = newLoanTerms.principal
-            .sub(newLoanTerms.principal * feeController.getOriginationFee())
-            .div(10_000);
-
-        if (flashAmountDue > newPrincipal) {
-            // Not enough - have borrower pay the difference
-            IERC20(assets[0]).transferFrom(borrower, address(this), flashAmountDue - newPrincipal);
-        }
-
-        uint256 leftoverPrincipal;
-        if (newPrincipal > flashAmountDue) {
-            leftoverPrincipal = newPrincipal - flashAmountDue;
-        }
-
-        // Take BorrowerNote from borrower
-        // Must be approved for withdrawal
-        borrowerNote.transferFrom(
-            borrower,
-            address(this),
-            borrowerNoteId
+        // Do accounting to figure out amount each party needs to receive
+        (uint256 flashAmountDue, uint256 needFromBorrower, uint256 leftoverPrincipal) = _ensureFunds(
+            amounts[0],
+            premiums[0],
+            opContracts.feeController.getOriginationFee(),
+            opData.newLoanTerms.principal
         );
 
-        // Repay loan
-        IERC20(assets[0]).approve(
-            address(repaymentController),
-            amounts[0]
-        );
-        repaymentController.repay(borrowerNoteId);
+        _repayLoan(opContracts, loanData);
 
-        LoanLibrary.LoanTerms memory terms = loanData.terms;
-        // contract now has asset wrapper but has lost funds
-        require(
-            assetWrapper.ownerOf(terms.collateralTokenId) == address(this),
-            "Post-loan: not owner of collateral"
-        );
-
-        // approve originationController
-        assetWrapper.approve(address(originationController), terms.collateralTokenId);
-
-        // start new loan
-        uint256 newLoanId = originationController.initializeLoan(newLoanTerms, borrower, lender, v, r, s);
-        LoanLibrary.LoanData memory newLoanData = newLoanLoanCore.getLoan(newLoanId);
-
-        // Send note and leftover principal to borrower
-        newLoanBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
+        _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
         if (leftoverPrincipal > 0) {
-            IERC20(newLoanTerms.payableCurrency).transfer(borrower, leftoverPrincipal);
+            IERC20(opData.newLoanTerms.payableCurrency).transfer(borrower, leftoverPrincipal);
+        } else if (needFromBorrower > 0) {
+            IERC20(assets[0]).transferFrom(borrower, address(this), needFromBorrower);
         }
 
         // Approve all amounts for flash loan repayment
@@ -244,41 +208,112 @@ contract FlashRollover is IFlashRollover {
         return true;
     }
 
-    function _getContracts(bool isLegacy) internal returns (
-        ILoanCore,
-        IERC721,
-        IERC721,
-        IFeeController,
-        IERC721,
-        IRepaymentController,
-        IOriginationController,
-        ILoanCore,
-        IERC721
-    ) {
+    function _ensureFunds(
+        uint256 amount,
+        uint256 premium,
+        uint256 originationFee,
+        uint256 newPrincipal
+    )
+        internal
+        pure
+        returns (
+            uint256 flashAmountDue,
+            uint256 needFromBorrower,
+            uint256 leftoverPrincipal
+        )
+    {
+        // Make sure new loan, minus pawn fees, can be repaid
+        flashAmountDue = amount - premium;
+        uint256 willReceive = (newPrincipal - (newPrincipal * originationFee)) / 10_000;
+
+        if (flashAmountDue > willReceive) {
+            // Not enough - have borrower pay the difference
+            needFromBorrower = flashAmountDue - willReceive;
+        } else if (willReceive > flashAmountDue) {
+            // Too much - will send extra to borrower
+            leftoverPrincipal = willReceive - flashAmountDue;
+        }
+
+        // Either leftoverPrincipal or needFromBorrower should be 0
+        require(leftoverPrincipal & needFromBorrower == 0, "_ensureFunds computation");
+    }
+
+    function _repayLoan(OperationContracts memory contracts, LoanLibrary.LoanData memory loanData) internal {
+        address borrower = contracts.borrowerNote.ownerOf(loanData.borrowerNoteId);
+
+        // Take BorrowerNote from borrower
+        // Must be approved for withdrawal
+        contracts.borrowerNote.transferFrom(borrower, address(this), loanData.borrowerNoteId);
+
+        // Approve repayment
+        IERC20(loanData.terms.payableCurrency).approve(
+            address(contracts.repaymentController),
+            loanData.terms.principal + loanData.terms.interest
+        );
+
+        // Repay loan
+        contracts.repaymentController.repay(loanData.borrowerNoteId);
+
+        // contract now has asset wrapper but has lost funds
+        require(
+            contracts.assetWrapper.ownerOf(loanData.terms.collateralTokenId) == address(this),
+            "Post-loan: not owner of collateral"
+        );
+    }
+
+    function _initializeNewLoan(
+        OperationContracts memory contracts,
+        address borrower,
+        address lender,
+        uint256 collateralTokenId,
+        OperationData memory opData
+    ) internal {
+        // approve originationController
+        contracts.assetWrapper.approve(address(contracts.originationController), collateralTokenId);
+
+        // start new loan
+        LoanLibrary.LoanData memory newLoanData = contracts.newLoanLoanCore.getLoan(
+            contracts.originationController.initializeLoan(
+                opData.newLoanTerms,
+                borrower,
+                lender,
+                opData.v,
+                opData.r,
+                opData.s
+            )
+        );
+
+        // Send note to borrower
+        contracts.newLoanBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
+    }
+
+    function _getContracts(bool isLegacy) internal view returns (OperationContracts memory) {
         if (isLegacy) {
-            return (
-                LEGACY_LOAN_CORE,
-                LEGACY_BORROWER_NOTE,
-                LEGACY_LENDER_NOTE,
-                FEE_CONTROLLER,
-                ASSET_WRAPPER,
-                LEGACY_REPAYMENT_CONTROLLER,
-                ORIGINATION_CONTROLLER,
-                LOAN_CORE,
-                BORROWER_NOTE
-            );
+            return
+                OperationContracts({
+                    loanCore: LEGACY_LOAN_CORE,
+                    borrowerNote: LEGACY_BORROWER_NOTE,
+                    lenderNote: LEGACY_LENDER_NOTE,
+                    feeController: FEE_CONTROLLER,
+                    assetWrapper: ASSET_WRAPPER,
+                    repaymentController: LEGACY_REPAYMENT_CONTROLLER,
+                    originationController: ORIGINATION_CONTROLLER,
+                    newLoanLoanCore: LOAN_CORE,
+                    newLoanBorrowerNote: BORROWER_NOTE
+                });
         } else {
-            return (
-                LOAN_CORE,
-                BORROWER_NOTE,
-                LENDER_NOTE,
-                FEE_CONTROLLER,
-                ASSET_WRAPPER,
-                REPAYMENT_CONTROLLER,
-                ORIGINATION_CONTROLLER,
-                LOAN_CORE,
-                BORROWER_NOTE
-            );
+            return
+                OperationContracts({
+                    loanCore: LOAN_CORE,
+                    borrowerNote: BORROWER_NOTE,
+                    lenderNote: LENDER_NOTE,
+                    feeController: FEE_CONTROLLER,
+                    assetWrapper: ASSET_WRAPPER,
+                    repaymentController: REPAYMENT_CONTROLLER,
+                    originationController: ORIGINATION_CONTROLLER,
+                    newLoanLoanCore: LOAN_CORE,
+                    newLoanBorrowerNote: BORROWER_NOTE
+                });
         }
     }
 }
