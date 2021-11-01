@@ -195,10 +195,9 @@ contract FlashRollover is IFlashRollover {
 
         // Get loan details
         LoanLibrary.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
-        uint256 borrowerNoteId = loanData.borrowerNoteId;
-        require(borrowerNoteId != 0, "Cannot find note");
+        require(loanData.borrowerNoteId != 0, "Cannot find note");
 
-        address borrower = opContracts.borrowerNote.ownerOf(borrowerNoteId);
+        address borrower = opContracts.borrowerNote.ownerOf(loanData.borrowerNoteId);
         address lender = opContracts.lenderNote.ownerOf(loanData.lenderNoteId);
 
         // Do accounting to figure out amount each party needs to receive
@@ -210,11 +209,10 @@ contract FlashRollover is IFlashRollover {
         );
 
         _repayLoan(opContracts, loanData);
-
         _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
         if (leftoverPrincipal > 0) {
-            IERC20(opData.newLoanTerms.payableCurrency).transfer(borrower, leftoverPrincipal);
+            IERC20(assets[0]).transfer(borrower, leftoverPrincipal);
         } else if (needFromBorrower > 0) {
             IERC20(assets[0]).transferFrom(borrower, address(this), needFromBorrower);
         }
