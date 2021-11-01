@@ -124,4 +124,94 @@ Requirements:
 - Initiator of the flash loan must be the rollover contract.
 - The contract must have a balance greater than or equal to the specified funds at the start of the loan.
 
-###
+### `_executeOperation` _(internal)_
+
+```
+function _executeOperation(
+    address[] calldata assets,
+    uint256[] calldata amounts,
+    uint256[] calldata premiums,
+    OperationData memory opData
+) internal returns (bool)
+```
+
+Encapsulated logic for handling the AAVE flash loan callback. `_executeOperation`
+relies on a number of helper functions to complete the following steps:
+
+1. Determine the appropriate contracts via `_getContracts` (depending on whether the rollover includes a legacy migration).
+2. Get the loan details and identify borrower and lender.
+3. Ensure proper accounting via `_ensureFunds`.
+4. Repay the old loan with `_repayLoan`.
+5. Initialize a new loan with `_initializeNewLoan`.
+6. Settle accounting with borrower, either sending leftover or collecting balance needed for flash loan repayment.
+7. Approve the lending pool to withdraw the amount due from the flash loan.
+
+This is the core logic of the contract.
+
+### `_getContracts(bool isLegacy) → OperationContracts` _(internal)_
+
+Returns the set of contracts needed for the operation, inside
+the struct defined by `OperationContracts`. Returns a different result
+based on whether the loan requires a legacy rollover. For a legacy rollover,
+the execution context needs to be aware of the legacy `LoanCore`, `BorrowerNote`,
+`LenderNote`, and `RepaymentController` addresses.
+
+### `_ensureFunds` _(internal)_
+
+```
+function _ensureFunds(
+    uint256 amount,
+    uint256 premium,
+    uint256 originationFee,
+    uint256 newPrincipal
+)
+    internal
+    pure
+    returns (
+        uint256 flashAmountDue,
+        uint256 needFromBorrower,
+        uint256 leftoverPrincipal
+    )
+```
+
+Perform the computations needed to determine:
+
+1. `flashAmountDue` - the amount that will be owed to AAVE at the end of `executeOperation`.
+2. `needFromBorrower` - if new loan's principal is less than the flash amount due, the amount that the contract will attempt to withdraw from the borrower to repay AAVE.
+3. `leftoverPrincipal` - if new loan's principal is more than the flash amount due, the amount that the contract will disburse to the borrower after the loan is rolled over.
+
+Note that either `needFromBorrower` or `leftoverPrincipal` should return 0, since they are computed in mutually exclusive situations.
+
+### `_repayLoan` _(internal)_
+
+```
+function _repayLoan(
+    OperationContracts memory contracts,
+    LoanLibrary.LoanData memory loanData
+) internal
+```
+
+Perform the actions needed to repay the existing loan. When this function
+runs in the context of `_executeOperation`, it should have enough funds
+from flash loan proceeds to repay the loan. The function will withdraw the borrower
+note from the borrower, approve the withdrawal by the repayment controller of
+the owed funds, and call `RepaymentController` to repay the loan. It will
+then verify that it now owns the relevant `collateralTokenId` as the success
+condition of repayment.
+
+### `_initializeNewLoan` _(internal)_
+
+```
+function _initializeNewLoan(
+    OperationContracts memory contracts,
+    address borrower,
+    address lender,
+    uint256 collateralTokenId,
+    OperationData memory opData
+) internal
+```
+
+Perform the actions needed to start a new loan. The `opData` struct should
+contain all needed terms and signature information to start a loan with the
+`OriginationController`. Once the loan is initialized, the borrower
+note will be transferred to `borrower`.

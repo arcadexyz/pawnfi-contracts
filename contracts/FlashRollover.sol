@@ -220,6 +220,8 @@ contract FlashRollover is IFlashRollover {
         // Approve all amounts for flash loan repayment
         IERC20(assets[0]).approve(address(LENDING_POOL), flashAmountDue);
 
+        // TODO: Emit rollover and Migration if isLegacy
+
         return true;
     }
 
@@ -238,7 +240,7 @@ contract FlashRollover is IFlashRollover {
         )
     {
         // Make sure new loan, minus pawn fees, can be repaid
-        flashAmountDue = amount - premium;
+        flashAmountDue = amount + premium;
         uint256 willReceive = (newPrincipal - (newPrincipal * originationFee)) / 10_000;
 
         if (flashAmountDue > willReceive) {
@@ -287,10 +289,11 @@ contract FlashRollover is IFlashRollover {
         contracts.assetWrapper.approve(address(contracts.originationController), collateralTokenId);
 
         // start new loan
+        // stand in for borrower to meet OriginationController's requirements
         LoanLibrary.LoanData memory newLoanData = contracts.newLoanLoanCore.getLoan(
             contracts.originationController.initializeLoan(
                 opData.newLoanTerms,
-                borrower,
+                address(this),
                 lender,
                 opData.v,
                 opData.r,
