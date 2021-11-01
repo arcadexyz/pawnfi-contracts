@@ -124,6 +124,8 @@ Requirements:
 - Initiator of the flash loan must be the rollover contract.
 - The contract must have a balance greater than or equal to the specified funds at the start of the loan.
 
+Emits a `Rollover` event. If the rollover is a legacy migration, also emits `Migration` event.
+
 ### `_executeOperation` _(internal)_
 
 ```
@@ -208,10 +210,37 @@ function _initializeNewLoan(
     address lender,
     uint256 collateralTokenId,
     OperationData memory opData
-) internal
+) internal returns (uint256)
 ```
 
 Perform the actions needed to start a new loan. The `opData` struct should
 contain all needed terms and signature information to start a loan with the
 `OriginationController`. Once the loan is initialized, the borrower
 note will be transferred to `borrower`.
+
+## Events
+
+### `Rollover`
+
+```
+event Rollover(
+    address indexed lender,
+    address indexed borrower,
+    uint256 collateralTokenId,
+    uint256 newLoanId
+)
+```
+
+Emitted when a loan is rolled over into a new loan.
+
+### `Migration`
+
+```
+event Migration(
+    address indexed oldLoanCore,
+    address indexed newLoanCore,
+    uint256 newLoanId
+);
+```
+
+Emitted when a loan rollover migrates a loan from one instance of `LoanCore` to another.

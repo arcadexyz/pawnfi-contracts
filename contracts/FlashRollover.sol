@@ -162,7 +162,7 @@ contract FlashRollover is IFlashRollover {
         // Should not have any funds leftover
         require(
             IERC20(terms.payableCurrency).balanceOf(address(this)) == startBalance,
-            "Nonzero balance after flash loan"
+            "Changed balance after flash loan"
         );
     }
 
@@ -209,7 +209,7 @@ contract FlashRollover is IFlashRollover {
         );
 
         _repayLoan(opContracts, loanData);
-        _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
+        uint256 newLoanId = _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
         if (leftoverPrincipal > 0) {
             IERC20(assets[0]).transfer(borrower, leftoverPrincipal);
@@ -220,7 +220,11 @@ contract FlashRollover is IFlashRollover {
         // Approve all amounts for flash loan repayment
         IERC20(assets[0]).approve(address(LENDING_POOL), flashAmountDue);
 
-        // TODO: Emit rollover and Migration if isLegacy
+        emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
+
+        if (opData.isLegacy) {
+            emit Migration(address(opContracts.loanCore), address(opContracts.newLoanLoanCore), newLoanId);
+        }
 
         return true;
     }
@@ -284,25 +288,25 @@ contract FlashRollover is IFlashRollover {
         address lender,
         uint256 collateralTokenId,
         OperationData memory opData
-    ) internal {
+    ) internal returns (uint256) {
         // approve originationController
         contracts.assetWrapper.approve(address(contracts.originationController), collateralTokenId);
 
         // start new loan
         // stand in for borrower to meet OriginationController's requirements
-        LoanLibrary.LoanData memory newLoanData = contracts.newLoanLoanCore.getLoan(
-            contracts.originationController.initializeLoan(
-                opData.newLoanTerms,
-                address(this),
-                lender,
-                opData.v,
-                opData.r,
-                opData.s
-            )
+        uint256 newLoanId = contracts.originationController.initializeLoan(
+            opData.newLoanTerms,
+            address(this),
+            lender,
+            opData.v,
+            opData.r,
+            opData.s
         );
 
-        // Send note to borrower
+        LoanLibrary.LoanData memory newLoanData = contracts.newLoanLoanCore.getLoan(newLoanId);
         contracts.newLoanBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
+
+        return newLoanId;
     }
 
     function _getContracts(bool isLegacy) internal view returns (OperationContracts memory) {

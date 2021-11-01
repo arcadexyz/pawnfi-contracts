@@ -15,6 +15,19 @@ interface IFlashLoanReceiver {
 }
 
 interface IFlashRollover is IFlashLoanReceiver {
+    event Rollover(
+        address indexed lender,
+        address indexed borrower,
+        uint256 collateralTokenId,
+        uint256 newLoanId
+    );
+
+    event Migration(
+        address indexed oldLoanCore,
+        address indexed newLoanCore,
+        uint256 newLoanId
+    );
+
     function rolloverLoan(
         bool isLegacy,
         uint256 loanId,
