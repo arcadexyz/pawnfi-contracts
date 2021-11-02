@@ -120,6 +120,7 @@ of the function to repay the loan, or the transaction will fail. `executeOperati
 and begin a new one.
 
 Requirements:
+
 - Caller must be the AAVE lending pool.
 - Initiator of the flash loan must be the rollover contract.
 - The contract must have a balance greater than or equal to the specified funds at the start of the loan.

@@ -52,48 +52,50 @@ contract FlashRollover is IFlashRollover {
         IERC721 newLoanBorrowerNote;
     }
 
-    ILendingPoolAddressesProvider public immutable ADDRESSES_PROVIDER;
-    ILendingPool public immutable LENDING_POOL;
+    // AAVE Contracts
+    ILendingPoolAddressesProvider public immutable addressesProvider;
+    ILendingPool public immutable lendingPool;
 
-    ILoanCore public immutable LOAN_CORE;
-    ILoanCore public immutable LEGACY_LOAN_CORE;
-    IOriginationController public immutable ORIGINATION_CONTROLLER;
-    IRepaymentController public immutable LEGACY_REPAYMENT_CONTROLLER;
-    IRepaymentController public immutable REPAYMENT_CONTROLLER;
-    IERC721 public immutable BORROWER_NOTE;
-    IERC721 public immutable LENDER_NOTE;
-    IERC721 public immutable LEGACY_BORROWER_NOTE;
-    IERC721 public immutable LEGACY_LENDER_NOTE;
-    IERC721 public immutable ASSET_WRAPPER;
-    IFeeController public immutable FEE_CONTROLLER;
+    // Pawn.fi Contracts
+    ILoanCore public immutable loanCore;
+    ILoanCore public immutable legacyLoanCore;
+    IOriginationController public immutable originationController;
+    IRepaymentController public immutable legacyRepaymentController;
+    IRepaymentController public immutable repaymentController;
+    IERC721 public immutable borrowerNote;
+    IERC721 public immutable lenderNote;
+    IERC721 public immutable legacyBorrowerNote;
+    IERC721 public immutable legacyLenderNote;
+    IERC721 public immutable assetWrapper;
+    IFeeController public immutable feeController;
 
     constructor(
-        ILendingPoolAddressesProvider provider,
-        ILoanCore loanCore,
-        ILoanCore legacyLoanCore,
-        IOriginationController originationController,
-        IRepaymentController repaymentController,
-        IRepaymentController legacyRepaymentController,
-        IERC721 borrowerNote,
-        IERC721 legacyBorrowerNote,
-        IERC721 lenderNote,
-        IERC721 legacyLenderNote,
-        IERC721 assetWrapper,
-        IFeeController feeController
+        ILendingPoolAddressesProvider _addressesProvider,
+        ILoanCore _loanCore,
+        ILoanCore _legacyLoanCore,
+        IOriginationController _originationController,
+        IRepaymentController _repaymentController,
+        IRepaymentController _legacyRepaymentController,
+        IERC721 _borrowerNote,
+        IERC721 _legacyBorrowerNote,
+        IERC721 _lenderNote,
+        IERC721 _legacyLenderNote,
+        IERC721 _assetWrapper,
+        IFeeController _feeController
     ) {
-        ADDRESSES_PROVIDER = provider;
-        LENDING_POOL = ILendingPool(provider.getLendingPool());
-        LOAN_CORE = loanCore;
-        LEGACY_LOAN_CORE = legacyLoanCore;
-        ORIGINATION_CONTROLLER = originationController;
-        REPAYMENT_CONTROLLER = repaymentController;
-        LEGACY_REPAYMENT_CONTROLLER = legacyRepaymentController;
-        BORROWER_NOTE = borrowerNote;
-        LEGACY_BORROWER_NOTE = legacyBorrowerNote;
-        LENDER_NOTE = lenderNote;
-        LEGACY_LENDER_NOTE = legacyLenderNote;
-        ASSET_WRAPPER = assetWrapper;
-        FEE_CONTROLLER = feeController;
+        addressesProvider = _addressesProvider;
+        lendingPool = ILendingPool(_addressesProvider.getLendingPool());
+        loanCore = _loanCore;
+        legacyLoanCore = _legacyLoanCore;
+        originationController = _originationController;
+        repaymentController = _repaymentController;
+        legacyRepaymentController = _legacyRepaymentController;
+        borrowerNote = _borrowerNote;
+        legacyBorrowerNote = _legacyBorrowerNote;
+        lenderNote = _lenderNote;
+        legacyLenderNote = _legacyLenderNote;
+        assetWrapper = _assetWrapper;
+        feeController = _feeController;
     }
 
     function rolloverLoan(
@@ -107,16 +109,16 @@ contract FlashRollover is IFlashRollover {
         // Get loan details
         LoanLibrary.LoanData memory loanData;
         if (isLegacy) {
-            loanData = LEGACY_LOAN_CORE.getLoan(loanId);
+            loanData = legacyLoanCore.getLoan(loanId);
             uint256 borrowerNoteId = loanData.borrowerNoteId;
 
-            address borrower = LEGACY_BORROWER_NOTE.ownerOf(borrowerNoteId);
+            address borrower = legacyBorrowerNote.ownerOf(borrowerNoteId);
             require(borrower == msg.sender, "Only borrower can roll over");
         } else {
-            loanData = LOAN_CORE.getLoan(loanId);
+            loanData = loanCore.getLoan(loanId);
             uint256 borrowerNoteId = loanData.borrowerNoteId;
 
-            address borrower = BORROWER_NOTE.ownerOf(borrowerNoteId);
+            address borrower = borrowerNote.ownerOf(borrowerNoteId);
             require(borrower == msg.sender, "Only borrower can roll over");
         }
 
@@ -149,7 +151,7 @@ contract FlashRollover is IFlashRollover {
         bytes memory params = abi.encode(opData);
 
         // Flash loan based on principal + interest
-        LENDING_POOL.flashLoan(
+        lendingPool.flashLoan(
             address(this),
             assets,
             amounts,
@@ -176,7 +178,7 @@ contract FlashRollover is IFlashRollover {
         // TODO: Security check.
         // Can an attacker use this to drain borrower funds? Feels like maybe
 
-        require(msg.sender == address(LENDING_POOL), "Unknown lender");
+        require(msg.sender == address(lendingPool), "Unknown lender");
         require(initiator == address(this), "Not initiator");
         require(IERC20(assets[0]).balanceOf(address(this)) >= amounts[0], "Did not receive loan funds");
 
@@ -218,7 +220,7 @@ contract FlashRollover is IFlashRollover {
         }
 
         // Approve all amounts for flash loan repayment
-        IERC20(assets[0]).approve(address(LENDING_POOL), flashAmountDue);
+        IERC20(assets[0]).approve(address(lendingPool), flashAmountDue);
 
         emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
 
@@ -313,28 +315,28 @@ contract FlashRollover is IFlashRollover {
         if (isLegacy) {
             return
                 OperationContracts({
-                    loanCore: LEGACY_LOAN_CORE,
-                    borrowerNote: LEGACY_BORROWER_NOTE,
-                    lenderNote: LEGACY_LENDER_NOTE,
-                    feeController: FEE_CONTROLLER,
-                    assetWrapper: ASSET_WRAPPER,
-                    repaymentController: LEGACY_REPAYMENT_CONTROLLER,
-                    originationController: ORIGINATION_CONTROLLER,
-                    newLoanLoanCore: LOAN_CORE,
-                    newLoanBorrowerNote: BORROWER_NOTE
+                    loanCore: legacyLoanCore,
+                    borrowerNote: legacyBorrowerNote,
+                    lenderNote: legacyLenderNote,
+                    feeController: feeController,
+                    assetWrapper: assetWrapper,
+                    repaymentController: legacyRepaymentController,
+                    originationController: originationController,
+                    newLoanLoanCore: loanCore,
+                    newLoanBorrowerNote: borrowerNote
                 });
         } else {
             return
                 OperationContracts({
-                    loanCore: LOAN_CORE,
-                    borrowerNote: BORROWER_NOTE,
-                    lenderNote: LENDER_NOTE,
-                    feeController: FEE_CONTROLLER,
-                    assetWrapper: ASSET_WRAPPER,
-                    repaymentController: REPAYMENT_CONTROLLER,
-                    originationController: ORIGINATION_CONTROLLER,
-                    newLoanLoanCore: LOAN_CORE,
-                    newLoanBorrowerNote: BORROWER_NOTE
+                    loanCore: loanCore,
+                    borrowerNote: borrowerNote,
+                    lenderNote: lenderNote,
+                    feeController: feeController,
+                    assetWrapper: assetWrapper,
+                    repaymentController: repaymentController,
+                    originationController: originationController,
+                    newLoanLoanCore: loanCore,
+                    newLoanBorrowerNote: borrowerNote
                 });
         }
     }
