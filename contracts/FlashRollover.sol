@@ -14,6 +14,9 @@ import "./interfaces/IRepaymentController.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 
+// TODO Delete
+import "hardhat/console.sol";
+
 contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -113,13 +116,13 @@ contract FlashRollover is IFlashRollover {
             uint256 borrowerNoteId = loanData.borrowerNoteId;
 
             address borrower = legacyBorrowerNote.ownerOf(borrowerNoteId);
-            require(borrower == msg.sender, "Only borrower can roll over");
+            require(borrower == msg.sender, "Rollover: borrower only");
         } else {
             loanData = loanCore.getLoan(loanId);
             uint256 borrowerNoteId = loanData.borrowerNoteId;
 
             address borrower = borrowerNote.ownerOf(borrowerNoteId);
-            require(borrower == msg.sender, "Only borrower can roll over");
+            require(borrower == msg.sender, "Rollover: borrower only");
         }
 
         LoanLibrary.LoanTerms memory terms = loanData.terms;
@@ -158,7 +161,7 @@ contract FlashRollover is IFlashRollover {
             modes,
             address(this),
             params,
-            0 // TODO: Add referral code?
+            0
         );
 
         // Should not have any funds leftover
@@ -210,6 +213,10 @@ contract FlashRollover is IFlashRollover {
             opData.newLoanTerms.principal
         );
 
+        if (needFromBorrower > 0) {
+            require(IERC20(assets[0]).balanceOf(borrower) >= needFromBorrower, "Borrower cannot pay");
+        }
+
         _repayLoan(opContracts, loanData);
         uint256 newLoanId = _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
@@ -238,16 +245,17 @@ contract FlashRollover is IFlashRollover {
         uint256 newPrincipal
     )
         internal
-        pure
+        view
         returns (
             uint256 flashAmountDue,
             uint256 needFromBorrower,
             uint256 leftoverPrincipal
         )
     {
+
         // Make sure new loan, minus pawn fees, can be repaid
         flashAmountDue = amount + premium;
-        uint256 willReceive = (newPrincipal - (newPrincipal * originationFee)) / 10_000;
+        uint256 willReceive = newPrincipal - (newPrincipal * originationFee / 10_000);
 
         if (flashAmountDue > willReceive) {
             // Not enough - have borrower pay the difference
