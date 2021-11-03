@@ -24,6 +24,8 @@ contract MockAddressesProvider {
 contract MockLendingPool {
     uint256 private loanFeeBps = 9;
 
+    event FlashLoan(uint256 amount, uint256 fee);
+
     function flashLoan(
         address receiverAddress,
         address[] calldata assets,
@@ -50,6 +52,7 @@ contract MockLendingPool {
             params
         );
 
+        emit FlashLoan(amounts[0], premium);
         // Require repayment plus premium
         require(IERC20(assets[0]).transferFrom(receiverAddress, address(this), amounts[0] + premiums[0]));
     }

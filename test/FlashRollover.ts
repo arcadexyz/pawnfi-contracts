@@ -377,7 +377,7 @@ describe("FlashRollover", () => {
 
         it.only("should issue a new loan and disburse extra funds to the borrower", async () => {
             const {
-                common: { mockERC20, assetWrapper, feeController },
+                common: { mockERC20, assetWrapper, feeController, lendingPool },
                 lender,
                 borrower,
                 current: currentContracts
@@ -403,6 +403,7 @@ describe("FlashRollover", () => {
             // Should be second loan since contracts are redeployed every test
             const expectedLoanId = 2;
 
+            const initialBalance = await mockERC20.balanceOf(borrower.address);
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(false, loanId, loanTerms, v, r, s)
             ).to.emit(mockERC20, "Transfer")
@@ -412,7 +413,9 @@ describe("FlashRollover", () => {
                 .to.emit(loanCore, "LoanCreated")
                 .to.emit(loanCore, "LoanStarted")
                 .to.emit(flashRollover, "Rollover")
-                .withArgs(lender.address, borrower.address, bundleId, expectedLoanId);
+                .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
+                .to.emit(lendingPool, "FlashLoan")
+                .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
 
             const loanData = await loanCore.getLoan(expectedLoanId);
 
@@ -424,7 +427,7 @@ describe("FlashRollover", () => {
             const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
             const originationFee = await feeController.getOriginationFee();
             const newPrincipal = principal.sub(principal.mul(originationFee).div(10_000));
-            const expectedBalance = newPrincipal.sub(premiumPaid);
+            const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
             expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
         });
         it("should issue a new loan and withdraw needed funds from the borrower", async () => {
