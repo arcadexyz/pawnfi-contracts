@@ -51,7 +51,6 @@ contract MockLendingPool {
         );
 
         // Require repayment plus premium
-        uint256 endBalance = IERC20(assets[0]).balanceOf(address(this));
-        require(endBalance == startBalance + premium, "Did not receive funds");
+        require(IERC20(assets[0]).transferFrom(receiverAddress, address(this), amounts[0] + premiums[0]));
     }
 }

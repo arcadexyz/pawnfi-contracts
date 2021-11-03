@@ -245,7 +245,7 @@ contract FlashRollover is IFlashRollover {
         uint256 newPrincipal
     )
         internal
-        view
+        pure
         returns (
             uint256 flashAmountDue,
             uint256 needFromBorrower,
