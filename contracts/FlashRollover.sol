@@ -15,9 +15,6 @@ import "./interfaces/IRepaymentController.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 
-// TODO Delete
-import "hardhat/console.sol";
-
 contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;

@@ -6,9 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../interfaces/IFlashRollover.sol";
 
-// TODO remove
-import "hardhat/console.sol";
-
 contract MockAddressesProvider {
     address public lendingPool;
 

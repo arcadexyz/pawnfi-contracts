@@ -10,9 +10,6 @@ import "./interfaces/IOriginationController.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IERC721Permit.sol";
 
-// TODO Delete
-import "hardhat/console.sol";
-
 contract OriginationController is Context, IOriginationController, EIP712 {
     using SafeERC20 for IERC20;
     address public loanCore;
