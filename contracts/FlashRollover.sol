@@ -6,7 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import "./external/interfaces/ILendingPool.sol";
+import { ILendingPool } from "@aave/protocol-v2/contracts/interfaces/ILendingPool.sol";
+import { ILendingPoolAddressesProvider } from "@aave/protocol-v2/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 
 import "./interfaces/IFlashRollover.sol";
 import "./interfaces/ILoanCore.sol";
