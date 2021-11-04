@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre, { ethers } from "hardhat";
+import hre, { ethers, waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { utils, Signer, BigNumber } from "ethers";
 
 import { MockLoanCore, MockERC20, MockERC721, RepaymentController } from "../typechain";
@@ -28,7 +29,7 @@ describe("RepaymentController", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const setupTestContext = async (): Promise<TestContext> => {
+    const fixture = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
         const [deployer, borrower, lender, otherParty] = signers;
 
@@ -107,7 +108,7 @@ describe("RepaymentController", () => {
 
     describe("repay", () => {
         beforeEach(async () => {
-            context = await setupTestContext();
+            context = await loadFixture(fixture);
         });
 
         it("reverts for an invalid note ID", async () => {
@@ -164,7 +165,7 @@ describe("RepaymentController", () => {
     });
     describe("claim", () => {
         beforeEach(async () => {
-            context = await setupTestContext();
+            context = await loadFixture(fixture);
         });
 
         it("reverts for an invalid note ID", async () => {

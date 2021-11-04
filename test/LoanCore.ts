@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre, { ethers } from "hardhat";
+import hre, { ethers, waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { BigNumber, Signer } from "ethers";
 
 import { LoanCore, FeeController, PromissoryNote, MockERC20, MockERC721 } from "../typechain";
@@ -31,7 +32,7 @@ describe("LoanCore", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const setupTestContext = async (): Promise<TestContext> => {
+    const fixture = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
 
         const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
@@ -117,7 +118,7 @@ describe("LoanCore", () => {
 
     describe("Create Loan", function () {
         it("should successfully create a loan", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
@@ -132,7 +133,7 @@ describe("LoanCore", () => {
         });
 
         it("should emit the LoanCreated event", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
@@ -140,7 +141,7 @@ describe("LoanCore", () => {
         });
 
         it("should successfully create a bunch of loans with different loanIds", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
 
             const loanIds = new Set();
             for (let i = 0; i < 10; i++) {
@@ -154,7 +155,7 @@ describe("LoanCore", () => {
         });
 
         it("rejects calls from non-originator", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user, other } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user, other } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
             await expect(loanCore.connect(other).createLoan(terms)).to.be.revertedWith(
@@ -163,7 +164,7 @@ describe("LoanCore", () => {
         });
 
         it("should update originator and accept new one", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user, other } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user, other } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
             await loanCore.connect(user).grantRole(ORIGINATOR_ROLE, await other.getAddress());
@@ -171,7 +172,7 @@ describe("LoanCore", () => {
         });
 
         it("should fail to create a loan with passed due date", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, {
                 collateralTokenId,
@@ -184,7 +185,7 @@ describe("LoanCore", () => {
         });
 
         it("should fail to create a loan with reused collateral", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
@@ -196,7 +197,7 @@ describe("LoanCore", () => {
         });
 
         it("should fail when paused", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
@@ -206,7 +207,7 @@ describe("LoanCore", () => {
         });
 
         it("gas [ @skip-on-coverage ]", async () => {
-            const { loanCore, mockERC20, mockAssetWrapper, user } = await setupTestContext();
+            const { loanCore, mockERC20, mockAssetWrapper, user } = await loadFixture(fixture);
             const collateralTokenId = await mintERC721(mockAssetWrapper, user);
             const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
 
@@ -226,7 +227,7 @@ describe("LoanCore", () => {
         }
 
         const setupLoan = async (context?: TestContext, inputTerms?: Partial<LoanTerms>): Promise<StartLoanState> => {
-            context = context || (await setupTestContext());
+            context = context || (await loadFixture(fixture));
 
             const { mockAssetWrapper, mockERC20, loanCore, user: borrower, other: lender } = context;
             const collateralTokenId = await mintERC721(mockAssetWrapper, borrower);
@@ -328,7 +329,7 @@ describe("LoanCore", () => {
         });
 
         it("should successfully start two loans back to back", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { mockAssetWrapper, loanCore, mockERC20 } = context;
             let {
                 loanId,
@@ -380,7 +381,7 @@ describe("LoanCore", () => {
         });
 
         it("should fail to start two loans where principal for both is paid at once", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { mockAssetWrapper, loanCore, mockERC20 } = context;
             let {
                 loanId,
@@ -651,7 +652,7 @@ describe("LoanCore", () => {
         }
 
         const setupLoan = async (context?: TestContext, inputTerms?: Partial<LoanTerms>): Promise<RepayLoanState> => {
-            context = context || (await setupTestContext());
+            context = context || (await loadFixture(fixture));
 
             const { mockAssetWrapper, mockERC20, loanCore, user: borrower, other: lender } = context;
             const collateralTokenId = await mintERC721(mockAssetWrapper, borrower);
@@ -804,7 +805,7 @@ describe("LoanCore", () => {
         }
 
         const setupLoan = async (context?: TestContext, inputTerms?: Partial<LoanTerms>): Promise<RepayLoanState> => {
-            context = context || (await setupTestContext());
+            context = context || (await loadFixture(fixture));
 
             const { mockAssetWrapper, mockERC20, loanCore, user: borrower, other: lender } = context;
             const collateralTokenId = await mintERC721(mockAssetWrapper, borrower);
@@ -972,7 +973,7 @@ describe("LoanCore", () => {
         }
 
         const setupLoan = async (context?: TestContext, inputTerms?: Partial<LoanTerms>): Promise<StartLoanState> => {
-            context = context || (await setupTestContext());
+            context = context || (await loadFixture(fixture));
 
             const { mockAssetWrapper, mockERC20, loanCore, user: borrower, other: lender } = context;
             const collateralTokenId = await mintERC721(mockAssetWrapper, borrower);

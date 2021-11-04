@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre from "hardhat";
+import hre, { waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber, BigNumberish } from "ethers";
 
@@ -28,7 +29,7 @@ describe("AssetWrapper", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const setupTestContext = async (): Promise<TestContext> => {
+    const fixture = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
         const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
         const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
@@ -62,14 +63,14 @@ describe("AssetWrapper", () => {
 
     describe("Initialize Bundle", function () {
         it("should successfully initialize a bundle", async () => {
-            const { assetWrapper, user } = await setupTestContext();
+            const { assetWrapper, user } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, user);
             expect(bundleId.gte(ZERO)).to.be.true;
         });
 
         it("should initialize multiple bundles with unique ids", async () => {
-            const { assetWrapper, user } = await setupTestContext();
+            const { assetWrapper, user } = await loadFixture(fixture);
 
             const bundleIds = new Set();
             const size = 25;
@@ -88,7 +89,7 @@ describe("AssetWrapper", () => {
     describe("Deposit", () => {
         describe("ERC20", () => {
             it("should accept deposit from an ERC20 token", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
 
                 await mint(mockERC20, user, amount);
@@ -108,7 +109,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when depositing into uninitialized bundle", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
 
                 const bundleId = BigNumber.from("1005432");
@@ -119,7 +120,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when not approved", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
 
                 await mint(mockERC20, user, amount);
@@ -132,7 +133,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when depositing more than owned", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
 
                 await mint(mockERC20, user, amount);
@@ -146,7 +147,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept multiple deposits from an ERC20 token", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const baseAmount = hre.ethers.utils.parseUnits("10", 18);
 
@@ -169,7 +170,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept deposits from multiple ERC20 tokens", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const baseAmount = hre.ethers.utils.parseUnits("10", 18);
 
@@ -195,7 +196,7 @@ describe("AssetWrapper", () => {
 
         describe("ERC721", () => {
             it("should accept deposit from an ERC721 token", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
 
                 const tokenId = await mintERC721(mockERC721, user);
                 await approveERC721(mockERC721, user, assetWrapper.address, tokenId);
@@ -214,7 +215,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when depositing into uninitialized bundle", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
 
                 const tokenId = await mintERC721(mockERC721, user);
                 const bundleId = BigNumber.from("1005432");
@@ -225,7 +226,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when not approved", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
 
                 const tokenId = await mintERC721(mockERC721, user);
                 const bundleId = await initializeBundle(assetWrapper, user);
@@ -236,7 +237,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept multiple deposits from an ERC721 token", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
 
                 for (let i = 0; i < 10; i++) {
@@ -256,7 +257,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept multiple deposits from an ERC721 token with setApprovalForAll", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
 
                 const tokenIds = [];
@@ -282,7 +283,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept deposits from multiple ERC721 tokens", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
 
                 for (let i = 0; i < 10; i++) {
@@ -306,7 +307,7 @@ describe("AssetWrapper", () => {
 
         describe("ERC1155", () => {
             it("should accept deposit from an ERC1155 NFT", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
 
                 const tokenId = await mintERC1155(mockERC1155, user, amount);
@@ -327,7 +328,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept deposit from an ERC1155 fungible token", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("10");
 
                 const tokenId = await mintERC1155(mockERC1155, user, amount);
@@ -348,7 +349,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when depositing into uninitialized bundle", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
 
                 const tokenId = await mintERC1155(mockERC1155, user, amount);
@@ -360,7 +361,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when not approved", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
 
                 const tokenId = await mintERC1155(mockERC1155, user, amount);
@@ -372,7 +373,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept multiple deposits from an ERC1155 token", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const amount = BigNumber.from("1");
 
@@ -396,7 +397,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept deposits from multiple ERC1155 tokens", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const amount = BigNumber.from("1");
 
@@ -424,7 +425,7 @@ describe("AssetWrapper", () => {
 
         describe("ETH", () => {
             it("should accept deposit of ETH", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("50");
 
                 const bundleId = await initializeBundle(assetWrapper, user);
@@ -438,7 +439,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should accept multiple deposits of ETH", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
 
                 let total = BigNumber.from(0);
@@ -455,7 +456,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when depositing into uninitialized bundle", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("50");
 
                 const bundleId = BigNumber.from("1005432");
@@ -499,7 +500,7 @@ describe("AssetWrapper", () => {
             };
 
             it("should withdraw single deposit from a bundle", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeAndDeposit(mockERC20, assetWrapper, amount, user);
 
@@ -511,7 +512,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw multiple deposits of the same token from a bundle", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeAndDeposit(mockERC20, assetWrapper, amount, user);
                 const secondAmount = hre.ethers.utils.parseUnits("14", 18);
@@ -527,7 +528,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw deposits of multiple tokens from a bundle", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeBundle(assetWrapper, user);
 
@@ -551,7 +552,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when already withdrawn", async () => {
-                const { assetWrapper, mockERC20, user } = await setupTestContext();
+                const { assetWrapper, mockERC20, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeAndDeposit(mockERC20, assetWrapper, amount, user);
 
@@ -567,7 +568,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when withdraw called by non-owner", async () => {
-                const { assetWrapper, mockERC20, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC20, user, other } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeAndDeposit(mockERC20, assetWrapper, amount, user);
 
@@ -577,7 +578,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw when non-owner calls with approval", async () => {
-                const { assetWrapper, mockERC20, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC20, user, other } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeAndDeposit(mockERC20, assetWrapper, amount, user);
 
@@ -590,7 +591,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when non-owner calls with approval to AssetWrapper", async () => {
-                const { assetWrapper, mockERC20, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC20, user, other } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseUnits("50", 18);
                 const bundleId = await initializeAndDeposit(mockERC20, assetWrapper, amount, user);
 
@@ -614,7 +615,7 @@ describe("AssetWrapper", () => {
             };
 
             it("should withdraw single deposit from a bundle", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC721, assetWrapper, user);
 
                 await expect(assetWrapper.connect(user).withdraw(bundleId))
@@ -627,7 +628,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when already withdrawn", async () => {
-                const { assetWrapper, mockERC721, user } = await setupTestContext();
+                const { assetWrapper, mockERC721, user } = await loadFixture(fixture);
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC721, assetWrapper, user);
 
                 await expect(assetWrapper.connect(user).withdraw(bundleId))
@@ -644,7 +645,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when withdraw called by non-owner", async () => {
-                const { assetWrapper, mockERC721, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC721, user, other } = await loadFixture(fixture);
                 const { bundleId } = await initializeAndDeposit(mockERC721, assetWrapper, user);
 
                 await expect(assetWrapper.connect(other).withdraw(bundleId)).to.be.revertedWith(
@@ -653,7 +654,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw when non-owner calls with approval", async () => {
-                const { assetWrapper, mockERC721, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC721, user, other } = await loadFixture(fixture);
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC721, assetWrapper, user);
 
                 await assetWrapper.connect(user).approve(await other.getAddress(), bundleId);
@@ -667,7 +668,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when non-owner calls with approval to AssetWrapper", async () => {
-                const { assetWrapper, mockERC721, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC721, user, other } = await loadFixture(fixture);
                 const { bundleId } = await initializeAndDeposit(mockERC721, assetWrapper, user);
 
                 await assetWrapper.connect(user).approve(assetWrapper.address, bundleId);
@@ -695,7 +696,7 @@ describe("AssetWrapper", () => {
             };
 
             it("should withdraw single deposit from a bundle", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC1155, assetWrapper, user, amount);
 
@@ -707,7 +708,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw fungible deposit from a bundle", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("100");
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC1155, assetWrapper, user, amount);
 
@@ -719,7 +720,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when already withdrawn", async () => {
-                const { assetWrapper, mockERC1155, user } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC1155, assetWrapper, user, amount);
 
@@ -735,7 +736,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when withdraw called by non-owner", async () => {
-                const { assetWrapper, mockERC1155, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user, other } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
                 const { bundleId } = await initializeAndDeposit(mockERC1155, assetWrapper, user, amount);
 
@@ -745,7 +746,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw when non-owner calls with approval", async () => {
-                const { assetWrapper, mockERC1155, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user, other } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
                 const { tokenId, bundleId } = await initializeAndDeposit(mockERC1155, assetWrapper, user, amount);
 
@@ -758,7 +759,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when non-owner calls with approval to AssetWrapper", async () => {
-                const { assetWrapper, mockERC1155, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC1155, user, other } = await loadFixture(fixture);
                 const amount = BigNumber.from("1");
                 const { bundleId } = await initializeAndDeposit(mockERC1155, assetWrapper, user, amount);
 
@@ -789,7 +790,7 @@ describe("AssetWrapper", () => {
             };
 
             it("should withdraw single deposit from a bundle", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("123");
                 const bundleId = await initializeAndDeposit(assetWrapper, user, amount);
                 const startingBalance = BigNumber.from(
@@ -800,7 +801,7 @@ describe("AssetWrapper", () => {
                     .to.emit(assetWrapper, "Withdraw")
                     .withArgs(await user.getAddress(), bundleId);
 
-                const threshold = hre.ethers.utils.parseEther("0.001"); // for txn fee
+                const threshold = hre.ethers.utils.parseEther("0.01"); // for txn fee
                 const endingBalance = BigNumber.from(
                     await hre.network.provider.send("eth_getBalance", [await user.getAddress(), "latest"]),
                 );
@@ -808,7 +809,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when already withdrawn", async () => {
-                const { assetWrapper, user } = await setupTestContext();
+                const { assetWrapper, user } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("14");
                 const bundleId = await initializeAndDeposit(assetWrapper, user, amount);
 
@@ -822,7 +823,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when withdraw called by non-owner", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("9");
                 const bundleId = await initializeAndDeposit(assetWrapper, user, amount);
 
@@ -832,7 +833,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should withdraw when non-owner calls with approval", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("94");
                 const bundleId = await initializeAndDeposit(assetWrapper, user, amount);
 
@@ -843,7 +844,7 @@ describe("AssetWrapper", () => {
             });
 
             it("should throw when non-owner calls with approval to AssetWrapper", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const amount = hre.ethers.utils.parseEther("64");
                 const bundleId = await initializeAndDeposit(assetWrapper, user, amount);
 
@@ -895,7 +896,7 @@ describe("AssetWrapper", () => {
             };
 
             it("should accept owner signature", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const data = buildData(
                     chainId,
@@ -933,7 +934,7 @@ describe("AssetWrapper", () => {
             });
 
             it("rejects if given owner is not real owner", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const data = buildData(
                     chainId,
@@ -966,7 +967,7 @@ describe("AssetWrapper", () => {
             });
 
             it("rejects if bundleId is not valid", async () => {
-                const { assetWrapper, mockERC721, user, other } = await setupTestContext();
+                const { assetWrapper, mockERC721, user, other } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const tokenId = await mintERC721(mockERC721, user);
                 await approveERC721(mockERC721, user, assetWrapper.address, tokenId);
@@ -1003,7 +1004,7 @@ describe("AssetWrapper", () => {
             });
 
             it("rejects reused signature", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const data = buildData(
                     chainId,
@@ -1047,7 +1048,7 @@ describe("AssetWrapper", () => {
             });
 
             it("rejects other signature", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const data = buildData(
                     chainId,
@@ -1077,7 +1078,7 @@ describe("AssetWrapper", () => {
             });
 
             it("rejects expired signature", async () => {
-                const { assetWrapper, user, other } = await setupTestContext();
+                const { assetWrapper, user, other } = await loadFixture(fixture);
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const data = buildData(
                     chainId,
@@ -1123,7 +1124,7 @@ describe("AssetWrapper", () => {
                     user: userSigner,
                     other: otherSigner,
                     signers: otherSigners,
-                } = await setupTestContext();
+                } = await loadFixture(fixture);
                 user = userSigner;
                 other = otherSigner;
                 token = assetWrapper;
