@@ -6,8 +6,9 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "./external/interfaces/ILendingPool.sol";
+
 import "./interfaces/IFlashRollover.sol";
-import "./interfaces/external/ILendingPool.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IOriginationController.sol";
 import "./interfaces/IRepaymentController.sol";

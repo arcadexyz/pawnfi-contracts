@@ -19,9 +19,10 @@ module.exports = {
   providerOptions: {
     mnemonic,
   },
-  skipFiles: ["mocks", "test"],
+  skipFiles: ["mocks", "test", "external"],
   mocha: {
     grep: "@skip-on-coverage",
     invert: true,
   },
+  configureYulOptimizer: true
 };
