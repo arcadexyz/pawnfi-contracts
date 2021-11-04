@@ -375,7 +375,7 @@ describe("FlashRollover", () => {
             ).to.be.revertedWith("Origination: signer not participant");
         });
 
-        it.only("should issue a new loan and disburse extra funds to the borrower", async () => {
+        it("should issue a new loan and disburse extra funds to the borrower", async () => {
             const {
                 common: { mockERC20, assetWrapper, feeController, lendingPool },
                 lender,
@@ -430,35 +430,343 @@ describe("FlashRollover", () => {
             const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
             expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
         });
+
         it("should issue a new loan and withdraw needed funds from the borrower", async () => {
+            const {
+                common: { mockERC20, assetWrapper, feeController, lendingPool },
+                lender,
+                borrower,
+                current: currentContracts
+            } = ctx;
+            const { loanId, bundleId, loanData: { borrowerNoteId } } = await createLoan(ctx, currentContracts);
+            const { borrowerNote, loanCore, originationController } = currentContracts;
+
+            const principal = hre.ethers.utils.parseEther("50");
+            const loanTerms = createLoanTerms(mockERC20.address, {
+                collateralTokenId: bundleId,
+                principal
+            });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            // Approve withdraw of borrower note and funds to repay old loan
+            await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
+            await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
+
+            // Should be second loan since contracts are redeployed every test
+            const expectedLoanId = 2;
+
+            const initialBalance = await mockERC20.balanceOf(borrower.address);
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(false, loanId, loanTerms, v, r, s)
+            ).to.emit(mockERC20, "Transfer")
+                .withArgs(lender.address, originationController.address, loanTerms.principal)
+                .to.emit(mockERC20, "Transfer")
+                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
+                .to.emit(loanCore, "LoanCreated")
+                .to.emit(loanCore, "LoanStarted")
+                .to.emit(flashRollover, "Rollover")
+                .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
+                .to.emit(lendingPool, "FlashLoan")
+                .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
+
+            const loanData = await loanCore.getLoan(expectedLoanId);
+
             // Check that borrower owns borrower note
+            expect(await borrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
             // Check that loanCore owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
             // Check that borrower balance was deducted
+            const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
+            const originationFee = await feeController.getOriginationFee();
+            const newPrincipal = principal.sub(principal.mul(originationFee).div(10_000));
+            const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
+            expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
         });
     });
 
     describe("Legacy Loan Rollover (Migration) ", () => {
-        it("should revert for an unknown loan ID");
-        it("should revert if caller is not the borrower");
-        it("should revert if new loan currency does not match old loan");
-        it("should revert if new loan collateral token does not match old loan");
-        it("should revert if borrower cannot cover flash loan balance");
-        it("should revert if new loan terms do not match signature");
-        it("should issue a new loan and disburse extra funds to the borrower", async () => {
-            // Check that borrower owns borrower note
-            // Check that loanCore owns collateral
-            // Check that borrower received extra principal
-        });
-        it("should issue a new loan and withdraw needed funds to the borrower", async () => {
-            // Check that borrower owns borrower note
-            // Check that loanCore owns collateral
-            // Check that borrower balance was deducted
-        });
-    });
+        let ctx: TestContext;
+        let flashRollover: FlashRollover;
 
-    describe("executeOperation", () => {
-        it("should revert if not called by the lending pool");
-        it("should revert if flash loan initiator does not match contract");
-        it("should revert if funds are not received");
+        beforeEach(async () => {
+            ctx = await setupTestContext();
+            flashRollover = ctx.common.flashRollover;
+        });
+
+        it("should revert for an unknown loan ID", async () => {
+            const {
+                common: { mockERC20 },
+                lender,
+                borrower,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
+
+            const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, BigNumber.from(loanId).mul(2), loanTerms, v, r, s)
+            ).to.be.revertedWith("ERC721: owner query for nonexistent token");
+        });
+
+        it("should revert if caller is not the borrower", async () => {
+            const {
+                common: { mockERC20 },
+                lender,
+                admin,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
+
+            const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            await expect(
+                flashRollover.connect(admin).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.be.revertedWith("Rollover: borrower only");
+        });
+
+        it("should revert if new loan currency does not match old loan", async () => {
+            const {
+                lender,
+                borrower,
+                admin,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
+
+            const otherMockERC20 = <MockERC20>await deploy("MockERC20", admin, ["Mock ERC20", "MOCK"]);
+            const loanTerms = createLoanTerms(otherMockERC20.address, { collateralTokenId: bundleId });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.be.revertedWith("Currency mismatch");
+        });
+
+        it("should revert if new loan collateral token does not match old loan", async () => {
+            const {
+                common: { mockERC20, assetWrapper },
+                lender,
+                borrower,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId } = await createLoan(ctx, legacyContracts);
+
+            const otherBundleId = await createWnft(assetWrapper, borrower);
+            const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: otherBundleId });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.be.revertedWith("Collateral mismatch");
+        });
+
+        it("should revert if borrower cannot cover flash loan balance", async () => {
+            const {
+                common: { mockERC20 },
+                lender,
+                borrower,
+                admin,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
+
+            // Drain borrower wallet of token and issue a smaller loan
+            await mockERC20.connect(borrower).transfer(admin.address, await mockERC20.balanceOf(borrower.address));
+            const loanTerms = createLoanTerms(mockERC20.address, {
+                collateralTokenId: bundleId,
+                principal: hre.ethers.utils.parseEther("50")
+            });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.be.revertedWith("Borrower cannot pay");
+        });
+
+        it("should revert if new loan terms do not match signature", async () => {
+            const {
+                common: { mockERC20 },
+                lender,
+                borrower,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId, loanData: { borrowerNoteId } } = await createLoan(ctx, legacyContracts);
+            const { borrowerNote } = legacyContracts;
+
+            const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                { ...loanTerms, principal: hre.ethers.utils.parseEther("1") },
+                lender,
+            );
+
+            // Approve withdraw of borrower note
+            await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
+
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.be.revertedWith("Origination: signer not participant");
+        });
+
+        it("should issue a new loan and disburse extra funds to the borrower", async () => {
+            const {
+                common: { mockERC20, assetWrapper, feeController, lendingPool },
+                lender,
+                borrower,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId, loanData: { borrowerNoteId } } = await createLoan(ctx, legacyContracts);
+            const { loanCore, originationController, borrowerNote: newBorrowerNote } = currentContracts;
+            const { borrowerNote } = legacyContracts;
+
+            const principal = hre.ethers.utils.parseEther("200");
+            const loanTerms = createLoanTerms(mockERC20.address, {
+                collateralTokenId: bundleId,
+                principal
+            });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            // Approve withdraw of borrower note and new funds
+            await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
+            await mockERC20.connect(lender).approve(originationController.address, loanTerms.principal.mul(10));
+
+            // Should be first loan on new loancore since contracts are redeployed every test
+            const expectedLoanId = 1;
+
+            const initialBalance = await mockERC20.balanceOf(borrower.address);
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.emit(mockERC20, "Transfer")
+                .withArgs(lender.address, originationController.address, loanTerms.principal)
+                .to.emit(mockERC20, "Transfer")
+                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
+                .to.emit(loanCore, "LoanCreated")
+                .to.emit(loanCore, "LoanStarted")
+                .to.emit(flashRollover, "Rollover")
+                .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
+                .to.emit(flashRollover, "Migration")
+                .withArgs(legacyContracts.loanCore.address, currentContracts.loanCore.address, expectedLoanId)
+                .to.emit(lendingPool, "FlashLoan")
+                .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
+
+            const loanData = await loanCore.getLoan(expectedLoanId);
+
+            // Check that borrower owns borrower note
+            expect(await newBorrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
+            // Check that loanCore owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
+            // Check that borrower received extra principal
+            const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
+            const originationFee = await feeController.getOriginationFee();
+            const newPrincipal = principal.sub(principal.mul(originationFee).div(10_000));
+            const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
+            expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
+        });
+
+        it("should issue a new loan and withdraw needed funds from the borrower", async () => {
+            const {
+                common: { mockERC20, assetWrapper, feeController, lendingPool },
+                lender,
+                borrower,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId, loanData: { borrowerNoteId } } = await createLoan(ctx, legacyContracts);
+            const { loanCore, originationController, borrowerNote: newBorrowerNote } = currentContracts;
+            const { borrowerNote } = legacyContracts;
+
+            const principal = hre.ethers.utils.parseEther("50");
+            const loanTerms = createLoanTerms(mockERC20.address, {
+                collateralTokenId: bundleId,
+                principal
+            });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            // Approve withdraw of borrower note and funds to repay old loan
+            await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
+            await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
+            await mockERC20.connect(lender).approve(originationController.address, loanTerms.principal.mul(10));
+
+            // Should be first loan on new loancore since contracts are redeployed every test
+            const expectedLoanId = 1;
+
+            const initialBalance = await mockERC20.balanceOf(borrower.address);
+            await expect(
+                flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s)
+            ).to.emit(mockERC20, "Transfer")
+                .withArgs(lender.address, originationController.address, loanTerms.principal)
+                .to.emit(mockERC20, "Transfer")
+                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
+                .to.emit(loanCore, "LoanCreated")
+                .to.emit(loanCore, "LoanStarted")
+                .to.emit(flashRollover, "Rollover")
+                .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
+                .to.emit(lendingPool, "FlashLoan")
+                .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
+
+            const loanData = await loanCore.getLoan(expectedLoanId);
+
+            // Check that borrower owns borrower note
+            expect(await newBorrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
+            // Check that loanCore owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
+            // Check that borrower balance was deducted
+            const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
+            const originationFee = await feeController.getOriginationFee();
+            const newPrincipal = principal.sub(principal.mul(originationFee).div(10_000));
+            const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
+            expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
+        });
     });
 });

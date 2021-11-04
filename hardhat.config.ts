@@ -75,6 +75,8 @@ function createHardhatConfig(): HardhatNetworkUserConfig {
     return config;
 }
 
+const optimizerEnabled = process.env.DISABLE_OPTIMIZER ? false : true;
+
 const config: HardhatUserConfig = {
     defaultNetwork: "hardhat",
     gasReporter: {
@@ -108,7 +110,7 @@ const config: HardhatUserConfig = {
     solidity: {
         compilers: [
             {
-                version: "0.8.3",
+                version: "0.8.5",
                 settings: {
                     metadata: {
                         // Not including the metadata hash
@@ -118,13 +120,19 @@ const config: HardhatUserConfig = {
                     // You should disable the optimizer when debugging
                     // https://hardhat.org/hardhat-network/#solidity-optimizer-support
                     optimizer: {
-                        enabled: true,
+                        enabled: optimizerEnabled,
                         runs: 999999,
                     },
                 },
             },
             {
                 version: "0.4.12",
+                settings: {
+                    optimizer: {
+                        enabled: optimizerEnabled,
+                        runs: 999999,
+                    }
+                }
             },
         ],
     },
