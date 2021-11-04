@@ -214,7 +214,7 @@ describe("LoanCore", () => {
             const tx = await loanCore.connect(user).createLoan(terms);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("197208");
+            expect(gasUsed.toString()).to.equal("197196");
         });
     });
 
@@ -639,7 +639,7 @@ describe("LoanCore", () => {
                 .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("499717");
+            expect(gasUsed.toString()).to.equal("499681");
         });
     });
 
@@ -792,7 +792,7 @@ describe("LoanCore", () => {
             const tx = await loanCore.connect(borrower).repay(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("212476");
+            expect(gasUsed.toString()).to.equal("212419");
         });
     });
 
@@ -960,7 +960,7 @@ describe("LoanCore", () => {
             const tx = await loanCore.connect(borrower).claim(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("172452");
+            expect(gasUsed.toString()).to.equal("172397");
         });
     });
 
