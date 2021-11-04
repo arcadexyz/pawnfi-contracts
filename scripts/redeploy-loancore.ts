@@ -1,6 +1,11 @@
 import { Contract } from "ethers";
 import { ethers } from "hardhat";
 
+import {
+    ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE,
+    REPAYER_ROLE as DEFAULT_REPAYER_ROLE
+} from "./constants";
+
 /**
  *  October 2021: LoanCore Redeploy
  *  This deploy addresses the issue of AssetWrapper re-use.
@@ -24,8 +29,8 @@ export interface DeployedResources {
 }
 
 export async function main(
-    ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e",
-    REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e",
+    ORIGINATOR_ROLE = DEFAULT_ORIGINATOR_ROLE,
+    REPAYER_ROLE = DEFAULT_REPAYER_ROLE,
     ASSET_WRAPPER_ADDRESS = "0x1F563CDd688ad47b75E474FDe74E87C643d129b7",
     FEE_CONTROLLER_ADDRESS = "0xfc2b8D5C60c8E8BbF8d6dc685F03193472e39587",
 ): Promise<DeployedResources> {
