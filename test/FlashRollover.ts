@@ -487,6 +487,38 @@ describe("FlashRollover", () => {
             const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
             expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
         });
+
+        it("gas [ @skip-on-coverage ]", async () => {
+            const {
+                common: { mockERC20 },
+                lender,
+                borrower,
+                current: currentContracts
+            } = ctx;
+            const { loanId, bundleId, loanData: { borrowerNoteId } } = await createLoan(ctx, currentContracts);
+            const { borrowerNote } = currentContracts;
+
+            const principal = hre.ethers.utils.parseEther("50");
+            const loanTerms = createLoanTerms(mockERC20.address, {
+                collateralTokenId: bundleId,
+                principal
+            });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            // Approve withdraw of borrower note and funds to repay old loan
+            await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
+            await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
+
+            const tx = await flashRollover.connect(borrower).rolloverLoan(false, loanId, loanTerms, v, r, s);
+            const receipt = await tx.wait();
+            const gasUsed = receipt.gasUsed;
+            expect(gasUsed.toString()).to.equal("874508");
+        });
     });
 
     describe("Legacy Loan Rollover (Migration) ", () => {
@@ -767,6 +799,41 @@ describe("FlashRollover", () => {
             const newPrincipal = principal.sub(principal.mul(originationFee).div(10_000));
             const expectedBalance = newPrincipal.sub(premiumPaid).add(initialBalance).sub(hre.ethers.utils.parseEther("101"));
             expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
+        });
+
+        it("gas [ @skip-on-coverage ]", async () => {
+            const {
+                common: { mockERC20 },
+                lender,
+                borrower,
+                current: currentContracts,
+                legacy: legacyContracts
+            } = ctx;
+            const { loanId, bundleId, loanData: { borrowerNoteId } } = await createLoan(ctx, legacyContracts);
+            const { originationController } = currentContracts;
+            const { borrowerNote } = legacyContracts;
+
+            const principal = hre.ethers.utils.parseEther("50");
+            const loanTerms = createLoanTerms(mockERC20.address, {
+                collateralTokenId: bundleId,
+                principal
+            });
+            const { v, r, s } = await createLoanTermsSignature(
+                currentContracts.originationController.address,
+                "OriginationController",
+                loanTerms,
+                lender,
+            );
+
+            // Approve withdraw of borrower note and funds to repay old loan
+            await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
+            await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
+            await mockERC20.connect(lender).approve(originationController.address, loanTerms.principal.mul(10));
+
+            const tx = await flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s);
+            const receipt = await tx.wait();
+            const gasUsed = receipt.gasUsed;
+            expect(gasUsed.toString()).to.equal("1085766");
         });
     });
 });
