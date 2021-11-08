@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import "../external/interfaces/ILendingPool.sol";
 import "./ILoanCore.sol";
 
 interface IFlashLoanReceiver {
@@ -12,6 +13,9 @@ interface IFlashLoanReceiver {
         address initiator,
         bytes calldata params
     ) external returns (bool);
+
+    function ADDRESSES_PROVIDER() external view returns (ILendingPoolAddressesProvider);
+    function LENDING_POOL() external view returns (ILendingPool);
 }
 
 interface IFlashRollover is IFlashLoanReceiver {

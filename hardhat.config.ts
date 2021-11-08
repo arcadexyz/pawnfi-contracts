@@ -126,13 +126,7 @@ const config: HardhatUserConfig = {
                 },
             },
             {
-                version: "0.4.12",
-                settings: {
-                    optimizer: {
-                        enabled: optimizerEnabled,
-                        runs: 999999,
-                    }
-                }
+                version: "0.4.12"
             },
         ],
     },

@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-import { ILendingPool } from "@aave/protocol-v2/contracts/interfaces/ILendingPool.sol";
-import { ILendingPoolAddressesProvider } from "@aave/protocol-v2/contracts/interfaces/ILendingPoolAddressesProvider.sol";
+import "./external/interfaces/ILendingPool.sol";
 
 import "./interfaces/IFlashRollover.sol";
 import "./interfaces/ILoanCore.sol";
@@ -15,6 +14,9 @@ import "./interfaces/IOriginationController.sol";
 import "./interfaces/IRepaymentController.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
+
+// TODO Delete
+import "hardhat/console.sol";
 
 contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
@@ -55,8 +57,8 @@ contract FlashRollover is IFlashRollover {
     }
 
     // AAVE Contracts
-    ILendingPoolAddressesProvider public immutable addressesProvider;
-    ILendingPool public immutable lendingPool;
+    ILendingPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
+    ILendingPool public immutable override LENDING_POOL;
 
     // Pawn.fi Contracts
     ILoanCore public immutable loanCore;
@@ -85,8 +87,8 @@ contract FlashRollover is IFlashRollover {
         IERC721 _assetWrapper,
         IFeeController _feeController
     ) {
-        addressesProvider = _addressesProvider;
-        lendingPool = ILendingPool(_addressesProvider.getLendingPool());
+        ADDRESSES_PROVIDER = _addressesProvider;
+        LENDING_POOL = ILendingPool(_addressesProvider.getLendingPool());
         loanCore = _loanCore;
         legacyLoanCore = _legacyLoanCore;
         originationController = _originationController;
@@ -152,8 +154,10 @@ contract FlashRollover is IFlashRollover {
 
         bytes memory params = abi.encode(opData);
 
+        console.log("GONNA FLASH");
+
         // Flash loan based on principal + interest
-        lendingPool.flashLoan(
+        LENDING_POOL.flashLoan(
             address(this),
             assets,
             amounts,
@@ -177,10 +181,12 @@ contract FlashRollover is IFlashRollover {
         address initiator,
         bytes calldata params
     ) external override returns (bool) {
+        console.log("GOT CALLBACK");
+
         // TODO: Security check.
         // Can an attacker use this to drain borrower funds? Feels like maybe
 
-        require(msg.sender == address(lendingPool), "Unknown lender");
+        require(msg.sender == address(LENDING_POOL), "Unknown lender");
         require(initiator == address(this), "Not initiator");
         require(IERC20(assets[0]).balanceOf(address(this)) >= amounts[0], "Did not receive loan funds");
 
@@ -195,6 +201,7 @@ contract FlashRollover is IFlashRollover {
         uint256[] calldata premiums,
         OperationData memory opData
     ) internal returns (bool) {
+        console.log("EXECUTING OP");
         OperationContracts memory opContracts = _getContracts(opData.isLegacy);
 
         // Get loan details
@@ -226,13 +233,15 @@ contract FlashRollover is IFlashRollover {
         }
 
         // Approve all amounts for flash loan repayment
-        IERC20(assets[0]).approve(address(lendingPool), flashAmountDue);
+        IERC20(assets[0]).approve(address(LENDING_POOL), flashAmountDue);
 
         emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
 
         if (opData.isLegacy) {
             emit Migration(address(opContracts.loanCore), address(opContracts.newLoanLoanCore), newLoanId);
         }
+
+        console.log("DONE EXECUTING");
 
         return true;
     }

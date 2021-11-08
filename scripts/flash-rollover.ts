@@ -7,6 +7,7 @@ import { createLoanTermsSignature } from "../test/utils/eip712";
 
 import { main as deploy } from "./deploy";
 import { main as redeploy } from "./redeploy-loancore";
+import { main as deployFlashRollover } from "./deploy-flash-rollover";
 import { deployNFTs, mintAndDistribute, SECTION_SEPARATOR } from "./bootstrap-tools";
 import { ORIGINATOR_ROLE, REPAYER_ROLE } from "./constants";
 
@@ -21,23 +22,28 @@ export async function main(): Promise<void> {
 
     // Deploy the smart contracts
     const legacyContracts = await deploy();
-    const { assetWrapper } = legacyContracts;
+    const { assetWrapper, feeController } = legacyContracts;
     const currentContracts = await redeploy(
         ORIGINATOR_ROLE,
         REPAYER_ROLE,
         assetWrapper.address,
-        legacyContracts.feeController.address
+        feeController.address
     );
 
-    const FlashRollover = await ethers.getContractFactory("FlashRollover");
-    const flashRollover = await FlashRollover.deploy(
-        "",
+    const { flashRollover } = await deployFlashRollover(
+        "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5",
         currentContracts.loanCore.address,
         legacyContracts.loanCore.address,
-
-
+        currentContracts.originationController.address,
+        currentContracts.repaymentController.address,
+        legacyContracts.repaymentController.address,
+        currentContracts.borrowerNote.address,
+        legacyContracts.borrowerNote.address,
+        currentContracts.lenderNote.address,
+        legacyContracts.lenderNote.address,
+        assetWrapper.address,
+        feeController.address
     );
-    await flashRollover.deployed();
 
     // Mint some NFTs
     console.log(SECTION_SEPARATOR);
@@ -108,9 +114,18 @@ export async function main(): Promise<void> {
     await assetWrapper.connect(signer1).approve(legacyContracts.originationController.address, aw1Bundle1Id);
 
     // Borrower signed, so lender will initialize
-    await legacyContracts.originationController
+    const loan1Tx = await legacyContracts.originationController
         .connect(signer2)
         .initializeLoan(loan1Terms, signer1.address, signer2.address, loan1V, loan1R, loan1S);
+    await loan1Tx.wait();
+
+    const event1Filter = legacyContracts.loanCore.filters.LoanStarted(null, null, null);
+    const loan1Events = await legacyContracts.loanCore.queryFilter(event1Filter, "latest");
+    const loan1LoanId = loan1Events[0].args?.loanId;
+
+    if (!loan1LoanId) {
+        throw new Error('Could not get loan 1 ID from events.');
+    }
 
     console.log(
         `(Loan 1) Signer ${signer1.address} borrowed 10 WETH at 15% interest from ${signer2.address} against Bundle 1 using LoanCore at ${legacyContracts.loanCore.address}`,
@@ -139,9 +154,18 @@ export async function main(): Promise<void> {
     await assetWrapper.connect(signer1).approve(currentContracts.originationController.address, aw1Bundle2Id);
 
     // Borrower signed, so lender will initialize
-    await currentContracts.originationController
+    const loan2Tx = await currentContracts.originationController
         .connect(signer3)
         .initializeLoan(loan2Terms, signer1.address, signer3.address, loan2V, loan2R, loan2S);
+    await loan2Tx.wait();
+
+    const event2Filter = currentContracts.loanCore.filters.LoanStarted(null, null, null);
+    const loan2Events = await currentContracts.loanCore.queryFilter(event2Filter, "latest");
+    const loan2LoanId = loan2Events[0].args?.loanId;
+
+    if (!loan2LoanId) {
+        throw new Error('Could not get loan 2 ID from events.');
+    }
 
     console.log(
         `(Loan 2) Signer ${signer1.address} borrowed 10000 PAWN at 5% interest from ${signer3.address} against Bundle 2 using LoanCore at ${currentContracts.loanCore.address}`,
@@ -151,6 +175,61 @@ export async function main(): Promise<void> {
     console.log(SECTION_SEPARATOR);
     console.log("Rolling over old loan...\n");
 
+    // Rolling over loan 1 (lender signs now)
+    const loan1RolloverTerms: LoanTerms = {
+        durationSecs: relSecondsFromMs(oneWeekMs),
+        principal: ethers.utils.parseEther("30"),
+        interest: ethers.utils.parseEther("3"),
+        collateralTokenId: aw1Bundle1Id,
+        payableCurrency: weth.address,
+    };
+
+    const {
+        v: loan1RolloverV,
+        r: loan1RolloverR,
+        s: loan1RolloverS,
+    } = await createLoanTermsSignature(legacyContracts.originationController.address, "OriginationController", loan1RolloverTerms, signer2);
+
+    await flashRollover.connect(signer1).rolloverLoan(
+        true,
+        loan1LoanId,
+        loan1RolloverTerms,
+        loan1RolloverV,
+        loan1RolloverR,
+        loan1RolloverS
+    );
+
+    // Roll over both loans
+    console.log(SECTION_SEPARATOR);
+    console.log("Rolling over new loan...\n");
+
+    // Rolling over loan 1 (lender signs now)
+    const loan2RolloverTerms: LoanTerms = {
+        durationSecs: relSecondsFromMs(oneWeekMs) - 10,
+        principal: ethers.utils.parseEther("9000"),
+        interest: ethers.utils.parseEther("500"),
+        collateralTokenId: aw1Bundle2Id,
+        payableCurrency: pawnToken.address,
+    };
+
+    const {
+        v: loan2RolloverV,
+        r: loan2RolloverR,
+        s: loan2RolloverS,
+    } = await createLoanTermsSignature(legacyContracts.originationController.address, "OriginationController", loan2RolloverTerms, signer3);
+
+    await flashRollover.connect(signer1).rolloverLoan(
+        true,
+        loan2LoanId,
+        loan2RolloverTerms,
+        loan2RolloverV,
+        loan2RolloverR,
+        loan2RolloverS
+    );
+
+    // Roll over both loans
+    console.log(SECTION_SEPARATOR);
+    console.log("Rollover successful.\n");
 }
 
 // We recommend this pattern to be able to use async/await everywhere
