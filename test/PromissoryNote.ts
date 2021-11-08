@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre from "hardhat";
+import hre, { waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber, BigNumberish } from "ethers";
 
@@ -39,7 +40,7 @@ describe("PromissoryNote", () => {
         };
     };
 
-    const setupTestContext = async (): Promise<TestContext> => {
+    const fixture = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
         const mockAssetWrapper = <MockERC721>await deploy("MockERC721", signers[0], ["Mock AssetWrapper", "MA"]);
         const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
@@ -111,13 +112,13 @@ describe("PromissoryNote", () => {
 
     describe("mint", () => {
         it("Reverts if sender is not loanCore", async () => {
-            const { lenderPromissoryNote: promissoryNote, user, other } = await setupTestContext();
+            const { lenderPromissoryNote: promissoryNote, user, other } = await loadFixture(fixture);
             const transaction = promissoryNote.connect(other).mint(await user.getAddress(), 1);
             await expect(transaction).to.be.reverted;
         });
 
         it("Assigns a PromissoryNote NFT to the recipient", async () => {
-            const { lenderPromissoryNote: promissoryNote, user, other } = await setupTestContext();
+            const { lenderPromissoryNote: promissoryNote, user, other } = await loadFixture(fixture);
             const transaction = await promissoryNote.connect(user).mint(await other.getAddress(), 1);
             const receipt = await transaction.wait();
 
@@ -138,7 +139,7 @@ describe("PromissoryNote", () => {
                 mockAssetWrapper,
                 user,
                 other,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
             const loanTerms = createLoanTerms(mockAssetWrapper.address);
             const promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
             const loanId = await createLoan(loanCore, user, loanTerms);
@@ -158,7 +159,7 @@ describe("PromissoryNote", () => {
                 loanCore,
                 mockAssetWrapper,
                 user,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
             const promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
             const loanTerms = createLoanTerms(mockAssetWrapper.address);
             const loanId = await createLoan(loanCore, user, loanTerms);
@@ -168,7 +169,7 @@ describe("PromissoryNote", () => {
             await repayLoan(loanCore, user, loanId);
             const loanDataAfterRepay = await loanCore.connect(user).getLoan(loanId);
             expect(loanDataAfterRepay.state).to.equal(LoanState.Repaid);
-            expect(promissoryNote.connect(user).burn(promissoryNoteId));
+            await expect(promissoryNote.connect(user).burn(promissoryNoteId)).to.not.be.reverted;
         });
     });
 
@@ -222,7 +223,7 @@ describe("PromissoryNote", () => {
         let s: Buffer;
 
         beforeEach(async () => {
-            ({ borrowerPromissoryNote: promissoryNote, user, other } = await setupTestContext());
+            ({ borrowerPromissoryNote: promissoryNote, user, other } = await loadFixture(fixture));
             promissoryNoteId = await mintPromissoryNote(promissoryNote, user);
 
             const data = buildData(

@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre from "hardhat";
+import hre, { waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 import { deploy } from "./utils/contracts";
@@ -34,7 +35,7 @@ const initializeBundle = async (AssetWrapper: AssetWrapper, user: Signer): Promi
     }
 };
 
-const setupTestContext = async (): Promise<TestContext> => {
+const fixture = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
     const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
@@ -115,7 +116,7 @@ describe("OriginationController", () => {
                 user: lender,
                 other: borrower,
                 signers,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -145,7 +146,7 @@ describe("OriginationController", () => {
                 assetWrapper,
                 user: lender,
                 other: borrower,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -174,7 +175,7 @@ describe("OriginationController", () => {
                 assetWrapper,
                 user: lender,
                 other: borrower,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -203,7 +204,7 @@ describe("OriginationController", () => {
                 assetWrapper,
                 user: lender,
                 other: borrower,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -233,7 +234,7 @@ describe("OriginationController", () => {
                 user: lender,
                 other: borrower,
                 signers,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -263,7 +264,7 @@ describe("OriginationController", () => {
                 assetWrapper,
                 user: lender,
                 other: borrower,
-            } = await setupTestContext();
+            } = await loadFixture(fixture);
 
             const bundleId = await initializeBundle(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -297,7 +298,7 @@ describe("OriginationController", () => {
                     mockERC20,
                     lenderPromissoryNote,
                     borrowerPromissoryNote,
-                } = await setupTestContext();
+                } = await loadFixture(fixture);
 
                 const bundleId = await initializeBundle(assetWrapper, user);
                 const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -349,7 +350,7 @@ describe("OriginationController", () => {
                     assetWrapper,
                     user: lender,
                     other: borrower,
-                } = await setupTestContext();
+                } = await loadFixture(fixture);
 
                 const bundleId = await initializeBundle(assetWrapper, borrower);
                 const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });

@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre, { ethers } from "hardhat";
+import hre, { ethers, waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 
@@ -40,7 +41,7 @@ describe("Integration", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const setupTestContext = async (): Promise<TestContext> => {
+    const fixture = async (): Promise<TestContext> => {
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
@@ -127,8 +128,9 @@ describe("Integration", () => {
 
     describe("Originate Loan", function () {
         it("should successfully create a loan", async () => {
-            const { originationController, mockERC20, loanCore, assetWrapper, lender, borrower } =
-                await setupTestContext();
+            const { originationController, mockERC20, loanCore, assetWrapper, lender, borrower } = await loadFixture(
+                fixture,
+            );
 
             const bundleId = await createWnft(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -158,7 +160,7 @@ describe("Integration", () => {
         });
 
         it("should fail to start loan if wNFT is withdrawn", async () => {
-            const { originationController, mockERC20, assetWrapper, lender, borrower } = await setupTestContext();
+            const { originationController, mockERC20, assetWrapper, lender, borrower } = await loadFixture(fixture);
 
             const bundleId = await createWnft(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -183,7 +185,7 @@ describe("Integration", () => {
         });
 
         it("should fail to create a loan with nonexistent collateral", async () => {
-            const { originationController, mockERC20, lender, borrower } = await setupTestContext();
+            const { originationController, mockERC20, lender, borrower } = await loadFixture(fixture);
 
             const bundleId = BigNumber.from(25);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
@@ -205,7 +207,7 @@ describe("Integration", () => {
         });
 
         it("should fail to create a loan with passed due date", async () => {
-            const { originationController, mockERC20, assetWrapper, lender, borrower } = await setupTestContext();
+            const { originationController, mockERC20, assetWrapper, lender, borrower } = await loadFixture(fixture);
 
             const bundleId = await createWnft(assetWrapper, borrower);
             const loanTerms = createLoanTerms(mockERC20.address, {
@@ -282,7 +284,7 @@ describe("Integration", () => {
         };
 
         it("should successfully repay loan", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, assetWrapper, mockERC20, loanCore, borrower, lender } = context;
             const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
 
@@ -306,7 +308,7 @@ describe("Integration", () => {
         });
 
         it("should allow the collateral to be reused after repay", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, mockERC20, loanCore, borrower } = context;
             const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
 
@@ -329,7 +331,7 @@ describe("Integration", () => {
         });
 
         it("fails if payable currency is not approved", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, mockERC20, borrower } = context;
             const { loanTerms, loanData } = await initializeLoan(context);
 
@@ -341,7 +343,7 @@ describe("Integration", () => {
         });
 
         it("fails with invalid note ID", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, mockERC20, borrower } = context;
             const { loanTerms } = await initializeLoan(context);
 
@@ -406,7 +408,7 @@ describe("Integration", () => {
         };
 
         it("should successfully claim loan", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, assetWrapper, loanCore, lender } = context;
             const { loanId, loanData, bundleId } = await initializeLoan(context);
 
@@ -423,7 +425,7 @@ describe("Integration", () => {
         });
 
         it("should allow the collateral to be reused after claim", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, assetWrapper, loanCore, lender, borrower } = context;
             const { loanId, loanData, bundleId } = await initializeLoan(context);
 
@@ -449,7 +451,7 @@ describe("Integration", () => {
         });
 
         it("fails if not past durationSecs", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, lender } = context;
             const { loanData } = await initializeLoan(context);
 
@@ -459,7 +461,7 @@ describe("Integration", () => {
         });
 
         it("fails for invalid noteId", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, lender } = context;
 
             await blockchainTime.increaseTime(5000);
@@ -469,7 +471,7 @@ describe("Integration", () => {
         });
 
         it("fails if not called by lender", async () => {
-            const context = await setupTestContext();
+            const context = await loadFixture(fixture);
             const { repaymentController, borrower } = context;
             const { loanData } = await initializeLoan(context);
 
