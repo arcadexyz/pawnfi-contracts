@@ -10,7 +10,7 @@ import { resolve } from "path";
 
 import { config as dotenvConfig } from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
-import { NetworkUserConfig } from "hardhat/types";
+import { NetworkUserConfig, HardhatNetworkUserConfig } from "hardhat/types";
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });
 
@@ -33,6 +33,8 @@ if (!process.env.MNEMONIC) {
     mnemonic = process.env.MNEMONIC;
 }
 
+const forkMainnet = process.env.FORK_MAINNET === "true";
+
 let alchemyApiKey: string;
 if (!process.env.ALCHEMY_API_KEY) {
     alchemyApiKey = "test";
@@ -54,6 +56,25 @@ function createTestnetConfig(network: keyof typeof chainIds): NetworkUserConfig 
     };
 }
 
+function createHardhatConfig(): HardhatNetworkUserConfig {
+    const config = {
+        accounts: {
+            mnemonic,
+        },
+        chainId: chainIds.hardhat,
+    };
+
+    if (forkMainnet) {
+        return Object.assign(config, {
+            forking: {
+                url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`,
+            },
+        });
+    }
+
+    return config;
+}
+
 const config: HardhatUserConfig = {
     defaultNetwork: "hardhat",
     gasReporter: {
@@ -65,15 +86,7 @@ const config: HardhatUserConfig = {
         outputFile: process.env.REPORT_GAS_OUTPUT,
     },
     networks: {
-        hardhat: {
-            forking: {
-                url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`,
-            },
-            accounts: {
-                mnemonic,
-            },
-            chainId: chainIds.hardhat,
-        },
+        hardhat: createHardhatConfig(),
         goerli: createTestnetConfig("goerli"),
         kovan: createTestnetConfig("kovan"),
         rinkeby: createTestnetConfig("rinkeby"),
