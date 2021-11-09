@@ -54,9 +54,12 @@ contract FlashRollover is IFlashRollover {
         IERC721 newLoanBorrowerNote;
     }
 
+    /* solhint-disable var-name-mixedcase */
     // AAVE Contracts
+    // Variable names are in upper case to fulfill IFlashLoanReceiver interface
     ILendingPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
     ILendingPool public immutable override LENDING_POOL;
+    /* solhint-enable var-name-mixedcase */
 
     // Pawn.fi Contracts
     ILoanCore public immutable loanCore;
@@ -153,15 +156,7 @@ contract FlashRollover is IFlashRollover {
         bytes memory params = abi.encode(opData);
 
         // Flash loan based on principal + interest
-        LENDING_POOL.flashLoan(
-            address(this),
-            assets,
-            amounts,
-            modes,
-            address(this),
-            params,
-            1
-        );
+        LENDING_POOL.flashLoan(address(this), assets, amounts, modes, address(this), params, 1);
 
         // Should not have any funds leftover
         require(
@@ -251,10 +246,9 @@ contract FlashRollover is IFlashRollover {
             uint256 leftoverPrincipal
         )
     {
-
         // Make sure new loan, minus pawn fees, can be repaid
         flashAmountDue = amount + premium;
-        uint256 willReceive = newPrincipal - (newPrincipal * originationFee / 10_000);
+        uint256 willReceive = newPrincipal - ((newPrincipal * originationFee) / 10_000);
 
         if (flashAmountDue > willReceive) {
             // Not enough - have borrower pay the difference

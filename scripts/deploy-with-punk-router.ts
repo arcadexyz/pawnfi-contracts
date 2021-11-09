@@ -3,10 +3,7 @@ import { ethers } from "hardhat";
 
 import { main as deployMain, DeployedResources } from "./deploy";
 
-import {
-    ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE,
-    REPAYER_ROLE as DEFAULT_REPAYER_ROLE
-} from "./constants";
+import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REPAYER_ROLE } from "./constants";
 export interface DeployedResourcesWithPunks extends DeployedResources {
     punkRouter: Contract;
 }

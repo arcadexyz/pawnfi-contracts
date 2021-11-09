@@ -24,5 +24,5 @@ module.exports = {
     grep: "@skip-on-coverage",
     invert: true,
   },
-  configureYulOptimizer: true
+  configureYulOptimizer: true,
 };

@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../interfaces/IFlashRollover.sol";
 
+/* solhint-disable no-unused-vars */
 contract MockAddressesProvider {
     address public lendingPool;
 
@@ -33,7 +34,7 @@ contract MockLendingPool {
         uint16 referralCode
     ) external {
         uint256 startBalance = IERC20(assets[0]).balanceOf(address(this));
-        uint256 premium = amounts[0] * loanFeeBps / 10_000;
+        uint256 premium = (amounts[0] * loanFeeBps) / 10_000;
         uint256[] memory premiums = new uint256[](1);
         premiums[0] = premium;
 
@@ -41,16 +42,13 @@ contract MockLendingPool {
         IERC20(assets[0]).transfer(receiverAddress, amounts[0]);
 
         // Call the callback operation
-        IFlashLoanReceiver(receiverAddress).executeOperation(
-            assets,
-            amounts,
-            premiums,
-            msg.sender,
-            params
-        );
+        IFlashLoanReceiver(receiverAddress).executeOperation(assets, amounts, premiums, msg.sender, params);
 
         emit FlashLoan(amounts[0], premium);
         // Require repayment plus premium
-        require(IERC20(assets[0]).transferFrom(receiverAddress, address(this), amounts[0] + premiums[0]));
+        require(
+            IERC20(assets[0]).transferFrom(receiverAddress, address(this), amounts[0] + premiums[0]),
+            "Failed repayment"
+        );
     }
 }

@@ -1,4 +1,3 @@
-import { Contract } from "ethers";
 import { ethers } from "hardhat";
 
 import { FlashRollover } from "../typechain";
@@ -20,7 +19,7 @@ export async function main(
     LENDER_NOTE_ADDRESS: string,
     LEGACY_LENDER_NOTE_ADDRESS = "0xD96e4D03420aA33a3FE91f57D03D8Ef69dE1e863",
     ASSET_WRAPPER_ADDRESS = "0x1F563CDd688ad47b75E474FDe74E87C643d129b7",
-    FEE_CONTROLLER_ADDRESS = "0xfc2b8D5C60c8E8BbF8d6dc685F03193472e39587"
+    FEE_CONTROLLER_ADDRESS = "0xfc2b8D5C60c8E8BbF8d6dc685F03193472e39587",
 ): Promise<DeployedResources> {
     // Hardhat always runs the compile task when running scripts through it.
     // If this runs in a standalone fashion you may want to call compile manually
@@ -28,19 +27,21 @@ export async function main(
     // await run("compile");
 
     const FlashRolloverFactory = await ethers.getContractFactory("FlashRollover");
-    const flashRollover = <FlashRollover>await FlashRolloverFactory.deploy(
-        ADDRESSES_PROVIDER_ADDRESS,
-        LOAN_CORE_ADDRESS,
-        LEGACY_LOAN_CORE_ADDRESS,
-        ORIGINATION_CONTROLLER_ADDRESS,
-        REPAYMENT_CONTROLLER_ADDDRESS,
-        LEGACY_REPAYMENT_CONTROLLER_ADDRESS,
-        BORROWER_NOTE_ADDRESS,
-        LEGACY_BORROWER_NOTE_ADDRESS,
-        LENDER_NOTE_ADDRESS,
-        LEGACY_LENDER_NOTE_ADDRESS,
-        ASSET_WRAPPER_ADDRESS,
-        FEE_CONTROLLER_ADDRESS
+    const flashRollover = <FlashRollover>(
+        await FlashRolloverFactory.deploy(
+            ADDRESSES_PROVIDER_ADDRESS,
+            LOAN_CORE_ADDRESS,
+            LEGACY_LOAN_CORE_ADDRESS,
+            ORIGINATION_CONTROLLER_ADDRESS,
+            REPAYMENT_CONTROLLER_ADDDRESS,
+            LEGACY_REPAYMENT_CONTROLLER_ADDRESS,
+            BORROWER_NOTE_ADDRESS,
+            LEGACY_BORROWER_NOTE_ADDRESS,
+            LENDER_NOTE_ADDRESS,
+            LEGACY_LENDER_NOTE_ADDRESS,
+            ASSET_WRAPPER_ADDRESS,
+            FEE_CONTROLLER_ADDRESS,
+        )
     );
 
     await flashRollover.deployed();

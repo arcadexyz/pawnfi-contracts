@@ -14,8 +14,12 @@ interface IFlashLoanReceiver {
         bytes calldata params
     ) external returns (bool);
 
+    // Function names defined by AAVE
+    /* solhint-disable func-name-mixedcase */
     function ADDRESSES_PROVIDER() external view returns (ILendingPoolAddressesProvider);
+
     function LENDING_POOL() external view returns (ILendingPool);
+    /* solhint-enable func-name-mixedcase */
 }
 
 interface IFlashRollover is IFlashLoanReceiver {

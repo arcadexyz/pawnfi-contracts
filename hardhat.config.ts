@@ -37,7 +37,7 @@ const forkMainnet = process.env.FORK_MAINNET === "true";
 
 let alchemyApiKey: string;
 if (!process.env.ALCHEMY_API_KEY) {
-    throw new Error('Please set process.env.ALCHEMY_API_KEY');
+    throw new Error("Please set process.env.ALCHEMY_API_KEY");
 } else {
     alchemyApiKey = process.env.ALCHEMY_API_KEY;
 }
@@ -121,12 +121,12 @@ const config: HardhatUserConfig = {
                     // https://hardhat.org/hardhat-network/#solidity-optimizer-support
                     optimizer: {
                         enabled: optimizerEnabled,
-                        runs: 999999
+                        runs: 999999,
                     },
                 },
             },
             {
-                version: "0.4.12"
+                version: "0.4.12",
             },
         ],
     },

@@ -6,13 +6,10 @@ import {
     LoanCore,
     PromissoryNote,
     RepaymentController,
-    OriginationController
+    OriginationController,
 } from "../typechain";
 
-import {
-    ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE,
-    REPAYER_ROLE as DEFAULT_REPAYER_ROLE
-} from "./constants";
+import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REPAYER_ROLE } from "./constants";
 
 /**
  *  October 2021: LoanCore Redeploy
@@ -25,7 +22,6 @@ import {
  *      - RepaymentController (LoanCore address is immutable)
  *
  */
-
 
 export interface DeployedResources {
     assetWrapper: AssetWrapper;
@@ -71,7 +67,9 @@ export async function main(
     console.log("LenderNote deployed to:", lenderNoteAddr);
 
     const RepaymentControllerFactory = await ethers.getContractFactory("RepaymentController");
-    const repaymentController = <RepaymentController>await RepaymentControllerFactory.deploy(loanCore.address, borrowerNoteAddr, lenderNoteAddr);
+    const repaymentController = <RepaymentController>(
+        await RepaymentControllerFactory.deploy(loanCore.address, borrowerNoteAddr, lenderNoteAddr)
+    );
     await repaymentController.deployed();
     const updateRepaymentControllerPermissions = await loanCore.grantRole(REPAYER_ROLE, repaymentController.address);
     await updateRepaymentControllerPermissions.wait();
@@ -79,7 +77,9 @@ export async function main(
     console.log("RepaymentController deployed to:", repaymentController.address);
 
     const OriginationControllerFactory = await ethers.getContractFactory("OriginationController");
-    const originationController = <OriginationController>await OriginationControllerFactory.deploy(loanCore.address, ASSET_WRAPPER_ADDRESS);
+    const originationController = <OriginationController>(
+        await OriginationControllerFactory.deploy(loanCore.address, ASSET_WRAPPER_ADDRESS)
+    );
     await originationController.deployed();
     const updateOriginationControllerPermissions = await loanCore.grantRole(
         ORIGINATOR_ROLE,
