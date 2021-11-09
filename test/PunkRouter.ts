@@ -1,6 +1,5 @@
 import { expect } from "chai";
-import hre, { waffle } from "hardhat";
-const { loadFixture } = waffle;
+import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 
@@ -31,7 +30,7 @@ describe("PunkRouter", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const fixture = async (): Promise<TestContext> => {
+    const setupTestContext = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
         const punks = <CryptoPunksMarket>await deploy("CryptoPunksMarket", signers[0], []);
         const wrappedPunks = <WrappedPunk>await deploy("WrappedPunk", signers[0], [punks.address]);
@@ -51,8 +50,8 @@ describe("PunkRouter", () => {
         };
     };
 
-    const stuckFixture = async (): Promise<TestContextForDepositStuck> => {
-        const { punks, punkRouter, user, other } = await fixture();
+    const setupTestContextForDepositStuck = async (): Promise<TestContextForDepositStuck> => {
+        const { punks, punkRouter, user, other } = await setupTestContext();
         const punkIndex = 1234;
         // claim ownership of punk
         await punks.setInitialOwner(await user.getAddress(), punkIndex);
@@ -84,7 +83,7 @@ describe("PunkRouter", () => {
 
     describe("Deposit CryptoPunk", function () {
         it("should successfully deposit a cryptopunk into bundle", async () => {
-            const { assetWrapper, punks, wrappedPunks, punkRouter, user } = await loadFixture(fixture);
+            const { assetWrapper, punks, wrappedPunks, punkRouter, user } = await setupTestContext();
             const punkIndex = 1234;
             // claim ownership of punk
             await punks.setInitialOwner(await user.getAddress(), punkIndex);
@@ -105,7 +104,7 @@ describe("PunkRouter", () => {
         });
 
         it("should fail if not approved", async () => {
-            const { assetWrapper, punks, punkRouter, user } = await loadFixture(fixture);
+            const { assetWrapper, punks, punkRouter, user } = await setupTestContext();
             const punkIndex = 1234;
             // claim ownership of punk
             await punks.setInitialOwner(await user.getAddress(), punkIndex);
@@ -117,7 +116,7 @@ describe("PunkRouter", () => {
         });
 
         it("should fail if not owner", async () => {
-            const { assetWrapper, punks, punkRouter, user, other } = await loadFixture(fixture);
+            const { assetWrapper, punks, punkRouter, user, other } = await setupTestContext();
             const punkIndex = 1234;
             // claim ownership of punk
             await punks.setInitialOwner(await user.getAddress(), punkIndex);
@@ -134,7 +133,7 @@ describe("PunkRouter", () => {
 
     describe("Withdraw CryptoPunk held by PunkRouter", function () {
         it("should successfully withdraw punk", async () => {
-            const { punks, punkRouter, other, punkIndex } = await loadFixture(stuckFixture);
+            const { punks, punkRouter, other, punkIndex } = await setupTestContextForDepositStuck();
             await expect(punkRouter.withdrawPunk(punkIndex, other.address))
                 .to.emit(punks, "Transfer")
                 .withArgs(punkRouter.address, other.address, 1)
@@ -143,29 +142,10 @@ describe("PunkRouter", () => {
         });
 
         it("should fail if not designated admin", async () => {
-            const { punkRouter, owner, other, punkIndex } = await loadFixture(stuckFixture);
+            const { punkRouter, owner, other, punkIndex } = await setupTestContextForDepositStuck();
             await expect(punkRouter.connect(other).withdrawPunk(punkIndex, owner.address)).to.be.revertedWith(
                 "Ownable: caller is not the owner",
             );
         });
     });
-  });
-
-  describe("Withdraw CryptoPunk held by PunkRouter", function () {
-    it("should successfully withdraw punk", async () => {
-      const { punks, punkRouter, other, punkIndex } = await setupTestContextForDepositStuck();
-      await expect(punkRouter.withdrawPunk(punkIndex, other.address))
-        .to.emit(punks, "Transfer")
-        .withArgs(punkRouter.address, other.address, 1)
-        .to.emit(punks, "PunkTransfer")
-        .withArgs(punkRouter.address, other.address, punkIndex);
-    });
-
-    it("should fail if not designated admin", async () => {
-      const { punkRouter, owner, other, punkIndex } = await setupTestContextForDepositStuck();
-      await expect(punkRouter.connect(other).withdrawPunk(punkIndex, owner.address)).to.be.revertedWith(
-        "Ownable: caller is not the owner",
-      );
-    });
-  });
 });
