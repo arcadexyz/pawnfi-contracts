@@ -109,7 +109,6 @@ export async function main(): Promise<void> {
     console.log("Initializing loan with old LoanCore...\n");
 
     // Start some loans
-    // TODO: Do loans in USDC so that AAVE has reserves
     const signer2 = signers[2];
     const oneDayMs = 1000 * 60 * 60 * 24;
     const oneWeekMs = oneDayMs * 7;
