@@ -1,6 +1,6 @@
 /* eslint no-unused-vars: 0 */
 
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 
 import { LoanTerms } from "../test/utils/types";
 import { createLoanTermsSignature } from "../test/utils/eip712";
@@ -10,6 +10,7 @@ import { main as redeploy } from "./redeploy-loancore";
 import { main as deployFlashRollover } from "./deploy-flash-rollover";
 import { deployNFTs, mintAndDistribute, SECTION_SEPARATOR } from "./bootstrap-tools";
 import { ORIGINATOR_ROLE, REPAYER_ROLE } from "./constants";
+import { MockERC20 } from "../typechain";
 
 export async function main(): Promise<void> {
     // Bootstrap five accounts only.
@@ -54,6 +55,25 @@ export async function main(): Promise<void> {
     console.log("Distributing assets...\n");
     await mintAndDistribute(signers, weth, pawnToken, usd, punks, art, beats);
 
+    // Also distribute USDC by impersonating a large account
+    const WHALE = "0xe78388b4ce79068e89bf8aa7f218ef6b9ab0e9d0";
+    const USDC_ADDRESS = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+    const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+    await hre.network.provider.request({
+        method: 'hardhat_impersonateAccount',
+        params: [WHALE],
+    });
+
+    const whaleSigner = await hre.ethers.getSigner(WHALE);
+
+    const MockERC20Factory = await ethers.getContractFactory("MockERC20");
+    const usdc = <MockERC20>await MockERC20Factory.attach(USDC_ADDRESS);
+    const realWeth = <MockERC20>await MockERC20Factory.attach(WETH_ADDRESS);
+
+    // Send USDC to lenders
+    await realWeth.connect(whaleSigner).transfer(signers[2].address, ethers.utils.parseEther("500"));
+    await usdc.connect(whaleSigner).transfer(signers[3].address, ethers.utils.parseUnits("1000000", 6));
+
     // Wrap some assets and create 2 bundles - one for legacy and one for new contract
     console.log(SECTION_SEPARATOR);
     console.log("Wrapping assets...\n");
@@ -89,6 +109,7 @@ export async function main(): Promise<void> {
     console.log("Initializing loan with old LoanCore...\n");
 
     // Start some loans
+    // TODO: Do loans in USDC so that AAVE has reserves
     const signer2 = signers[2];
     const oneDayMs = 1000 * 60 * 60 * 24;
     const oneWeekMs = oneDayMs * 7;
@@ -101,7 +122,7 @@ export async function main(): Promise<void> {
         principal: ethers.utils.parseEther("10"),
         interest: ethers.utils.parseEther("1.5"),
         collateralTokenId: aw1Bundle1Id,
-        payableCurrency: weth.address,
+        payableCurrency: realWeth.address,
     };
 
     const {
@@ -110,7 +131,7 @@ export async function main(): Promise<void> {
         s: loan1S,
     } = await createLoanTermsSignature(legacyContracts.originationController.address, "OriginationController", loan1Terms, signer1);
 
-    await weth.connect(signer2).approve(legacyContracts.originationController.address, ethers.utils.parseEther("10"));
+    await realWeth.connect(signer2).approve(legacyContracts.originationController.address, ethers.utils.parseEther("10"));
     await assetWrapper.connect(signer1).approve(legacyContracts.originationController.address, aw1Bundle1Id);
 
     // Borrower signed, so lender will initialize
@@ -138,10 +159,10 @@ export async function main(): Promise<void> {
 
     const loan2Terms: LoanTerms = {
         durationSecs: relSecondsFromMs(oneWeekMs) - 10,
-        principal: ethers.utils.parseEther("10000"),
-        interest: ethers.utils.parseEther("500"),
+        principal: ethers.utils.parseUnits("10000", 6),
+        interest: ethers.utils.parseUnits("500", 6),
         collateralTokenId: aw1Bundle2Id,
-        payableCurrency: pawnToken.address,
+        payableCurrency: usdc.address,
     };
 
     const {
@@ -150,7 +171,7 @@ export async function main(): Promise<void> {
         s: loan2S,
     } = await createLoanTermsSignature(currentContracts.originationController.address, "OriginationController", loan2Terms, signer1);
 
-    await pawnToken.connect(signer3).approve(currentContracts.originationController.address, ethers.utils.parseEther("10000"));
+    await usdc.connect(signer3).approve(currentContracts.originationController.address, ethers.utils.parseEther("10000"));
     await assetWrapper.connect(signer1).approve(currentContracts.originationController.address, aw1Bundle2Id);
 
     // Borrower signed, so lender will initialize
@@ -181,14 +202,25 @@ export async function main(): Promise<void> {
         principal: ethers.utils.parseEther("30"),
         interest: ethers.utils.parseEther("3"),
         collateralTokenId: aw1Bundle1Id,
-        payableCurrency: weth.address,
+        payableCurrency: realWeth.address,
     };
 
     const {
         v: loan1RolloverV,
         r: loan1RolloverR,
         s: loan1RolloverS,
-    } = await createLoanTermsSignature(legacyContracts.originationController.address, "OriginationController", loan1RolloverTerms, signer2);
+    } = await createLoanTermsSignature(currentContracts.originationController.address, "OriginationController", loan1RolloverTerms, signer2);
+
+    // Approve the rollover contract to take borrower note
+    const loan1Data = await legacyContracts.loanCore.getLoan(loan1LoanId);
+    const loan1BorrowerNoteId = loan1Data.borrowerNoteId;
+    await legacyContracts.borrowerNote.connect(signer1).approve(flashRollover.address, loan1BorrowerNoteId);
+
+    // Approve the rollover contract to withdraw funds from lender
+    await realWeth.connect(signer2).approve(
+        currentContracts.originationController.address,
+        ethers.utils.parseEther("100000")
+    );
 
     await flashRollover.connect(signer1).rolloverLoan(
         true,
@@ -206,20 +238,37 @@ export async function main(): Promise<void> {
     // Rolling over loan 1 (lender signs now)
     const loan2RolloverTerms: LoanTerms = {
         durationSecs: relSecondsFromMs(oneWeekMs) - 10,
-        principal: ethers.utils.parseEther("9000"),
-        interest: ethers.utils.parseEther("500"),
+        principal: ethers.utils.parseUnits("9000", 6),
+        interest: ethers.utils.parseUnits("500", 6),
         collateralTokenId: aw1Bundle2Id,
-        payableCurrency: pawnToken.address,
+        payableCurrency: usdc.address,
     };
 
     const {
         v: loan2RolloverV,
         r: loan2RolloverR,
         s: loan2RolloverS,
-    } = await createLoanTermsSignature(legacyContracts.originationController.address, "OriginationController", loan2RolloverTerms, signer3);
+    } = await createLoanTermsSignature(currentContracts.originationController.address, "OriginationController", loan2RolloverTerms, signer3);
+
+    // Approve the rollover contract to take borrower note
+    const loan2Data = await currentContracts.loanCore.getLoan(loan1LoanId);
+    const loan2BorrowerNoteId = loan2Data.borrowerNoteId;
+    await currentContracts.borrowerNote.connect(signer1).approve(flashRollover.address, loan2BorrowerNoteId);
+
+    // Approve the rollover contract to withdraw funds from lender
+    await usdc.connect(signer3).approve(
+        currentContracts.originationController.address,
+        ethers.utils.parseEther("100000")
+    );
+
+    // Approve the rollover contract to withdraw balance from borrower
+    await usdc.connect(signer1).approve(
+        flashRollover.address,
+        ethers.utils.parseEther("100000")
+    );
 
     await flashRollover.connect(signer1).rolloverLoan(
-        true,
+        false,
         loan2LoanId,
         loan2RolloverTerms,
         loan2RolloverV,

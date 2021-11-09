@@ -1,4 +1,5 @@
 pragma solidity ^0.8.0;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -154,8 +155,6 @@ contract FlashRollover is IFlashRollover {
 
         bytes memory params = abi.encode(opData);
 
-        console.log("GONNA FLASH");
-
         // Flash loan based on principal + interest
         LENDING_POOL.flashLoan(
             address(this),
@@ -164,7 +163,7 @@ contract FlashRollover is IFlashRollover {
             modes,
             address(this),
             params,
-            0
+            1
         );
 
         // Should not have any funds leftover
@@ -181,8 +180,6 @@ contract FlashRollover is IFlashRollover {
         address initiator,
         bytes calldata params
     ) external override returns (bool) {
-        console.log("GOT CALLBACK");
-
         // TODO: Security check.
         // Can an attacker use this to drain borrower funds? Feels like maybe
 
@@ -201,7 +198,6 @@ contract FlashRollover is IFlashRollover {
         uint256[] calldata premiums,
         OperationData memory opData
     ) internal returns (bool) {
-        console.log("EXECUTING OP");
         OperationContracts memory opContracts = _getContracts(opData.isLegacy);
 
         // Get loan details
@@ -240,8 +236,6 @@ contract FlashRollover is IFlashRollover {
         if (opData.isLegacy) {
             emit Migration(address(opContracts.loanCore), address(opContracts.newLoanLoanCore), newLoanId);
         }
-
-        console.log("DONE EXECUTING");
 
         return true;
     }
