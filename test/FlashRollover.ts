@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import hre, { ethers } from "hardhat";
+import hre, { ethers, waffle } from "hardhat";
+const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 
@@ -57,7 +58,7 @@ describe("FlashRollover", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const setupTestContext = async (): Promise<TestContext> => {
+    const fixture = async (): Promise<TestContext> => {
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
@@ -230,7 +231,7 @@ describe("FlashRollover", () => {
         let flashRollover: FlashRollover;
 
         beforeEach(async () => {
-            ctx = await setupTestContext();
+            ctx = await loadFixture(fixture);
             flashRollover = ctx.common.flashRollover;
         });
 
@@ -535,7 +536,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(false, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("874509");
+            expect(gasUsed.toString()).to.equal("874525");
         });
     });
 
@@ -544,7 +545,7 @@ describe("FlashRollover", () => {
         let flashRollover: FlashRollover;
 
         beforeEach(async () => {
-            ctx = await setupTestContext();
+            ctx = await loadFixture(fixture);
             flashRollover = ctx.common.flashRollover;
         });
 
@@ -865,7 +866,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(true, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("1085774");
+            expect(gasUsed.toString()).to.equal("1085784");
         });
     });
 });
