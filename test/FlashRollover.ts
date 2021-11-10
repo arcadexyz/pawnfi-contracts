@@ -118,9 +118,7 @@ describe("FlashRollover", () => {
         const addressesProvider = <MockAddressesProvider>(
             await deploy("MockAddressesProvider", admin, [lendingPool.address])
         );
-        const flashRollover = <FlashRollover>(
-            await deploy("FlashRollover", admin, [addressesProvider.address])
-        );
+        const flashRollover = <FlashRollover>await deploy("FlashRollover", admin, [addressesProvider.address]);
 
         return {
             legacy: legacyLoanCore,
@@ -243,11 +241,13 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
-                flashRollover.connect(borrower).rolloverLoan(contracts, BigNumber.from(loanId).mul(2), loanTerms, v, r, s),
+                flashRollover
+                    .connect(borrower)
+                    .rolloverLoan(contracts, BigNumber.from(loanId).mul(2), loanTerms, v, r, s),
             ).to.be.revertedWith("ERC721: owner query for nonexistent token");
         });
 
@@ -272,7 +272,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -297,7 +297,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -327,7 +327,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -362,7 +362,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -399,7 +399,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -440,7 +440,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             // Should be second loan since contracts are redeployed every test
@@ -510,7 +510,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             // Should be second loan since contracts are redeployed every test
@@ -580,7 +580,7 @@ describe("FlashRollover", () => {
                 loanCore: currentContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: currentContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
@@ -621,11 +621,13 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
-                flashRollover.connect(borrower).rolloverLoan(contracts, BigNumber.from(loanId).mul(2), loanTerms, v, r, s),
+                flashRollover
+                    .connect(borrower)
+                    .rolloverLoan(contracts, BigNumber.from(loanId).mul(2), loanTerms, v, r, s),
             ).to.be.revertedWith("ERC721: owner query for nonexistent token");
         });
 
@@ -651,7 +653,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -676,7 +678,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -707,7 +709,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -743,7 +745,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -781,7 +783,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             await expect(
@@ -825,7 +827,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             // Should be first loan on new loancore since contracts are redeployed every test
@@ -900,7 +902,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             // Should be first loan on new loancore since contracts are redeployed every test
@@ -973,7 +975,7 @@ describe("FlashRollover", () => {
                 loanCore: legacyContracts.loanCore.address,
                 targetLoanCore: currentContracts.loanCore.address,
                 repaymentController: legacyContracts.repaymentController.address,
-                originationController: currentContracts.originationController.address
+                originationController: currentContracts.originationController.address,
             };
 
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);

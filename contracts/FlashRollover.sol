@@ -15,6 +15,17 @@ import "./interfaces/IRepaymentController.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 
+/**
+ *
+ * @dev FlashRollover allows a borrower to roll over
+ * a Pawn.fi loan into a new loan without having to
+ * repay capital. It integrate with AAVE's flash loans
+ * to provide repayment capital, which is then compensated
+ * for by the newly-issued loan.
+ *
+ * Full API docs at docs/FlashRollover.md
+ *
+ */
 contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
 
@@ -57,6 +68,7 @@ contract FlashRollover is IFlashRollover {
     // Variable names are in upper case to fulfill IFlashLoanReceiver interface
     ILendingPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
     ILendingPool public immutable override LENDING_POOL;
+
     /* solhint-enable var-name-mixedcase */
 
     constructor(ILendingPoolAddressesProvider _addressesProvider) {
@@ -154,15 +166,19 @@ contract FlashRollover is IFlashRollover {
 
         if (needFromBorrower > 0) {
             require(IERC20(assets[0]).balanceOf(borrower) >= needFromBorrower, "Borrower cannot pay");
+            require(
+                IERC20(assets[0]).allowance(borrower, address(this)) >= needFromBorrower,
+                "Need borrower to approve balance"
+            );
         }
 
         _repayLoan(opContracts, loanData);
         uint256 newLoanId = _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
         if (leftoverPrincipal > 0) {
-            IERC20(assets[0]).transfer(borrower, leftoverPrincipal);
+            IERC20(assets[0]).safeTransfer(borrower, leftoverPrincipal);
         } else if (needFromBorrower > 0) {
-            IERC20(assets[0]).transferFrom(borrower, address(this), needFromBorrower);
+            IERC20(assets[0]).safeTransferFrom(borrower, address(this), needFromBorrower);
         }
 
         // Approve all amounts for flash loan repayment
@@ -204,7 +220,8 @@ contract FlashRollover is IFlashRollover {
         }
 
         // Either leftoverPrincipal or needFromBorrower should be 0
-        require(leftoverPrincipal & needFromBorrower == 0, "_ensureFunds computation");
+
+        require(leftoverPrincipal == 0 || needFromBorrower == 0, "_ensureFunds computation");
     }
 
     function _repayLoan(OperationContracts memory contracts, LoanLibrary.LoanData memory loanData) internal {
@@ -258,17 +275,18 @@ contract FlashRollover is IFlashRollover {
     }
 
     function _getContracts(RolloverContractParams memory contracts) internal returns (OperationContracts memory) {
-        return OperationContracts({
-            loanCore: contracts.loanCore,
-            borrowerNote: contracts.loanCore.borrowerNote(),
-            lenderNote: contracts.loanCore.lenderNote(),
-            feeController: contracts.targetLoanCore.feeController(),
-            assetWrapper: contracts.loanCore.collateralToken(),
-            repaymentController: contracts.repaymentController,
-            originationController: contracts.originationController,
-            targetLoanCore: contracts.targetLoanCore,
-            targetBorrowerNote: contracts.targetLoanCore.borrowerNote()
-        });
+        return
+            OperationContracts({
+                loanCore: contracts.loanCore,
+                borrowerNote: contracts.loanCore.borrowerNote(),
+                lenderNote: contracts.loanCore.lenderNote(),
+                feeController: contracts.targetLoanCore.feeController(),
+                assetWrapper: contracts.loanCore.collateralToken(),
+                repaymentController: contracts.repaymentController,
+                originationController: contracts.originationController,
+                targetLoanCore: contracts.targetLoanCore,
+                targetBorrowerNote: contracts.targetLoanCore.borrowerNote()
+            });
     }
 
     function _validateRollover(
@@ -287,6 +305,9 @@ contract FlashRollover is IFlashRollover {
 
         require(newLoanTerms.payableCurrency == terms.payableCurrency, "Currency mismatch");
         require(newLoanTerms.collateralTokenId == terms.collateralTokenId, "Collateral mismatch");
-        require(address(loanCore.collateralToken()) == address(targetLoanCore.collateralToken()), "Non-compatible AssetWrapper");
+        require(
+            address(loanCore.collateralToken()) == address(targetLoanCore.collateralToken()),
+            "Non-compatible AssetWrapper"
+        );
     }
 }

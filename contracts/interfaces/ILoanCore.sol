@@ -11,7 +11,6 @@ import "./IAssetWrapper.sol";
 import "./IFeeController.sol";
 import "./ILoanCore.sol";
 
-
 /**
  * @dev Interface for the LoanCore contract
  */
@@ -95,7 +94,10 @@ interface ILoanCore {
      *
      */
     function borrowerNote() external returns (IPromissoryNote);
+
     function lenderNote() external returns (IPromissoryNote);
+
     function collateralToken() external returns (IERC721);
+
     function feeController() external returns (IFeeController);
 }
