@@ -164,10 +164,12 @@ contract FlashRollover is IFlashRollover {
             opData.newLoanTerms.principal
         );
 
+        IERC20 asset = IERC20(assets[0]);
+
         if (needFromBorrower > 0) {
-            require(IERC20(assets[0]).balanceOf(borrower) >= needFromBorrower, "Borrower cannot pay");
+            require(asset.balanceOf(borrower) >= needFromBorrower, "Borrower cannot pay");
             require(
-                IERC20(assets[0]).allowance(borrower, address(this)) >= needFromBorrower,
+                asset.allowance(borrower, address(this)) >= needFromBorrower,
                 "Need borrower to approve balance"
             );
         }
@@ -176,13 +178,13 @@ contract FlashRollover is IFlashRollover {
         uint256 newLoanId = _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
         if (leftoverPrincipal > 0) {
-            IERC20(assets[0]).safeTransfer(borrower, leftoverPrincipal);
+            asset.safeTransfer(borrower, leftoverPrincipal);
         } else if (needFromBorrower > 0) {
-            IERC20(assets[0]).safeTransferFrom(borrower, address(this), needFromBorrower);
+            asset.safeTransferFrom(borrower, address(this), needFromBorrower);
         }
 
         // Approve all amounts for flash loan repayment
-        IERC20(assets[0]).approve(address(LENDING_POOL), flashAmountDue);
+        asset.approve(address(LENDING_POOL), flashAmountDue);
 
         emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
 
