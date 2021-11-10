@@ -725,12 +725,14 @@ describe("FlashRollover", () => {
                 borrower,
                 lender,
                 admin,
-                legacy: legacyContracts
+                legacy: legacyContracts,
             } = ctx;
             const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
 
             const assetWrapper2 = <AssetWrapper>await deploy("AssetWrapper", admin, ["AssetWrapper", "MA"]);
-            const newLoanCore = <LoanCore>await deploy("LoanCore", admin, [assetWrapper2.address, feeController.address]);
+            const newLoanCore = <LoanCore>(
+                await deploy("LoanCore", admin, [assetWrapper2.address, feeController.address])
+            );
             const newOriginationController = <OriginationController>(
                 await deploy("OriginationController", admin, [newLoanCore.address, assetWrapper2.address])
             );
