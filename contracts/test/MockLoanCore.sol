@@ -14,8 +14,10 @@ contract MockLoanCore is ILoanCore {
     using Counters for Counters.Counter;
     Counters.Counter private loanIdTracker;
 
-    IPromissoryNote public borrowerNote;
-    IPromissoryNote public lenderNote;
+    IPromissoryNote public override borrowerNote;
+    IPromissoryNote public override lenderNote;
+    IERC721 public override collateralToken;
+    IFeeController public override feeController;
 
     mapping(uint256 => LoanLibrary.LoanData) public loans;
 

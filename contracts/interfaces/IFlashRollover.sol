@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 
 import "../external/interfaces/ILendingPool.sol";
 import "./ILoanCore.sol";
+import "./IOriginationController.sol";
+import "./IRepaymentController.sol";
 
 interface IFlashLoanReceiver {
     function executeOperation(
@@ -27,8 +29,15 @@ interface IFlashRollover is IFlashLoanReceiver {
 
     event Migration(address indexed oldLoanCore, address indexed newLoanCore, uint256 newLoanId);
 
+    struct RolloverContractParams {
+        ILoanCore loanCore;
+        ILoanCore targetLoanCore;
+        IRepaymentController repaymentController;
+        IOriginationController originationController;
+    }
+
     function rolloverLoan(
-        bool isLegacy,
+        RolloverContractParams calldata contracts,
         uint256 loanId,
         LoanLibrary.LoanTerms calldata newLoanTerms,
         uint8 v,

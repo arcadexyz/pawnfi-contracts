@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "./external/interfaces/ILendingPool.sol";
 
@@ -18,7 +17,6 @@ import "./interfaces/IFeeController.sol";
 
 contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     /**
      * Holds parameters passed through flash loan
@@ -28,7 +26,7 @@ contract FlashRollover is IFlashRollover {
      * old loan in.
      */
     struct OperationData {
-        bool isLegacy;
+        RolloverContractParams contracts;
         uint256 loanId;
         LoanLibrary.LoanTerms newLoanTerms;
         uint8 v;
@@ -50,8 +48,8 @@ contract FlashRollover is IFlashRollover {
         IERC721 assetWrapper;
         IRepaymentController repaymentController;
         IOriginationController originationController;
-        ILoanCore newLoanLoanCore;
-        IERC721 newLoanBorrowerNote;
+        ILoanCore targetLoanCore;
+        IERC721 targetBorrowerNote;
     }
 
     /* solhint-disable var-name-mixedcase */
@@ -61,106 +59,53 @@ contract FlashRollover is IFlashRollover {
     ILendingPool public immutable override LENDING_POOL;
     /* solhint-enable var-name-mixedcase */
 
-    // Pawn.fi Contracts
-    ILoanCore public immutable loanCore;
-    ILoanCore public immutable legacyLoanCore;
-    IOriginationController public immutable originationController;
-    IRepaymentController public immutable legacyRepaymentController;
-    IRepaymentController public immutable repaymentController;
-    IERC721 public immutable borrowerNote;
-    IERC721 public immutable lenderNote;
-    IERC721 public immutable legacyBorrowerNote;
-    IERC721 public immutable legacyLenderNote;
-    IERC721 public immutable assetWrapper;
-    IFeeController public immutable feeController;
-
-    constructor(
-        ILendingPoolAddressesProvider _addressesProvider,
-        ILoanCore _loanCore,
-        ILoanCore _legacyLoanCore,
-        IOriginationController _originationController,
-        IRepaymentController _repaymentController,
-        IRepaymentController _legacyRepaymentController,
-        IERC721 _borrowerNote,
-        IERC721 _legacyBorrowerNote,
-        IERC721 _lenderNote,
-        IERC721 _legacyLenderNote,
-        IERC721 _assetWrapper,
-        IFeeController _feeController
-    ) {
+    constructor(ILendingPoolAddressesProvider _addressesProvider) {
         ADDRESSES_PROVIDER = _addressesProvider;
         LENDING_POOL = ILendingPool(_addressesProvider.getLendingPool());
-        loanCore = _loanCore;
-        legacyLoanCore = _legacyLoanCore;
-        originationController = _originationController;
-        repaymentController = _repaymentController;
-        legacyRepaymentController = _legacyRepaymentController;
-        borrowerNote = _borrowerNote;
-        legacyBorrowerNote = _legacyBorrowerNote;
-        lenderNote = _lenderNote;
-        legacyLenderNote = _legacyLenderNote;
-        assetWrapper = _assetWrapper;
-        feeController = _feeController;
     }
 
     function rolloverLoan(
-        bool isLegacy,
+        RolloverContractParams calldata contracts,
         uint256 loanId,
         LoanLibrary.LoanTerms calldata newLoanTerms,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) external override {
-        // Get loan details
-        LoanLibrary.LoanData memory loanData;
-        if (isLegacy) {
-            loanData = legacyLoanCore.getLoan(loanId);
-            uint256 borrowerNoteId = loanData.borrowerNoteId;
+        LoanLibrary.LoanData memory loanData = contracts.loanCore.getLoan(loanId);
+        _validateRollover(loanData, contracts.loanCore, contracts.targetLoanCore, newLoanTerms);
 
-            address borrower = legacyBorrowerNote.ownerOf(borrowerNoteId);
-            require(borrower == msg.sender, "Rollover: borrower only");
-        } else {
-            loanData = loanCore.getLoan(loanId);
-            uint256 borrowerNoteId = loanData.borrowerNoteId;
+        uint256 amountDue = loanData.terms.principal + loanData.terms.interest;
+        uint256 startBalance = IERC20(loanData.terms.payableCurrency).balanceOf(address(this));
 
-            address borrower = borrowerNote.ownerOf(borrowerNoteId);
-            require(borrower == msg.sender, "Rollover: borrower only");
+        {
+            address[] memory assets = new address[](1);
+            assets[0] = loanData.terms.payableCurrency;
+
+            uint256[] memory amounts = new uint256[](1);
+            amounts[0] = amountDue;
+
+            uint256[] memory modes = new uint256[](1);
+            modes[0] = 0;
+
+            OperationData memory opData = OperationData({
+                contracts: contracts,
+                loanId: loanId,
+                newLoanTerms: newLoanTerms,
+                v: v,
+                r: r,
+                s: s
+            });
+
+            bytes memory params = abi.encode(opData);
+
+            // Flash loan based on principal + interest
+            LENDING_POOL.flashLoan(address(this), assets, amounts, modes, address(this), params, 0);
         }
-
-        LoanLibrary.LoanTerms memory terms = loanData.terms;
-        uint256 amountDue = terms.principal.add(terms.interest);
-
-        require(newLoanTerms.payableCurrency == terms.payableCurrency, "Currency mismatch");
-        require(newLoanTerms.collateralTokenId == terms.collateralTokenId, "Collateral mismatch");
-
-        uint256 startBalance = IERC20(terms.payableCurrency).balanceOf(address(this));
-
-        address[] memory assets = new address[](1);
-        assets[0] = terms.payableCurrency;
-
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = amountDue;
-
-        uint256[] memory modes = new uint256[](1);
-        modes[0] = 0;
-
-        OperationData memory opData = OperationData({
-            isLegacy: isLegacy,
-            loanId: loanId,
-            newLoanTerms: newLoanTerms,
-            v: v,
-            r: r,
-            s: s
-        });
-
-        bytes memory params = abi.encode(opData);
-
-        // Flash loan based on principal + interest
-        LENDING_POOL.flashLoan(address(this), assets, amounts, modes, address(this), params, 1);
 
         // Should not have any funds leftover
         require(
-            IERC20(terms.payableCurrency).balanceOf(address(this)) == startBalance,
+            IERC20(loanData.terms.payableCurrency).balanceOf(address(this)) == startBalance,
             "Changed balance after flash loan"
         );
     }
@@ -190,7 +135,7 @@ contract FlashRollover is IFlashRollover {
         uint256[] calldata premiums,
         OperationData memory opData
     ) internal returns (bool) {
-        OperationContracts memory opContracts = _getContracts(opData.isLegacy);
+        OperationContracts memory opContracts = _getContracts(opData.contracts);
 
         // Get loan details
         LoanLibrary.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
@@ -225,8 +170,8 @@ contract FlashRollover is IFlashRollover {
 
         emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
 
-        if (opData.isLegacy) {
-            emit Migration(address(opContracts.loanCore), address(opContracts.newLoanLoanCore), newLoanId);
+        if (address(opData.contracts.loanCore) != address(opData.contracts.targetLoanCore)) {
+            emit Migration(address(opContracts.loanCore), address(opContracts.targetLoanCore), newLoanId);
         }
 
         return true;
@@ -306,39 +251,42 @@ contract FlashRollover is IFlashRollover {
             opData.s
         );
 
-        LoanLibrary.LoanData memory newLoanData = contracts.newLoanLoanCore.getLoan(newLoanId);
-        contracts.newLoanBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
+        LoanLibrary.LoanData memory newLoanData = contracts.targetLoanCore.getLoan(newLoanId);
+        contracts.targetBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
 
         return newLoanId;
     }
 
-    function _getContracts(bool isLegacy) internal view returns (OperationContracts memory) {
-        if (isLegacy) {
-            return
-                OperationContracts({
-                    loanCore: legacyLoanCore,
-                    borrowerNote: legacyBorrowerNote,
-                    lenderNote: legacyLenderNote,
-                    feeController: feeController,
-                    assetWrapper: assetWrapper,
-                    repaymentController: legacyRepaymentController,
-                    originationController: originationController,
-                    newLoanLoanCore: loanCore,
-                    newLoanBorrowerNote: borrowerNote
-                });
-        } else {
-            return
-                OperationContracts({
-                    loanCore: loanCore,
-                    borrowerNote: borrowerNote,
-                    lenderNote: lenderNote,
-                    feeController: feeController,
-                    assetWrapper: assetWrapper,
-                    repaymentController: repaymentController,
-                    originationController: originationController,
-                    newLoanLoanCore: loanCore,
-                    newLoanBorrowerNote: borrowerNote
-                });
-        }
+    function _getContracts(RolloverContractParams memory contracts) internal returns (OperationContracts memory) {
+        return OperationContracts({
+            loanCore: contracts.loanCore,
+            borrowerNote: contracts.loanCore.borrowerNote(),
+            lenderNote: contracts.loanCore.lenderNote(),
+            feeController: contracts.targetLoanCore.feeController(),
+            assetWrapper: contracts.loanCore.collateralToken(),
+            repaymentController: contracts.repaymentController,
+            originationController: contracts.originationController,
+            targetLoanCore: contracts.targetLoanCore,
+            targetBorrowerNote: contracts.targetLoanCore.borrowerNote()
+        });
+    }
+
+    function _validateRollover(
+        LoanLibrary.LoanData memory loanData,
+        ILoanCore loanCore,
+        ILoanCore targetLoanCore,
+        LoanLibrary.LoanTerms calldata newLoanTerms
+    ) internal {
+        uint256 borrowerNoteId = loanData.borrowerNoteId;
+
+        IERC721 borrowerNote = loanCore.borrowerNote();
+        address borrower = borrowerNote.ownerOf(borrowerNoteId);
+        require(borrower == msg.sender, "Rollover: borrower only");
+
+        LoanLibrary.LoanTerms memory terms = loanData.terms;
+
+        require(newLoanTerms.payableCurrency == terms.payableCurrency, "Currency mismatch");
+        require(newLoanTerms.collateralTokenId == terms.collateralTokenId, "Collateral mismatch");
+        require(address(loanCore.collateralToken()) == address(targetLoanCore.collateralToken()), "Non-compatible AssetWrapper");
     }
 }

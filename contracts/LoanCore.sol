@@ -30,12 +30,10 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     Counters.Counter private loanIdTracker;
     mapping(uint256 => LoanLibrary.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
-    IPromissoryNote public borrowerNote;
-    IPromissoryNote public lenderNote;
-    IERC721 public collateralToken;
-    IFeeController public feeController;
-    address public originationController;
-    address public repaymentController;
+    IPromissoryNote public override borrowerNote;
+    IPromissoryNote public override lenderNote;
+    IERC721 public override collateralToken;
+    IFeeController public override feeController;
 
     // 10k bps per whole
     uint256 private constant BPS_DENOMINATOR = 10_000;
