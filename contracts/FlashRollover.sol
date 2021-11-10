@@ -168,10 +168,7 @@ contract FlashRollover is IFlashRollover {
 
         if (needFromBorrower > 0) {
             require(asset.balanceOf(borrower) >= needFromBorrower, "Borrower cannot pay");
-            require(
-                asset.allowance(borrower, address(this)) >= needFromBorrower,
-                "Need borrower to approve balance"
-            );
+            require(asset.allowance(borrower, address(this)) >= needFromBorrower, "Need borrower to approve balance");
         }
 
         _repayLoan(opContracts, loanData);
