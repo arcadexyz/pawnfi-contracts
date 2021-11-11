@@ -2,7 +2,7 @@
 
 Implementation of a loan rollover/refinance using [AAVE Flash Loans]([AAVE Flash Loan](https://docs.aave.com/faq/flash-loans).
 
-Borrowers with a currently opne loan can collect a signature from their lender on new loan terms off-chain,
+Borrowers with a currently open loan can collect a signature from their lender on new loan terms off-chain,
 then provide the desired new terms to the rollover contract. The contract will execute a flash loan to
 pay back their currently open loan, originate a new loan, then use the proceeds from the new loan to repay
 the flash loan. Borrowers are responsible for paying the difference between any new loan and the owed flash
