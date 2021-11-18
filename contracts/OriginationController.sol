@@ -38,7 +38,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public override {
+    ) public override returns (uint256 loanId) {
         require(_msgSender() == lender || _msgSender() == borrower, "Origination: sender not participant");
 
         bytes32 loanHash = keccak256(
@@ -62,7 +62,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         IERC721(assetWrapper).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
         IERC721(assetWrapper).approve(loanCore, loanTerms.collateralTokenId);
 
-        uint256 loanId = ILoanCore(loanCore).createLoan(loanTerms);
+        loanId = ILoanCore(loanCore).createLoan(loanTerms);
         ILoanCore(loanCore).startLoan(lender, borrower, loanId);
     }
 
@@ -80,7 +80,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         bytes32 collateralR,
         bytes32 collateralS,
         uint256 permitDeadline
-    ) external override {
+    ) external override returns (uint256 loanId) {
         IERC721Permit(assetWrapper).permit(
             borrower,
             address(this),
@@ -91,6 +91,6 @@ contract OriginationController is Context, IOriginationController, EIP712 {
             collateralS
         );
 
-        initializeLoan(loanTerms, borrower, lender, v, r, s);
+        loanId = initializeLoan(loanTerms, borrower, lender, v, r, s);
     }
 }

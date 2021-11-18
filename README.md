@@ -91,6 +91,12 @@ This is an external-facing periphery contract that manages interactions with `Lo
 
 [PunkRouter API Specification](docs/PunkRouter.md)
 
+## FlashRollover
+
+This contract allows borrowers with a currently-active loan to roll over their collateral to a new loan, without needing to pay back the entire principal + interest. The contract uses an [AAVE Flash Loan](https://docs.aave.com/faq/flash-loans) to borrow enough tokens to repay the loan with interest. Once the original loan is repaid, a new loan is issued with the lender's signature, with the principal of the new loan repaying the flash loan plus the flash loan fee (0.09%). This allows borrowers to extend their loan term without having to move any deployed capital from loan proceeds. Note: if the principal of the new loan less fees is smaller than the old loan's principal + interest + flash loan fee, the contract will attempt to withdraw the balance from the borrower's wallet. If the new loan's principal is larger than the old loan's principal + interest + flash loan fee, the leftover loan proceeds will be sent to the borrower, making this like a refinance.
+
+[FlashRollover API Specification](docs/FlashRollover.md)
+
 ## Version 2
 
 Version 2 of the Pawn protocol is currently in development. More details will be added to this section as the protocol progresses towards release.

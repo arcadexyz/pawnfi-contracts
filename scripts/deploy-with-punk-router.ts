@@ -3,13 +3,14 @@ import { ethers } from "hardhat";
 
 import { main as deployMain, DeployedResources } from "./deploy";
 
+import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REPAYER_ROLE } from "./constants";
 export interface DeployedResourcesWithPunks extends DeployedResources {
     punkRouter: Contract;
 }
 
 export async function main(
-    ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e",
-    REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e",
+    ORIGINATOR_ROLE = DEFAULT_ORIGINATOR_ROLE,
+    REPAYER_ROLE = DEFAULT_REPAYER_ROLE,
     WRAPPED_PUNKS = "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6",
     CRYPTO_PUNKS = "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb",
 ): Promise<DeployedResourcesWithPunks> {

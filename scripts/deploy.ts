@@ -1,19 +1,28 @@
-import { Contract } from "ethers";
 import { ethers } from "hardhat";
 
+import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REPAYER_ROLE } from "./constants";
+
+import {
+    AssetWrapper,
+    FeeController,
+    LoanCore,
+    PromissoryNote,
+    RepaymentController,
+    OriginationController,
+} from "../typechain";
 export interface DeployedResources {
-    assetWrapper: Contract;
-    feeController: Contract;
-    loanCore: Contract;
-    borrowerNote: Contract;
-    lenderNote: Contract;
-    repaymentController: Contract;
-    originationController: Contract;
+    assetWrapper: AssetWrapper;
+    feeController: FeeController;
+    loanCore: LoanCore;
+    borrowerNote: PromissoryNote;
+    lenderNote: PromissoryNote;
+    repaymentController: RepaymentController;
+    originationController: OriginationController;
 }
 
 export async function main(
-    ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e",
-    REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e",
+    ORIGINATOR_ROLE = DEFAULT_ORIGINATOR_ROLE,
+    REPAYER_ROLE = DEFAULT_REPAYER_ROLE,
 ): Promise<DeployedResources> {
     // Hardhat always runs the compile task when running scripts through it.
     // If this runs in a standalone fashion you may want to call compile manually
@@ -21,42 +30,46 @@ export async function main(
     // await run("compile");
 
     // We get the contract to deploy
-    const AssetWrapper = await ethers.getContractFactory("AssetWrapper");
-    const assetWrapper = await AssetWrapper.deploy("AssetWrapper", "AW");
+    const AssetWrapperFactory = await ethers.getContractFactory("AssetWrapper");
+    const assetWrapper = <AssetWrapper>await AssetWrapperFactory.deploy("AssetWrapper", "AW");
     await assetWrapper.deployed();
 
     console.log("AssetWrapper deployed to:", assetWrapper.address);
 
-    const FeeController = await ethers.getContractFactory("FeeController");
-    const feeController = await FeeController.deploy();
+    const FeeControllerFactory = await ethers.getContractFactory("FeeController");
+    const feeController = <FeeController>await FeeControllerFactory.deploy();
     await feeController.deployed();
 
     console.log("FeeController deployed to: ", feeController.address);
 
-    const LoanCore = await ethers.getContractFactory("LoanCore");
-    const loanCore = await LoanCore.deploy(assetWrapper.address, feeController.address);
+    const LoanCoreFactory = await ethers.getContractFactory("LoanCore");
+    const loanCore = <LoanCore>await LoanCoreFactory.deploy(assetWrapper.address, feeController.address);
     await loanCore.deployed();
 
     const promissoryNoteFactory = await ethers.getContractFactory("PromissoryNote");
     const borrowerNoteAddr = await loanCore.borrowerNote();
-    const borrowerNote = await promissoryNoteFactory.attach(borrowerNoteAddr);
+    const borrowerNote = <PromissoryNote>await promissoryNoteFactory.attach(borrowerNoteAddr);
     const lenderNoteAddr = await loanCore.lenderNote();
-    const lenderNote = await promissoryNoteFactory.attach(lenderNoteAddr);
+    const lenderNote = <PromissoryNote>await promissoryNoteFactory.attach(lenderNoteAddr);
 
     console.log("LoanCore deployed to:", loanCore.address);
     console.log("BorrowerNote deployed to:", borrowerNoteAddr);
     console.log("LenderNote deployed to:", lenderNoteAddr);
 
-    const RepaymentController = await ethers.getContractFactory("RepaymentController");
-    const repaymentController = await RepaymentController.deploy(loanCore.address, borrowerNoteAddr, lenderNoteAddr);
+    const RepaymentControllerFactory = await ethers.getContractFactory("RepaymentController");
+    const repaymentController = <RepaymentController>(
+        await RepaymentControllerFactory.deploy(loanCore.address, borrowerNoteAddr, lenderNoteAddr)
+    );
     await repaymentController.deployed();
     const updateRepaymentControllerPermissions = await loanCore.grantRole(REPAYER_ROLE, repaymentController.address);
     await updateRepaymentControllerPermissions.wait();
 
     console.log("RepaymentController deployed to:", repaymentController.address);
 
-    const OriginationController = await ethers.getContractFactory("OriginationController");
-    const originationController = await OriginationController.deploy(loanCore.address, assetWrapper.address);
+    const OriginationControllerFactory = await ethers.getContractFactory("OriginationController");
+    const originationController = <OriginationController>(
+        await OriginationControllerFactory.deploy(loanCore.address, assetWrapper.address)
+    );
     await originationController.deployed();
     const updateOriginationControllerPermissions = await loanCore.grantRole(
         ORIGINATOR_ROLE,
