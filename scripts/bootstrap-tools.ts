@@ -4,7 +4,6 @@ import { createLoanTermsSignature } from "../test/utils/eip712";
 import { Contract } from "ethers";
 import { MockERC1155Metadata, MockERC20, MockERC721Metadata } from "../typechain";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { readMetadataFromFile } from "./fetch-pinata-assets";
 
 export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
 export const SUBSECTION_SEPARATOR = "-".repeat(10);
@@ -36,21 +35,19 @@ export async function mintNFTs(
     art: MockERC721Metadata,
     beats: MockERC1155Metadata,
 ): Promise<void> {
-    const metadata = await readMetadataFromFile();
+    let j = 1;
 
     for (let i = 0; i < numPunks; i++) {
-        const latest = metadata.shift();
-        await punks['mint(address,string)'](target, `https://gateway.pinata.cloud/ipfs/${latest?.ipfs_pin_hash}`);
+        await punks['mint(address,string)'](target, `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnFiPunks/nft-${j++}.json`);
     }
 
     for (let i = 0; i < numArts; i++) {
-        const latest = metadata.shift();
-        await art['mint(address,string)'](target, `https://gateway.pinata.cloud/ipfs/${latest?.ipfs_pin_hash}`);
+        await art['mint(address,string)'](target, `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnArtIo/nft-${j++}.json`);
     }
 
     const uris = [
-        `https://gateway.pinata.cloud/ipfs/${metadata.shift()?.ipfs_pin_hash}`,
-        `https://gateway.pinata.cloud/ipfs/${metadata.shift()?.ipfs_pin_hash}`,
+        `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+        `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
     ];
 
     await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], uris, "0x00");
