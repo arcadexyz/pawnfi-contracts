@@ -3,7 +3,6 @@
     "description": "Smart contracts for the Pawn Finance protocol",
     "version": "1.0.0",
     "devDependencies": {
-        "@aave/protocol-v2": "^1.0.1",
         "@commitlint/cli": "^9.1.2",
         "@commitlint/config-conventional": "^9.1.2",
         "@ethersproject/abstract-signer": "^5.0.6",
