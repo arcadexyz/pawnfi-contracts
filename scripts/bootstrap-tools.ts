@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 import { LoanTerms } from "../test/utils/types";
 import { createLoanTermsSignature } from "../test/utils/eip712";
 import { Contract } from "ethers";
-import { MockERC1155, MockERC20, MockERC721 } from "../typechain";
+import { MockERC1155Metadata, MockERC20, MockERC721Metadata } from "../typechain";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 export const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
@@ -15,10 +15,6 @@ export async function getBalance(asset: Contract, addr: string): Promise<string>
 async function getBalanceERC1155(asset: Contract, id: number, addr: string): Promise<string> {
     return (await asset.balanceOf(addr, id)).toString();
 }
-
-// interface mintable {
-//   mint: (target: string, )
-// }
 
 export async function mintTokens(
     target: string,
@@ -35,19 +31,32 @@ export async function mintTokens(
 export async function mintNFTs(
     target: string,
     [numPunks, numArts, numBeats0, numBeats1]: [number, number, number, number],
-    punks: MockERC721,
-    art: MockERC721,
-    beats: MockERC1155,
+    punks: MockERC721Metadata,
+    art: MockERC721Metadata,
+    beats: MockERC1155Metadata,
 ): Promise<void> {
+    let j = 1;
+
     for (let i = 0; i < numPunks; i++) {
-        await punks.mint(target);
+        await punks["mint(address,string)"](
+            target,
+            `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnFiPunks/nft-${j++}.json`,
+        );
     }
 
     for (let i = 0; i < numArts; i++) {
-        await art.mint(target);
+        await art["mint(address,string)"](
+            target,
+            `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnArtIo/nft-${j++}.json`,
+        );
     }
 
-    await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], "0x00");
+    const uris = [
+        `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+        `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+    ];
+
+    await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], uris, "0x00");
 }
 
 export async function mintAndDistribute(
@@ -55,9 +64,9 @@ export async function mintAndDistribute(
     weth: MockERC20,
     pawnToken: MockERC20,
     usd: MockERC20,
-    punks: MockERC721,
-    art: MockERC721,
-    beats: MockERC1155,
+    punks: MockERC721Metadata,
+    art: MockERC721Metadata,
+    beats: MockERC1155Metadata,
 ): Promise<void> {
     // Give a bunch of everything to signer[0]
     await mintTokens(signers[0].address, [1000, 500000, 2000000], weth, pawnToken, usd);
@@ -95,9 +104,9 @@ export async function mintAndDistribute(
 }
 
 interface DeployedNFT {
-    punks: MockERC721;
-    art: MockERC721;
-    beats: MockERC1155;
+    punks: MockERC721Metadata;
+    art: MockERC721Metadata;
+    beats: MockERC1155Metadata;
     weth: MockERC20;
     pawnToken: MockERC20;
     usd: MockERC20;
@@ -105,16 +114,16 @@ interface DeployedNFT {
 
 export async function deployNFTs(): Promise<DeployedNFT> {
     console.log("Deploying NFTs...\n");
-    const erc721Factory = await ethers.getContractFactory("ERC721PresetMinterPauserAutoId");
-    const erc1155Factory = await ethers.getContractFactory("ERC1155PresetMinterPauser");
+    const erc721Factory = await ethers.getContractFactory("MockERC721Metadata");
+    const erc1155Factory = await ethers.getContractFactory("MockERC1155Metadata");
 
-    const punks = <MockERC721>await erc721Factory.deploy("PawnFiPunks", "PFPUNKS", "");
+    const punks = <MockERC721Metadata>await erc721Factory.deploy("PawnFiPunks", "PFPUNKS");
     console.log("(ERC721) PawnFiPunks deployed to:", punks.address);
 
-    const art = <MockERC721>await erc721Factory.deploy("PawnArt.io", "PWART", "");
+    const art = <MockERC721Metadata>await erc721Factory.deploy("PawnArt.io", "PWART");
     console.log("(ERC721) PawnArt.io deployed to:", art.address);
 
-    const beats = <MockERC1155>await erc1155Factory.deploy("");
+    const beats = <MockERC1155Metadata>await erc1155Factory.deploy();
     console.log("(ERC1155) PawnBeats deployed to:", beats.address);
 
     // Deploy some ERC20s
@@ -141,11 +150,11 @@ export async function wrapAssetsAndMakeLoans(
     originationController: Contract,
     borrowerNote: Contract,
     repaymentController: Contract,
-    punks: MockERC721,
+    punks: MockERC721Metadata,
     usd: MockERC20,
-    beats: MockERC1155,
+    beats: MockERC1155Metadata,
     weth: MockERC20,
-    art: MockERC721,
+    art: MockERC721Metadata,
     pawnToken: MockERC20,
 ): Promise<void> {
     const signer1 = signers[1];

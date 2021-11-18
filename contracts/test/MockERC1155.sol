@@ -30,3 +30,52 @@ contract MockERC1155 is Context, ERC1155 {
         _tokenIdTracker.increment();
     }
 }
+
+contract MockERC1155Metadata is MockERC1155 {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdTracker;
+
+    // Mapping from token ID to account balances
+    mapping(uint256 => mapping(address => uint256)) private _balances;
+
+    mapping(uint256 => string) public tokenURIs;
+
+    constructor() MockERC1155() {}
+
+    function mint(
+        address to,
+        uint256 amount,
+        string memory tokenUri
+    ) public virtual {
+        uint256 tokenId = _tokenIdTracker.current();
+        _mint(to, tokenId, amount, "");
+        _tokenIdTracker.increment();
+        _setTokenURI(tokenId, tokenUri);
+    }
+
+    function mintBatch(
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        string[] memory tokenUris,
+        bytes memory data
+    ) public virtual {
+        require(to != address(0), "ERC1155: mint to the zero address");
+        require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
+
+        address operator = _msgSender();
+
+        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            _balances[ids[i]][to] += amounts[i];
+            _setTokenURI(ids[i], tokenUris[i]);
+        }
+
+        emit TransferBatch(operator, address(0), to, ids, amounts);
+    }
+
+    function _setTokenURI(uint256 tokenId, string memory tokenUri) internal {
+        tokenURIs[tokenId] = tokenUri;
+    }
+}
