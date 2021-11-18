@@ -38,11 +38,17 @@ export async function mintNFTs(
     let j = 1;
 
     for (let i = 0; i < numPunks; i++) {
-        await punks['mint(address,string)'](target, `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnFiPunks/nft-${j++}.json`);
+        await punks["mint(address,string)"](
+            target,
+            `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnFiPunks/nft-${j++}.json`,
+        );
     }
 
     for (let i = 0; i < numArts; i++) {
-        await art['mint(address,string)'](target, `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnArtIo/nft-${j++}.json`);
+        await art["mint(address,string)"](
+            target,
+            `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnArtIo/nft-${j++}.json`,
+        );
     }
 
     const uris = [

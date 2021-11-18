@@ -42,7 +42,11 @@ contract MockERC1155Metadata is MockERC1155 {
 
     constructor() MockERC1155() {}
 
-    function mint(address to, uint256 amount, string memory tokenUri) public virtual {
+    function mint(
+        address to,
+        uint256 amount,
+        string memory tokenUri
+    ) public virtual {
         uint256 tokenId = _tokenIdTracker.current();
         _mint(to, tokenId, amount, "");
         _tokenIdTracker.increment();
