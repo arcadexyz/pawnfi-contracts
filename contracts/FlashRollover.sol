@@ -29,40 +29,6 @@ import "./interfaces/IFeeController.sol";
 contract FlashRollover is IFlashRollover {
     using SafeERC20 for IERC20;
 
-    /**
-     * Holds parameters passed through flash loan
-     * control flow that dictate terms of the new loan.
-     * Contains a signature by lender for same terms.
-     * isLegacy determines which loanCore to look for the
-     * old loan in.
-     */
-    struct OperationData {
-        RolloverContractParams contracts;
-        uint256 loanId;
-        LoanLibrary.LoanTerms newLoanTerms;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
-    /**
-     * Defines the contracts that should be used for a
-     * flash loan operation. May change based on if the
-     * old loan is on the current loanCore or legacy (in
-     * which case it requires migration).
-     */
-    struct OperationContracts {
-        ILoanCore loanCore;
-        IERC721 borrowerNote;
-        IERC721 lenderNote;
-        IFeeController feeController;
-        IERC721 assetWrapper;
-        IRepaymentController repaymentController;
-        IOriginationController originationController;
-        ILoanCore targetLoanCore;
-        IERC721 targetBorrowerNote;
-    }
-
     /* solhint-disable var-name-mixedcase */
     // AAVE Contracts
     // Variable names are in upper case to fulfill IFlashLoanReceiver interface
@@ -84,11 +50,10 @@ contract FlashRollover is IFlashRollover {
         bytes32 r,
         bytes32 s
     ) external override {
-        LoanLibrary.LoanData memory loanData = contracts.loanCore.getLoan(loanId);
-        _validateRollover(loanData, contracts.loanCore, contracts.targetLoanCore, newLoanTerms);
+        LoanLibrary.LoanData memory loanData = contracts.sourceLoanCore.getLoan(loanId);
+        _validateRollover(loanData, contracts.sourceLoanCore, contracts.targetLoanCore, newLoanTerms);
 
         uint256 amountDue = loanData.terms.principal + loanData.terms.interest;
-        uint256 startBalance = IERC20(loanData.terms.payableCurrency).balanceOf(address(this));
 
         {
             address[] memory assets = new address[](1);
@@ -117,8 +82,8 @@ contract FlashRollover is IFlashRollover {
 
         // Should not have any funds leftover
         require(
-            IERC20(loanData.terms.payableCurrency).balanceOf(address(this)) == startBalance,
-            "Changed balance after flash loan"
+            IERC20(loanData.terms.payableCurrency).balanceOf(address(this)) == 0,
+            "Leftover balance after flash loan"
         );
     }
 
@@ -185,7 +150,7 @@ contract FlashRollover is IFlashRollover {
 
         emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
 
-        if (address(opData.contracts.loanCore) != address(opData.contracts.targetLoanCore)) {
+        if (address(opData.contracts.sourceLoanCore) != address(opData.contracts.targetLoanCore)) {
             emit Migration(address(opContracts.loanCore), address(opContracts.targetLoanCore), newLoanId);
         }
 
@@ -276,13 +241,13 @@ contract FlashRollover is IFlashRollover {
     function _getContracts(RolloverContractParams memory contracts) internal returns (OperationContracts memory) {
         return
             OperationContracts({
-                loanCore: contracts.loanCore,
-                borrowerNote: contracts.loanCore.borrowerNote(),
-                lenderNote: contracts.loanCore.lenderNote(),
+                loanCore: contracts.sourceLoanCore,
+                borrowerNote: contracts.sourceLoanCore.borrowerNote(),
+                lenderNote: contracts.sourceLoanCore.lenderNote(),
                 feeController: contracts.targetLoanCore.feeController(),
-                assetWrapper: contracts.loanCore.collateralToken(),
-                repaymentController: contracts.repaymentController,
-                originationController: contracts.originationController,
+                assetWrapper: contracts.sourceLoanCore.collateralToken(),
+                repaymentController: contracts.sourceRepaymentController,
+                originationController: contracts.targetOriginationController,
                 targetLoanCore: contracts.targetLoanCore,
                 targetBorrowerNote: contracts.targetLoanCore.borrowerNote()
             });

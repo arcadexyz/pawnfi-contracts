@@ -29,11 +29,52 @@ interface IFlashRollover is IFlashLoanReceiver {
 
     event Migration(address indexed oldLoanCore, address indexed newLoanCore, uint256 newLoanId);
 
+    /**
+     * The contract references needed to roll
+     * over the loan. Other dependent contracts
+     * (asset wrapper, promissory notes) can
+     * be fetched from the relevant LoanCore
+     * contracts.
+     */
     struct RolloverContractParams {
-        ILoanCore loanCore;
+        ILoanCore sourceLoanCore;
         ILoanCore targetLoanCore;
+        IRepaymentController sourceRepaymentController;
+        IOriginationController targetOriginationController;
+    }
+
+    /**
+     * Holds parameters passed through flash loan
+     * control flow that dictate terms of the new loan.
+     * Contains a signature by lender for same terms.
+     * isLegacy determines which loanCore to look for the
+     * old loan in.
+     */
+    struct OperationData {
+        RolloverContractParams contracts;
+        uint256 loanId;
+        LoanLibrary.LoanTerms newLoanTerms;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
+
+    /**
+     * Defines the contracts that should be used for a
+     * flash loan operation. May change based on if the
+     * old loan is on the current loanCore or legacy (in
+     * which case it requires migration).
+     */
+    struct OperationContracts {
+        ILoanCore loanCore;
+        IERC721 borrowerNote;
+        IERC721 lenderNote;
+        IFeeController feeController;
+        IERC721 assetWrapper;
         IRepaymentController repaymentController;
         IOriginationController originationController;
+        ILoanCore targetLoanCore;
+        IERC721 targetBorrowerNote;
     }
 
     function rolloverLoan(
