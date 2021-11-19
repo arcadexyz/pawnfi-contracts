@@ -277,7 +277,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(admin).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Rollover: borrower only");
+            ).to.be.revertedWith("caller not borrower");
         });
 
         it("should revert if new loan currency does not match old loan", async () => {
@@ -302,7 +302,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Currency mismatch");
+            ).to.be.revertedWith("currency mismatch");
         });
 
         it("should revert if new loan collateral token does not match old loan", async () => {
@@ -332,7 +332,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Collateral mismatch");
+            ).to.be.revertedWith("collateral mismatch");
         });
 
         it("should revert if has not approved flash loan balance", async () => {
@@ -364,7 +364,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Need borrower to approve balance");
+            ).to.be.revertedWith("lacks borrower approval");
         });
 
         it("should revert if borrower cannot cover flash loan balance", async () => {
@@ -399,7 +399,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Borrower cannot pay");
+            ).to.be.revertedWith("borrower cannot pay");
         });
 
         it("should revert if new loan terms do not match signature", async () => {
@@ -619,7 +619,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("883268");
+            expect(gasUsed.toString()).to.equal("885260");
         });
     });
 
@@ -691,7 +691,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(admin).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Rollover: borrower only");
+            ).to.be.revertedWith("caller not borrower");
         });
 
         it("should revert if new loan currency does not match old loan", async () => {
@@ -716,7 +716,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Currency mismatch");
+            ).to.be.revertedWith("currency mismatch");
         });
 
         it("should revert if target loanCore does not use same AssetWrapper", async () => {
@@ -764,7 +764,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Non-compatible AssetWrapper");
+            ).to.be.revertedWith("non-compatible AssetWrapper");
         });
 
         it("should revert if new loan collateral token does not match old loan", async () => {
@@ -795,7 +795,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Collateral mismatch");
+            ).to.be.revertedWith("collateral mismatch");
         });
 
         it("should revert if borrower has not approved flash loan balance", async () => {
@@ -828,7 +828,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Need borrower to approve balance");
+            ).to.be.revertedWith("lacks borrower approval");
         });
 
         it("should revert if borrower cannot cover flash loan balance", async () => {
@@ -864,7 +864,7 @@ describe("FlashRollover", () => {
 
             await expect(
                 flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s),
-            ).to.be.revertedWith("Borrower cannot pay");
+            ).to.be.revertedWith("borrower cannot pay");
         });
 
         it("should revert if new loan terms do not match signature", async () => {
@@ -1096,7 +1096,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("1094509");
+            expect(gasUsed.toString()).to.equal("1096502");
         });
     });
 });
