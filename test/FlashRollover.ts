@@ -1113,23 +1113,21 @@ describe("FlashRollover", () => {
             it("does not allow a non-owner to set a new owner", async () => {
                 const { borrower } = ctx;
 
-                await expect(
-                    flashRollover.connect(borrower).setOwner(borrower.address)
-                ).to.be.revertedWith("not owner");
+                await expect(flashRollover.connect(borrower).setOwner(borrower.address)).to.be.revertedWith(
+                    "not owner",
+                );
             });
 
             it("sets a new owner", async () => {
                 // Check transaction emits SetOwner event
                 const { admin, borrower } = ctx;
 
-                await expect(
-                    flashRollover.connect(admin).setOwner(borrower.address)
-                ).to.emit(flashRollover, "SetOwner").withArgs(borrower.address);
+                await expect(flashRollover.connect(admin).setOwner(borrower.address))
+                    .to.emit(flashRollover, "SetOwner")
+                    .withArgs(borrower.address);
 
                 // Check old owner privileges are revoked
-                await expect(
-                    flashRollover.connect(admin).setOwner(admin.address)
-                ).to.be.revertedWith("not owner");
+                await expect(flashRollover.connect(admin).setOwner(admin.address)).to.be.revertedWith("not owner");
             });
         });
 
@@ -1145,18 +1143,18 @@ describe("FlashRollover", () => {
             it("does not a allow a non-owner to flush tokens", async () => {
                 const {
                     borrower,
-                    common: { mockERC20 }
+                    common: { mockERC20 },
                 } = ctx;
 
                 await expect(
-                    flashRollover.connect(borrower).flushToken(mockERC20.address, borrower.address)
+                    flashRollover.connect(borrower).flushToken(mockERC20.address, borrower.address),
                 ).to.be.revertedWith("not owner");
             });
 
             it("flushes a token from the contract", async () => {
                 const {
                     admin,
-                    common: { mockERC20 }
+                    common: { mockERC20 },
                 } = ctx;
 
                 const adminStartBalance = await mockERC20.balanceOf(admin.address);
@@ -1165,7 +1163,7 @@ describe("FlashRollover", () => {
                 const tokenAmount = ethers.utils.parseEther("10");
                 await mockERC20.mint(flashRollover.address, tokenAmount);
 
-                await flashRollover.flushToken(mockERC20.address, admin.address)
+                await flashRollover.flushToken(mockERC20.address, admin.address);
 
                 const adminEndBalance = await mockERC20.balanceOf(admin.address);
 

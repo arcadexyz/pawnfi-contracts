@@ -224,6 +224,7 @@ note will be transferred to `borrower`.
 Sets a contract owner. The owner is the only party allowed to call `flushToken`.
 
 Requirements:
+
 - Must be called by current `owner`.
 
 Emits a `SetOwner` event.
@@ -237,6 +238,7 @@ being frozen by a non-zero token balance (either unintentionally or
 from a griefing attack).
 
 Requirements:
+
 - Must be called by current `owner`.
 
 ## Events
