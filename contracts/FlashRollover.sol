@@ -37,9 +37,13 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
 
     /* solhint-enable var-name-mixedcase */
 
+    address private owner;
+
     constructor(ILendingPoolAddressesProvider _addressesProvider) {
         ADDRESSES_PROVIDER = _addressesProvider;
         LENDING_POOL = ILendingPool(_addressesProvider.getLendingPool());
+
+        owner = msg.sender;
     }
 
     function rolloverLoan(
@@ -255,5 +259,22 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
             address(sourceLoanCore.collateralToken()) == address(targetLoanCore.collateralToken()),
             "non-compatible AssetWrapper"
         );
+    }
+
+    function setOwner(address _owner) external override {
+        require(msg.sender == owner, "not owner");
+
+        owner = _owner;
+
+        emit SetOwner(owner);
+    }
+
+    function flushToken(IERC20 token, address to) external override {
+        require(msg.sender == owner, "not owner");
+
+        uint256 balance = token.balanceOf(address(this));
+        require(balance > 0, "no balance");
+
+        token.transfer(to, balance);
     }
 }

@@ -619,7 +619,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("885260");
+            expect(gasUsed.toString()).to.equal("885296");
         });
     });
 
@@ -1096,7 +1096,82 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("1096502");
+            expect(gasUsed.toString()).to.equal("1096538");
+        });
+    });
+
+    describe("Admin operations", () => {
+        describe("setOwner", () => {
+            let ctx: TestContext;
+            let flashRollover: FlashRollover;
+
+            beforeEach(async () => {
+                ctx = await loadFixture(fixture);
+                flashRollover = ctx.common.flashRollover;
+            });
+
+            it("does not allow a non-owner to set a new owner", async () => {
+                const { borrower } = ctx;
+
+                await expect(
+                    flashRollover.connect(borrower).setOwner(borrower.address)
+                ).to.be.revertedWith("not owner");
+            });
+
+            it("sets a new owner", async () => {
+                // Check transaction emits SetOwner event
+                const { admin, borrower } = ctx;
+
+                await expect(
+                    flashRollover.connect(admin).setOwner(borrower.address)
+                ).to.emit(flashRollover, "SetOwner").withArgs(borrower.address);
+
+                // Check old owner privileges are revoked
+                await expect(
+                    flashRollover.connect(admin).setOwner(admin.address)
+                ).to.be.revertedWith("not owner");
+            });
+        });
+
+        describe("flushToken", async () => {
+            let ctx: TestContext;
+            let flashRollover: FlashRollover;
+
+            beforeEach(async () => {
+                ctx = await loadFixture(fixture);
+                flashRollover = ctx.common.flashRollover;
+            });
+
+            it("does not a allow a non-owner to flush tokens", async () => {
+                const {
+                    borrower,
+                    common: { mockERC20 }
+                } = ctx;
+
+                await expect(
+                    flashRollover.connect(borrower).flushToken(mockERC20.address, borrower.address)
+                ).to.be.revertedWith("not owner");
+            });
+
+            it("flushes a token from the contract", async () => {
+                const {
+                    admin,
+                    common: { mockERC20 }
+                } = ctx;
+
+                const adminStartBalance = await mockERC20.balanceOf(admin.address);
+
+                // Send tokens to the contract
+                const tokenAmount = ethers.utils.parseEther("10");
+                await mockERC20.mint(flashRollover.address, tokenAmount);
+
+                await flashRollover.flushToken(mockERC20.address, admin.address)
+
+                const adminEndBalance = await mockERC20.balanceOf(admin.address);
+
+                expect(adminEndBalance.sub(adminStartBalance)).to.eq(tokenAmount);
+                expect(await mockERC20.balanceOf(flashRollover.address)).to.eq(0);
+            });
         });
     });
 });
