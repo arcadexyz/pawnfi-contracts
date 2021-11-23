@@ -3,8 +3,8 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./external/interfaces/ILendingPool.sol";
 
@@ -26,7 +26,7 @@ import "./interfaces/IFeeController.sol";
  * Full API docs at docs/FlashRollover.md
  *
  */
-contract FlashRollover is IFlashRollover {
+contract FlashRollover is IFlashRollover, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /* solhint-disable var-name-mixedcase */
@@ -37,9 +37,13 @@ contract FlashRollover is IFlashRollover {
 
     /* solhint-enable var-name-mixedcase */
 
+    address private owner;
+
     constructor(ILendingPoolAddressesProvider _addressesProvider) {
         ADDRESSES_PROVIDER = _addressesProvider;
         LENDING_POOL = ILendingPool(_addressesProvider.getLendingPool());
+
+        owner = msg.sender;
     }
 
     function rolloverLoan(
@@ -50,41 +54,32 @@ contract FlashRollover is IFlashRollover {
         bytes32 r,
         bytes32 s
     ) external override {
-        LoanLibrary.LoanData memory loanData = contracts.sourceLoanCore.getLoan(loanId);
-        _validateRollover(loanData, contracts.sourceLoanCore, contracts.targetLoanCore, newLoanTerms);
+        ILoanCore sourceLoanCore = contracts.sourceLoanCore;
+        LoanLibrary.LoanData memory loanData = sourceLoanCore.getLoan(loanId);
+        LoanLibrary.LoanTerms memory loanTerms = loanData.terms;
 
-        uint256 amountDue = loanData.terms.principal + loanData.terms.interest;
+        _validateRollover(sourceLoanCore, contracts.targetLoanCore, loanTerms, newLoanTerms, loanData.borrowerNoteId);
 
         {
             address[] memory assets = new address[](1);
-            assets[0] = loanData.terms.payableCurrency;
+            assets[0] = loanTerms.payableCurrency;
 
             uint256[] memory amounts = new uint256[](1);
-            amounts[0] = amountDue;
+            amounts[0] = loanTerms.principal + loanTerms.interest;
 
             uint256[] memory modes = new uint256[](1);
             modes[0] = 0;
 
-            OperationData memory opData = OperationData({
-                contracts: contracts,
-                loanId: loanId,
-                newLoanTerms: newLoanTerms,
-                v: v,
-                r: r,
-                s: s
-            });
-
-            bytes memory params = abi.encode(opData);
+            bytes memory params = abi.encode(
+                OperationData({ contracts: contracts, loanId: loanId, newLoanTerms: newLoanTerms, v: v, r: r, s: s })
+            );
 
             // Flash loan based on principal + interest
             LENDING_POOL.flashLoan(address(this), assets, amounts, modes, address(this), params, 0);
         }
 
         // Should not have any funds leftover
-        require(
-            IERC20(loanData.terms.payableCurrency).balanceOf(address(this)) == 0,
-            "Leftover balance after flash loan"
-        );
+        require(IERC20(loanTerms.payableCurrency).balanceOf(address(this)) == 0, "leftover balance");
     }
 
     function executeOperation(
@@ -93,17 +88,11 @@ contract FlashRollover is IFlashRollover {
         uint256[] calldata premiums,
         address initiator,
         bytes calldata params
-    ) external override returns (bool) {
-        // TODO: Security check.
-        // Can an attacker use this to drain borrower funds? Feels like maybe
+    ) external override nonReentrant returns (bool) {
+        require(msg.sender == address(LENDING_POOL), "unknown callback sender");
+        require(initiator == address(this), "not initiator");
 
-        require(msg.sender == address(LENDING_POOL), "Unknown lender");
-        require(initiator == address(this), "Not initiator");
-        require(IERC20(assets[0]).balanceOf(address(this)) >= amounts[0], "Did not receive loan funds");
-
-        OperationData memory opData = abi.decode(params, (OperationData));
-
-        return _executeOperation(assets, amounts, premiums, opData);
+        return _executeOperation(assets, amounts, premiums, abi.decode(params, (OperationData)));
     }
 
     function _executeOperation(
@@ -116,7 +105,6 @@ contract FlashRollover is IFlashRollover {
 
         // Get loan details
         LoanLibrary.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
-        require(loanData.borrowerNoteId != 0, "Cannot find note");
 
         address borrower = opContracts.borrowerNote.ownerOf(loanData.borrowerNoteId);
         address lender = opContracts.lenderNote.ownerOf(loanData.lenderNoteId);
@@ -132,11 +120,11 @@ contract FlashRollover is IFlashRollover {
         IERC20 asset = IERC20(assets[0]);
 
         if (needFromBorrower > 0) {
-            require(asset.balanceOf(borrower) >= needFromBorrower, "Borrower cannot pay");
-            require(asset.allowance(borrower, address(this)) >= needFromBorrower, "Need borrower to approve balance");
+            require(asset.balanceOf(borrower) >= needFromBorrower, "borrower cannot pay");
+            require(asset.allowance(borrower, address(this)) >= needFromBorrower, "lacks borrower approval");
         }
 
-        _repayLoan(opContracts, loanData);
+        _repayLoan(opContracts, loanData, borrower);
         uint256 newLoanId = _initializeNewLoan(opContracts, borrower, lender, loanData.terms.collateralTokenId, opData);
 
         if (leftoverPrincipal > 0) {
@@ -184,13 +172,14 @@ contract FlashRollover is IFlashRollover {
         }
 
         // Either leftoverPrincipal or needFromBorrower should be 0
-
-        require(leftoverPrincipal == 0 || needFromBorrower == 0, "_ensureFunds computation");
+        require(leftoverPrincipal == 0 || needFromBorrower == 0, "funds conflict");
     }
 
-    function _repayLoan(OperationContracts memory contracts, LoanLibrary.LoanData memory loanData) internal {
-        address borrower = contracts.borrowerNote.ownerOf(loanData.borrowerNoteId);
-
+    function _repayLoan(
+        OperationContracts memory contracts,
+        LoanLibrary.LoanData memory loanData,
+        address borrower
+    ) internal {
         // Take BorrowerNote from borrower
         // Must be approved for withdrawal
         contracts.borrowerNote.transferFrom(borrower, address(this), loanData.borrowerNoteId);
@@ -207,7 +196,7 @@ contract FlashRollover is IFlashRollover {
         // contract now has asset wrapper but has lost funds
         require(
             contracts.assetWrapper.ownerOf(loanData.terms.collateralTokenId) == address(this),
-            "Post-loan: not owner of collateral"
+            "collateral ownership"
         );
     }
 
@@ -254,24 +243,38 @@ contract FlashRollover is IFlashRollover {
     }
 
     function _validateRollover(
-        LoanLibrary.LoanData memory loanData,
-        ILoanCore loanCore,
+        ILoanCore sourceLoanCore,
         ILoanCore targetLoanCore,
-        LoanLibrary.LoanTerms calldata newLoanTerms
+        LoanLibrary.LoanTerms memory sourceLoanTerms,
+        LoanLibrary.LoanTerms calldata newLoanTerms,
+        uint256 borrowerNoteId
     ) internal {
-        uint256 borrowerNoteId = loanData.borrowerNoteId;
+        require(sourceLoanCore.borrowerNote().ownerOf(borrowerNoteId) == msg.sender, "caller not borrower");
 
-        IERC721 borrowerNote = loanCore.borrowerNote();
-        address borrower = borrowerNote.ownerOf(borrowerNoteId);
-        require(borrower == msg.sender, "Rollover: borrower only");
+        require(newLoanTerms.payableCurrency == sourceLoanTerms.payableCurrency, "currency mismatch");
 
-        LoanLibrary.LoanTerms memory terms = loanData.terms;
+        require(newLoanTerms.collateralTokenId == sourceLoanTerms.collateralTokenId, "collateral mismatch");
 
-        require(newLoanTerms.payableCurrency == terms.payableCurrency, "Currency mismatch");
-        require(newLoanTerms.collateralTokenId == terms.collateralTokenId, "Collateral mismatch");
         require(
-            address(loanCore.collateralToken()) == address(targetLoanCore.collateralToken()),
-            "Non-compatible AssetWrapper"
+            address(sourceLoanCore.collateralToken()) == address(targetLoanCore.collateralToken()),
+            "non-compatible AssetWrapper"
         );
+    }
+
+    function setOwner(address _owner) external override {
+        require(msg.sender == owner, "not owner");
+
+        owner = _owner;
+
+        emit SetOwner(owner);
+    }
+
+    function flushToken(IERC20 token, address to) external override {
+        require(msg.sender == owner, "not owner");
+
+        uint256 balance = token.balanceOf(address(this));
+        require(balance > 0, "no balance");
+
+        token.transfer(to, balance);
     }
 }

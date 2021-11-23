@@ -29,6 +29,8 @@ interface IFlashRollover is IFlashLoanReceiver {
 
     event Migration(address indexed oldLoanCore, address indexed newLoanCore, uint256 newLoanId);
 
+    event SetOwner(address owner);
+
     /**
      * The contract references needed to roll
      * over the loan. Other dependent contracts
@@ -85,4 +87,8 @@ interface IFlashRollover is IFlashLoanReceiver {
         bytes32 r,
         bytes32 s
     ) external;
+
+    function setOwner(address _owner) external;
+
+    function flushToken(IERC20 token, address to) external;
 }

@@ -219,6 +219,28 @@ contain all needed terms and signature information to start a loan with the
 `OriginationController`. Once the loan is initialized, the borrower
 note will be transferred to `borrower`.
 
+### `setOwner(address _owner)` _(external)_
+
+Sets a contract owner. The owner is the only party allowed to call `flushToken`.
+
+Requirements:
+
+- Must be called by current `owner`.
+
+Emits a `SetOwner` event.
+
+### `flushToken(IERC20 token, address to)` _(external)_
+
+Send any ERC20 token balance held within the contract to a specified
+address. Needed because balance checks for flash rollover assume
+a starting and ending balance of 0 tokens. This prevents the contract
+being frozen by a non-zero token balance (either unintentionally or
+from a griefing attack).
+
+Requirements:
+
+- Must be called by current `owner`.
+
 ## Events
 
 ### `Rollover`
@@ -245,3 +267,7 @@ event Migration(
 ```
 
 Emitted when a loan rollover migrates a loan from one instance of `LoanCore` to another.
+
+### `SetOwner(address owner)`
+
+Emitted when the contract owner is changed.
