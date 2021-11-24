@@ -9,6 +9,7 @@
         "@ethersproject/abstract-signer": "^5.0.6",
         "@ethersproject/bignumber": "^5.0.8",
         "@nomiclabs/hardhat-ethers": "^2.0.1",
+        "@nomiclabs/hardhat-etherscan": "^2.1.7",
         "@nomiclabs/hardhat-waffle": "^2.0.1",
         "@openzeppelin/contracts": "^4.0.0",
         "@typechain/ethers-v5": "^5.0.0",
