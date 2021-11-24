@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+import "hardhat/console.sol";
+
 contract MockERC1155 is Context, ERC1155 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdTracker;
@@ -67,9 +69,11 @@ contract MockERC1155Metadata is MockERC1155 {
 
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
 
+
         for (uint256 i = 0; i < ids.length; i++) {
             _balances[ids[i]][to] += amounts[i];
             _setTokenURI(ids[i], tokenUris[i]);
+            console.log("NEW BALANCE", ids[i], to, _balances[ids[i]][to]);
         }
 
         emit TransferBatch(operator, address(0), to, ids, amounts);
