@@ -26,20 +26,7 @@ export async function main(): Promise<void> {
     const { assetWrapper, feeController } = legacyContracts;
     const currentContracts = await redeploy(ORIGINATOR_ROLE, REPAYER_ROLE, assetWrapper.address, feeController.address);
 
-    const { flashRollover } = await deployFlashRollover(
-        "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5",
-        currentContracts.loanCore.address,
-        legacyContracts.loanCore.address,
-        currentContracts.originationController.address,
-        currentContracts.repaymentController.address,
-        legacyContracts.repaymentController.address,
-        currentContracts.borrowerNote.address,
-        legacyContracts.borrowerNote.address,
-        currentContracts.lenderNote.address,
-        legacyContracts.lenderNote.address,
-        assetWrapper.address,
-        feeController.address,
-    );
+    const { flashRollover } = await deployFlashRollover("0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5");
 
     // Mint some NFTs
     console.log(SECTION_SEPARATOR);
@@ -234,9 +221,19 @@ export async function main(): Promise<void> {
         .connect(signer2)
         .approve(currentContracts.originationController.address, ethers.utils.parseEther("100000"));
 
-    await flashRollover
-        .connect(signer1)
-        .rolloverLoan(true, loan1LoanId, loan1RolloverTerms, loan1RolloverV, loan1RolloverR, loan1RolloverS);
+    await flashRollover.connect(signer1).rolloverLoan(
+        {
+            sourceLoanCore: legacyContracts.loanCore.address,
+            targetLoanCore: currentContracts.loanCore.address,
+            sourceRepaymentController: legacyContracts.repaymentController.address,
+            targetOriginationController: currentContracts.originationController.address,
+        },
+        loan1LoanId,
+        loan1RolloverTerms,
+        loan1RolloverV,
+        loan1RolloverR,
+        loan1RolloverS,
+    );
 
     // Roll over both loans
     console.log(SECTION_SEPARATOR);
@@ -263,7 +260,7 @@ export async function main(): Promise<void> {
     );
 
     // Approve the rollover contract to take borrower note
-    const loan2Data = await currentContracts.loanCore.getLoan(loan1LoanId);
+    const loan2Data = await currentContracts.loanCore.getLoan(loan2LoanId);
     const loan2BorrowerNoteId = loan2Data.borrowerNoteId;
     await currentContracts.borrowerNote.connect(signer1).approve(flashRollover.address, loan2BorrowerNoteId);
 
@@ -275,9 +272,19 @@ export async function main(): Promise<void> {
     // Approve the rollover contract to withdraw balance from borrower
     await usdc.connect(signer1).approve(flashRollover.address, ethers.utils.parseEther("100000"));
 
-    await flashRollover
-        .connect(signer1)
-        .rolloverLoan(false, loan2LoanId, loan2RolloverTerms, loan2RolloverV, loan2RolloverR, loan2RolloverS);
+    await flashRollover.connect(signer1).rolloverLoan(
+        {
+            sourceLoanCore: currentContracts.loanCore.address,
+            targetLoanCore: currentContracts.loanCore.address,
+            sourceRepaymentController: currentContracts.repaymentController.address,
+            targetOriginationController: currentContracts.originationController.address,
+        },
+        loan2LoanId,
+        loan2RolloverTerms,
+        loan2RolloverV,
+        loan2RolloverR,
+        loan2RolloverS,
+    );
 
     // Roll over both loans
     console.log(SECTION_SEPARATOR);
