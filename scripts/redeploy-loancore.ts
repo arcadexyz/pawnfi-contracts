@@ -11,6 +11,8 @@ import {
 
 import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REPAYER_ROLE } from "./constants";
 
+import { SECTION_SEPARATOR } from "./bootstrap-tools";
+
 /**
  *  October 2021: LoanCore Redeploy
  *  This deploy addresses the issue of AssetWrapper re-use.
@@ -39,6 +41,12 @@ export async function main(
     ASSET_WRAPPER_ADDRESS = "0x1F563CDd688ad47b75E474FDe74E87C643d129b7",
     FEE_CONTROLLER_ADDRESS = "0xfc2b8D5C60c8E8BbF8d6dc685F03193472e39587",
 ): Promise<DeployedResources> {
+    console.log(SECTION_SEPARATOR);
+    const signers = await ethers.getSigners();
+    console.log("Deployer address: ", signers[0].address);
+    console.log("Deployer balance: ", (await signers[0].getBalance()).toString());
+    console.log(SECTION_SEPARATOR);
+
     // Hardhat always runs the compile task when running scripts through it.
     // If this runs in a standalone fashion you may want to call compile manually
     // to make sure everything is compiled

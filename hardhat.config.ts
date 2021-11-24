@@ -75,6 +75,16 @@ function createHardhatConfig(): HardhatNetworkUserConfig {
     return config;
 }
 
+function createMainnetConfig(): NetworkUserConfig {
+    return {
+        accounts: {
+            mnemonic,
+        },
+        chainId: chainIds.mainnet,
+        url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`
+    };
+}
+
 const optimizerEnabled = process.env.DISABLE_OPTIMIZER ? false : true;
 
 const config: HardhatUserConfig = {
@@ -88,6 +98,7 @@ const config: HardhatUserConfig = {
         outputFile: process.env.REPORT_GAS_OUTPUT,
     },
     networks: {
+        mainnet: createMainnetConfig(),
         hardhat: createHardhatConfig(),
         goerli: createTestnetConfig("goerli"),
         kovan: createTestnetConfig("kovan"),
