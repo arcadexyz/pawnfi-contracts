@@ -5,8 +5,6 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-import "hardhat/console.sol";
-
 contract MockERC1155 is Context, ERC1155 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdTracker;

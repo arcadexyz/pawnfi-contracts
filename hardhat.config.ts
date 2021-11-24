@@ -82,7 +82,7 @@ function createMainnetConfig(): NetworkUserConfig {
             mnemonic,
         },
         chainId: chainIds.mainnet,
-        url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`
+        url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyApiKey}`,
     };
 }
 
@@ -147,8 +147,8 @@ const config: HardhatUserConfig = {
         target: "ethers-v5",
     },
     etherscan: {
-        apiKey: process.env.ETHERSCAN_API_KEY
-    }
+        apiKey: process.env.ETHERSCAN_API_KEY,
+    },
 };
 
 export default config;

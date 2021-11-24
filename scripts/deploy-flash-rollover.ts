@@ -10,7 +10,7 @@ export interface DeployedResources {
 
 // TODO: Set arguments once a new loan core is deployed.
 export async function main(
-    ADDRESSES_PROVIDER_ADDRESS = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5"
+    ADDRESSES_PROVIDER_ADDRESS = "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
 ): Promise<DeployedResources> {
     // Hardhat always runs the compile task when running scripts through it.
     // If this runs in a standalone fashion you may want to call compile manually
@@ -24,12 +24,8 @@ export async function main(
     console.log(SECTION_SEPARATOR);
 
     const FlashRolloverFactory = await ethers.getContractFactory("FlashRollover");
-    console.log('deploying', ADDRESSES_PROVIDER_ADDRESS);
-    const flashRollover = <FlashRollover>(
-        await FlashRolloverFactory.deploy(
-            ADDRESSES_PROVIDER_ADDRESS,
-        )
-    );
+    console.log("deploying", ADDRESSES_PROVIDER_ADDRESS);
+    const flashRollover = <FlashRollover>await FlashRolloverFactory.deploy(ADDRESSES_PROVIDER_ADDRESS);
 
     await flashRollover.deployed();
 

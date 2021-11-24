@@ -221,21 +221,19 @@ export async function main(): Promise<void> {
         .connect(signer2)
         .approve(currentContracts.originationController.address, ethers.utils.parseEther("100000"));
 
-    await flashRollover
-        .connect(signer1)
-        .rolloverLoan(
-            {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
-                targetOriginationController: currentContracts.originationController.address
-            },
-            loan1LoanId,
-            loan1RolloverTerms,
-            loan1RolloverV,
-            loan1RolloverR,
-            loan1RolloverS
-        );
+    await flashRollover.connect(signer1).rolloverLoan(
+        {
+            sourceLoanCore: legacyContracts.loanCore.address,
+            targetLoanCore: currentContracts.loanCore.address,
+            sourceRepaymentController: legacyContracts.repaymentController.address,
+            targetOriginationController: currentContracts.originationController.address,
+        },
+        loan1LoanId,
+        loan1RolloverTerms,
+        loan1RolloverV,
+        loan1RolloverR,
+        loan1RolloverS,
+    );
 
     // Roll over both loans
     console.log(SECTION_SEPARATOR);
@@ -274,21 +272,19 @@ export async function main(): Promise<void> {
     // Approve the rollover contract to withdraw balance from borrower
     await usdc.connect(signer1).approve(flashRollover.address, ethers.utils.parseEther("100000"));
 
-    await flashRollover
-        .connect(signer1)
-        .rolloverLoan(
-            {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
-                targetOriginationController: currentContracts.originationController.address
-            },
-            loan2LoanId,
-            loan2RolloverTerms,
-            loan2RolloverV,
-            loan2RolloverR,
-            loan2RolloverS
-        );
+    await flashRollover.connect(signer1).rolloverLoan(
+        {
+            sourceLoanCore: currentContracts.loanCore.address,
+            targetLoanCore: currentContracts.loanCore.address,
+            sourceRepaymentController: currentContracts.repaymentController.address,
+            targetOriginationController: currentContracts.originationController.address,
+        },
+        loan2LoanId,
+        loan2RolloverTerms,
+        loan2RolloverV,
+        loan2RolloverR,
+        loan2RolloverS,
+    );
 
     // Roll over both loans
     console.log(SECTION_SEPARATOR);
