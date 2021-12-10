@@ -1,0 +1,12 @@
+{
+    "sig": "0xe6b63e1960f96129ac74a320db0b263f9404aa146eddb5ef7f0863cf07d5fa487f28b3227c9799cced44ac3d1883b427601ea237a4462c4a049fe698612be9a41b",
+    "terms": {
+        "durationSecs": 7776000,
+        "principal": 65000000000,
+        "interest": 4875000000,
+        "collateralTokenId": 34,
+        "payableCurrency": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    },
+    "lender": "0x398e92C827C5FA0F33F171DC8E20570c5CfF330e",
+    "borrower": "0x035458D0209e7e4ce25E8A0126A4c423D9eEB9a4"
+}

@@ -28,7 +28,7 @@
         "eslint-config-prettier": "^6.12.0",
         "ethereum-waffle": "^3.4.0",
         "ethereumjs-util": "^7.0.10",
-        "ethers": "^5.0.32",
+        "ethers": "^5.5.2",
         "fs-extra": "^9.0.1",
         "hardhat": "^2.0.10",
         "hardhat-gas-reporter": "^1.0.4",
