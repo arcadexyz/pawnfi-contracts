@@ -1,13 +1,11 @@
-<img width="3589" alt="pawnf-logo-blue-on-light" src="https://user-images.githubusercontent.com/1355694/138525930-bda64163-2a3e-4358-8cd6-b86556d88611.png">
-
-The [Pawn](https://pawn.fi) protocol facilitates trustless borrowing, lending, and escrow of NFT assets on EVM blockchains. This repository contains the core contracts that power the protocol, written in Solidity.
+The [Pawn](https://pawn.fi) Protocol facilitates trustless borrowing, lending, and escrow of NFT assets on EVM blockchains. This repository contains the core contracts that power the protocol, written in Solidity.
 
 # Relevant Links
 
-- 🌐 [Website](https://www.pawn.fi/) - Our main website, with a high-level overview of the project.
-- 📝 [Usage Documentation](https://docs.pawn.fi) - Our user-facing documentation for the Pawn.fi website and application.
-- 💬 [Discord](https://discord.gg/uNrDStEb) - Join the Pawn.fi community! Great for further technical discussion and real-time support.
-- 🔔 [Twitter](https://twitter.com/pawn_fi) - Follow us on Twitter for alerts and announcements.
+- 🌐 [Website](https://www.arcade.xyz) - Our app website, with a high-level overview of the project.
+- 📝 [Usage Documentation](https://docs.arcade.xyz) - Our user-facing documentation for Arcade and the Pawn Protocol.
+- 💬 [Discord](https://discord.gg/uNrDStEb) - Join the Arcade community! Great for further technical discussion and real-time support.
+- 🔔 [Twitter](https://twitter.com/arcade_xyz) - Follow us on Twitter for alerts and announcements.
 
 If you are interested in being whitelisted for the Pawn private beta, contact us on Discord. Public launch coming soon!
 
