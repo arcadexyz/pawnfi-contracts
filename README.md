@@ -1,4 +1,4 @@
-The [Pawn](https://pawn.fi) Protocol facilitates trustless borrowing, lending, and escrow of NFT assets on EVM blockchains. This repository contains the core contracts that power the protocol, written in Solidity.
+The [Pawn](https://docs.arcade.xyz/docs/faq) Protocol facilitates trustless borrowing, lending, and escrow of NFT assets on EVM blockchains. This repository contains the core contracts that power the protocol, written in Solidity.
 
 # Relevant Links
 
