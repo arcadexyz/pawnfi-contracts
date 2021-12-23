@@ -3,6 +3,7 @@ import * as ethers from "ethers";
 import fs from 'fs'
 
 import OriginationControllerAbi from '../artifacts/contracts/OriginationController.sol/OriginationController.json'
+import ERC20Abi from './erc20abi.json'
 
 export function main(filepath: string): void {
     // Hardhat always runs the compile task when running scripts through it.
@@ -34,6 +35,16 @@ export function main(filepath: string): void {
 
     console.log('Encoded Calldata:')
     console.log(encodedData);
+
+    const iface2 = new ethers.utils.Interface(ERC20Abi);
+
+    const encodedData2 = iface2.encodeFunctionData('approve', [
+        '0x0585a675029C68A6AF41Ba1350BC8172D6172320',
+        ethers.utils.parseUnits('650000', 6)
+    ]);
+
+    console.log('Encoded Approval Calldata:')
+    console.log(encodedData2);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
