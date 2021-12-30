@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [10.x]
+        node-version: [12.x]
         os: [macOS-latest, windows-latest, ubuntu-latest]
 
     steps:
@@ -33,7 +33,7 @@ jobs:
           node-version: ${{ matrix.node-version }} # tests across multiple Deno versions
 
       - name: Install
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Lint
         run: yarn lint
@@ -45,4 +45,11 @@ jobs:
         run: yarn typechain
 
       - name: Test
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
         run: yarn test
+
+      - name: Coverage
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+        run: yarn coverage
