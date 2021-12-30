@@ -88,6 +88,7 @@
         "test": "hardhat test",
         "typechain": "hardhat typechain",
         "bootstrap-with-loans": "npx hardhat --network localhost run scripts/bootstrap-state-with-loans.ts",
-        "bootstrap-no-loans": "npx hardhat --network localhost run scripts/bootstrap-state-no-loans.ts"
+        "bootstrap-no-loans": "npx hardhat --network localhost run scripts/bootstrap-state-no-loans.ts",
+        "transfer": "npx hardhat --network localhost run scripts/transfer.ts"
     }
 }
