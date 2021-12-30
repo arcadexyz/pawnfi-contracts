@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../libraries/LoanData.sol";
+import "../libraries/LoanLibrary.sol";
 
 /**
  * @dev Interface for the OriginationController contracts
@@ -20,13 +20,13 @@ interface IOriginationController {
      * @param v, r, s - signature from erc20
      */
     function initializeLoan(
-        LoanData.LoanTerms calldata loanTerms,
+        LoanLibrary.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external;
+    ) external returns (uint256 loanId);
 
     /**
      * @dev creates a new loan, with permit attached
@@ -38,7 +38,7 @@ interface IOriginationController {
      * @param permitDeadline - timestamp at which the collateral signature becomes invalid
      */
     function initializeLoanWithCollateralPermit(
-        LoanData.LoanTerms calldata loanTerms,
+        LoanLibrary.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
@@ -48,5 +48,5 @@ interface IOriginationController {
         bytes32 collateralR,
         bytes32 collateralS,
         uint256 permitDeadline
-    ) external;
+    ) external returns (uint256 loanId);
 }

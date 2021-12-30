@@ -2,7 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import "../libraries/LoanData.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+import "../libraries/LoanLibrary.sol";
+
+import "./IPromissoryNote.sol";
+import "./IAssetWrapper.sol";
+import "./IFeeController.sol";
+import "./ILoanCore.sol";
 
 /**
  * @dev Interface for the LoanCore contract
@@ -16,7 +23,7 @@ interface ILoanCore {
     /**
      * @dev Emitted when a loan is initially created
      */
-    event LoanCreated(LoanData.LoanTerms terms, uint256 loanId);
+    event LoanCreated(LoanLibrary.LoanTerms terms, uint256 loanId);
 
     /**
      * @dev Emitted when a loan is started and principal is distributed to the borrower.
@@ -41,12 +48,12 @@ interface ILoanCore {
     /**
      * @dev Get LoanData by loanId
      */
-    function getLoan(uint256 loanId) external view returns (LoanData.LoanData calldata loanData);
+    function getLoan(uint256 loanId) external view returns (LoanLibrary.LoanData calldata loanData);
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanData.LoanTerms calldata terms) external returns (uint256 loanId);
+    function createLoan(LoanLibrary.LoanTerms calldata terms) external returns (uint256 loanId);
 
     /**
      * @dev Start a loan with the given borrower and lender
@@ -81,4 +88,16 @@ interface ILoanCore {
      *  - The current time must be beyond the dueDate
      */
     function claim(uint256 loanId) external;
+
+    /**
+     * @dev Getters for integrated contracts
+     *
+     */
+    function borrowerNote() external returns (IPromissoryNote);
+
+    function lenderNote() external returns (IPromissoryNote);
+
+    function collateralToken() external returns (IERC721);
+
+    function feeController() external returns (IFeeController);
 }

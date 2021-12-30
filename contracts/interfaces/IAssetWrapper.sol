@@ -33,7 +33,7 @@ interface IAssetWrapper {
     event DepositETH(address indexed depositor, uint256 indexed bundleId, uint256 amount);
 
     /**
-     * @dev Emitted when ETH is deposited
+     * @dev Emitted when a bundle is unwrapped.
      */
     event Withdraw(address indexed withdrawer, uint256 indexed bundleId);
 
@@ -43,7 +43,7 @@ interface IAssetWrapper {
      *
      * See {ERC721-_mint}.
      */
-    function initializeBundle(address to) external;
+    function initializeBundle(address to) external returns (uint256);
 
     /**
      * @dev Deposit some ERC20 tokens into a given bundle

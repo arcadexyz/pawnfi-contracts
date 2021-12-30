@@ -1,114 +1,100 @@
-# Solidity Template
+The [Pawn](https://docs.arcade.xyz/docs/faq) Protocol facilitates trustless borrowing, lending, and escrow of NFT assets on EVM blockchains. This repository contains the core contracts that power the protocol, written in Solidity.
 
-My favourite setup for writing Solidity smart contracts.
+# Relevant Links
 
-- [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
-- [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
-- [Ethers](https://github.com/ethers-io/ethers.js/): renowned Ethereum library and wallet implementation
-- [Waffle](https://github.com/EthWorks/Waffle): tooling for writing comprehensive smart contract tests
-- [Solhint](https://github.com/protofire/solhint): linter
-- [Solcover](https://github.com/sc-forks/solidity-coverage) code coverage
-- [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
+- 🌐 [Website](https://www.arcade.xyz) - Our app website, with a high-level overview of the project.
+- 📝 [Usage Documentation](https://docs.arcade.xyz) - Our user-facing documentation for Arcade and the Pawn Protocol.
+- 💬 [Discord](https://discord.gg/uNrDStEb) - Join the Arcade community! Great for further technical discussion and real-time support.
+- 🔔 [Twitter](https://twitter.com/arcade_xyz) - Follow us on Twitter for alerts and announcements.
 
-This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
-template" button at the top of the page.
+If you are interested in being whitelisted for the Pawn private beta, contact us on Discord. Public launch coming soon!
 
-## Usage
+# Local Setup
 
-### Pre Requisites
+This repo uses a fork of [Paul Berg's excellent Solidity template](https://github.com/paulrberg/solidity-template). General usage instructions for the repo can be found there. We use a very normal TypeScript/Yarn/Hardhat toolchain.
 
-Before running any command, make sure to install dependencies:
+## Deploying
 
-```sh
-$ yarn install
-```
+In order to deploy the contracts to a local hardhat instance run the deploy script.
 
-### Compile
+`yarn hardhat run scripts/deploy.ts`
 
-Compile the smart contracts with Hardhat:
+The same can be done for non-local instances like Ropsten or Mainnet, but a private key for the address to deploy from must be supplied in `hardhat.config.ts` as specified in [the Hardhat documentation](https://hardhat.org/config/).
 
-```sh
-$ yarn compile
-```
+## Local Development
 
-### TypeChain
+In one window, start a node. Wait for it to load. This is a local Ethereum node forked from the current mainnet Ethereum state.
 
-Compile the smart contracts and generate TypeChain artifacts:
+`npx hardhat node`
 
-```sh
-$ yarn typechain
-```
+In another window run the bootrap script with or without loans created.
 
-### Lint Solidity
+`yarn bootstrap-with-loans`
+or
+`yarn bootstrap-no-loans`
 
-Lint the Solidity code:
+Both will deploy our smart contracts, create a collection of ERC20 and ERC721/ERC1155 NFTs, and distribute them amongst the first 5 signers, skipping the first one since it deploys the smart contract. The second target will also wrap assets, and create loans.
 
-```sh
-$ yarn lint:sol
-```
+# Overview of Contracts
 
-### Lint TypeScript
+## Version 1
 
-Lint the TypeScript code:
+The Version 1 of the Pawn protocol uses the contracts described below for its operation. These contracts are currently deployed on the Ethereum mainnet and the Rinkeby testnet. [The addresses of our deployed can be found in our documentation](https://docs.pawn.fi/docs/contract-addresses). All contracts are verified on [Etherscan](https://etherscan.io/). [Audit reports](https://docs.pawn.fi/docs/audit-reports) are also available.
 
-```sh
-$ yarn lint:ts
-```
+### AssetWrapper
 
-### Test
+This contract holds ERC20, ERC721, and ERC1155 assets on behalf of another address. The Pawn protocol interacts with asset wrapped bundles, but bundles have no coupling to the Pawn protocol and can be used for other uses. Any collateral used in the Pawn protocol takes the form of an `AssetWrapper` bundle.
 
-Run the Mocha tests:
+[AssetWrapper API Specification](docs/AssetWrapper.md)
 
-```sh
-$ yarn test
-```
+### BorrowerNote
 
-### Coverage
+The BorrowerNote is an ERC721 asset that represents the borrower's obligation for a specific loan in the Pawn protocol. The asset can be transferred like a normal ERC721 NFT, which transfers the borrowing obligation to the recipient of the transfer. Holding the `BorrowerNote` attached to a specific loan gives the holder the right to reclaim the collateral bundle when the loan is repaid.
 
-Generate the code coverage report:
+`BorrowerNote` and `LenderNote` are both instantiations of `PromissoryNote`, a generalized NFT contract that implements [ERC721Burnable](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721Burnable).
 
-```sh
-$ yarn coverage
-```
+[PromissoryNote API Specification](docs/PromissoryNote.md)
 
-### Report Gas
+### LenderNote
 
-See the gas usage per unit test and average gas per method call:
+The LenderNote is an ERC721 asset that represents the lender's rights for a specific loan in the Pawn protocol. The asset can be transferred like a normal ERC721 NFT, which transfers the rights of the lender to the recipient of the transfer. Holding the `LenderNote` attached to a specific loan gives the holder the right to any funds from loan repayments, and the right to claim a collateral bundle for a defaulted loan.
 
-```sh
-$ REPORT_GAS=true yarn test
-```
+`BorrowerNote` and `LenderNote` are both instantiations of `PromissoryNote`, a generalized NFT contract that implements [ERC721Burnable](https://docs.openzeppelin.com/contracts/3.x/api/token/erc721#ERC721Burnable).
 
-### Clean
+[PromissoryNote API Specification](docs/PromissoryNote.md)
 
-Delete the smart contract artifacts, the coverage reports and the Hardhat cache:
+### LoanCore
 
-```sh
-$ yarn clean
-```
+The core invariants of the Pawn protocol are maintained here. `LoanCore` tracks all active loans, the associated `AssetWrapper` collateral, and `PromissoryNote` obligations. Any execution logic arond loan origination, repayment, or default is contained within `LoanCore`. When a loan is in progress, collateral is held by `LoanCore`, and `LoanCore` contains relevant information about loan terms and due dates.
 
-## Syntax Highlighting
+This contract also contains admin functionality where operators of the protocol can withdraw any accrued revenue from assessed protocol fees.
 
-If you use VSCode, you can enjoy syntax highlighting for your Solidity code via the
-[vscode-solidity](https://github.com/juanfranblanco/vscode-solidity) extension. The recommended approach to set the
-compiler version is to add the following fields to your VSCode user settings:
+[LoanCore API Specification](docs/LoanCore.md)
 
-```json
-{
-  "solidity.compileUsingRemoteVersion": "v0.8.3+commit.8d00100c",
-  "solidity.defaultCompiler": "remote"
-}
-```
+### OriginationController
 
-Where of course `v0.8.3+commit.8d00100c` can be replaced with any other version.
+This is an external-facing periphery contract that manages loan origination interactions with `LoanCore`. The `OriginationController` takes responsibility for transferring collateral assets from the borrower to `LoanCore`. This controller also checks the validity of origination signatures against the specified parties and loan terms.
 
-## Solidity Coverage Reporting
+[OriginationController API Specification](docs/OriginationController.md)
 
-Solidity Coverage tracks which lines are hit during a test run by instrumenting your contracts and detecting their execution in a coverage-enabled EVM. Coverage reports are produced under ./coverage and configuration lives in .solcover.js.
-[Solcover](https://github.com/sc-forks/solidity-coverage)
+### RepaymentController
 
-Run Coverage instrumentation:
+This is an external-facing periphery contract that manages interactions with `LoanCore` that end the loan lifecycle. The `RepaymentController` takes responsibility for transferring repaid principal + interest from the borrower to `LoanCore` for disbursal to the lender, and returning collateral assets from `LoanCore` back to the borrower on a successful repayment. This controller also handles lender claims in case of default, and ensures ownership of the lender note before allowing a claim.
 
-```sh
-$ yarn coverage
-```
+[RepaymentController API Specification](docs/RepaymentController.md)
+
+## PunkRouter
+
+[CryptoPunks](https://www.larvalabs.com/cryptopunks) serve as valuable collateral within the NFT ecosystem, but they do not conform to the ERC721 standard. The `PunkRouter` uilizes the [Wrapped Punks](https://wrappedpunks.com/) contract to enable users to deposit CryptoPunks into `AssetWrapper` collateral bundles. This allows wrapping and depositing to a bundle to be an atomic operation.
+
+[PunkRouter API Specification](docs/PunkRouter.md)
+
+## FlashRollover
+
+This contract allows borrowers with a currently-active loan to roll over their collateral to a new loan, without needing to pay back the entire principal + interest. The contract uses an [AAVE Flash Loan](https://docs.aave.com/faq/flash-loans) to borrow enough tokens to repay the loan with interest. Once the original loan is repaid, a new loan is issued with the lender's signature, with the principal of the new loan repaying the flash loan plus the flash loan fee (0.09%). This allows borrowers to extend their loan term without having to move any deployed capital from loan proceeds. Note: if the principal of the new loan less fees is smaller than the old loan's principal + interest + flash loan fee, the contract will attempt to withdraw the balance from the borrower's wallet. If the new loan's principal is larger than the old loan's principal + interest + flash loan fee, the leftover loan proceeds will be sent to the borrower, making this like a refinance.
+
+[FlashRollover API Specification](docs/FlashRollover.md)
+
+## Version 2
+
+Version 2 of the Pawn protocol is currently in development. More details will be added to this section as the protocol progresses towards release.

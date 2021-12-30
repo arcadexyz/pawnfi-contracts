@@ -32,3 +32,33 @@ contract MockERC721 is Context, ERC721Enumerable {
         _burn(tokenId);
     }
 }
+
+contract MockERC721Metadata is MockERC721 {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdTracker;
+
+    mapping(uint256 => string) public tokenURIs;
+
+    constructor(string memory name, string memory symbol) MockERC721(name, symbol) {}
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
+        return tokenURIs[tokenId];
+    }
+
+    /**
+     * @dev Creates a new token for `to`. Public for any test to call.
+     *
+     * See {ERC721-_mint}.
+     */
+    function mint(address to, string memory tokenUri) external returns (uint256 tokenId) {
+        tokenId = _tokenIdTracker.current();
+        _mint(to, tokenId);
+        _tokenIdTracker.increment();
+        _setTokenURI(tokenId, tokenUri);
+    }
+
+    function _setTokenURI(uint256 tokenId, string memory tokenUri) internal {
+        tokenURIs[tokenId] = tokenUri;
+    }
+}

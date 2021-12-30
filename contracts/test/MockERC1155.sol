@@ -30,3 +30,41 @@ contract MockERC1155 is Context, ERC1155 {
         _tokenIdTracker.increment();
     }
 }
+
+contract MockERC1155Metadata is MockERC1155 {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdTracker;
+
+    mapping(uint256 => string) public tokenURIs;
+
+    constructor() MockERC1155() {}
+
+    function mint(
+        address to,
+        uint256 amount,
+        string memory tokenUri
+    ) public virtual {
+        uint256 tokenId = _tokenIdTracker.current();
+        _mint(to, tokenId, amount, "");
+        _tokenIdTracker.increment();
+        _setTokenURI(tokenId, tokenUri);
+    }
+
+    function mintBatch(
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        string[] memory tokenUris,
+        bytes memory data
+    ) public virtual {
+        super._mintBatch(to, ids, amounts, data);
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            _setTokenURI(ids[i], tokenUris[i]);
+        }
+    }
+
+    function _setTokenURI(uint256 tokenId, string memory tokenUri) internal {
+        tokenURIs[tokenId] = tokenUri;
+    }
+}
