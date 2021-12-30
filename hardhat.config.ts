@@ -1,5 +1,5 @@
-import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
+import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 
@@ -17,7 +17,8 @@ dotenvConfig({ path: resolve(__dirname, "./.env") });
 const chainIds = {
   ganache: 1337,
   goerli: 5,
-  hardhat: 31337,
+  hardhat: 1337,
+  localhost: 31337,
   kovan: 42,
   mainnet: 1,
   rinkeby: 4,
@@ -72,6 +73,13 @@ const config: HardhatUserConfig = {
     kovan: createTestnetConfig("kovan"),
     rinkeby: createTestnetConfig("rinkeby"),
     ropsten: createTestnetConfig("ropsten"),
+    localhost: {
+      accounts: {
+        mnemonic,
+      },
+      chainId: chainIds.hardhat,
+      gasMultiplier: 10,
+    },
   },
   paths: {
     artifacts: "./artifacts",
@@ -80,20 +88,27 @@ const config: HardhatUserConfig = {
     tests: "./test",
   },
   solidity: {
-    version: "0.8.3",
-    settings: {
-      metadata: {
-        // Not including the metadata hash
-        // https://github.com/paulrberg/solidity-template/issues/31
-        bytecodeHash: "none",
+    compilers: [
+      {
+        version: "0.8.3",
+        settings: {
+          metadata: {
+            // Not including the metadata hash
+            // https://github.com/paulrberg/solidity-template/issues/31
+            bytecodeHash: "none",
+          },
+          // You should disable the optimizer when debugging
+          // https://hardhat.org/hardhat-network/#solidity-optimizer-support
+          optimizer: {
+            enabled: true,
+            runs: 999999,
+          },
+        },
       },
-      // You should disable the optimizer when debugging
-      // https://hardhat.org/hardhat-network/#solidity-optimizer-support
-      optimizer: {
-        enabled: true,
-        runs: 999999,
+      {
+        version: "0.4.12",
       },
-    },
+    ],
   },
   typechain: {
     outDir: "typechain",
