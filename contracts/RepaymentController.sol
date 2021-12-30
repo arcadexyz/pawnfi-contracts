@@ -7,13 +7,14 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "./libraries/LoanData.sol";
+import "./libraries/LoanLibrary.sol";
 import "./interfaces/IPromissoryNote.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IRepaymentController.sol";
 
 contract RepaymentController is IRepaymentController {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     ILoanCore private loanCore;
     IPromissoryNote private borrowerNote;
@@ -38,15 +39,12 @@ contract RepaymentController is IRepaymentController {
 
         require(loanId != 0, "RepaymentController: repay could not dereference loan");
 
-        LoanData.LoanTerms memory terms = loanCore.getLoan(loanId).terms;
+        LoanLibrary.LoanTerms memory terms = loanCore.getLoan(loanId).terms;
 
         // withdraw principal plus interest from borrower and send to loan core
-        SafeERC20.safeTransferFrom(
-            IERC20(terms.payableCurrency),
-            msg.sender,
-            address(loanCore),
-            terms.principal.add(terms.interest)
-        );
+
+        IERC20(terms.payableCurrency).safeTransferFrom(msg.sender, address(this), terms.principal.add(terms.interest));
+        IERC20(terms.payableCurrency).approve(address(loanCore), terms.principal.add(terms.interest));
 
         // call repay function in loan core
         loanCore.repay(loanId);

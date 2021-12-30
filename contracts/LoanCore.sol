@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -17,15 +18,17 @@ import "./PromissoryNote.sol";
 /**
  * @dev LoanCore contract - core contract for creating, repaying, and claiming collateral for PawnFi loans
  */
-contract LoanCore is ILoanCore, AccessControl {
+contract LoanCore is ILoanCore, AccessControl, Pausable {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     bytes32 public constant ORIGINATOR_ROLE = keccak256("ORIGINATOR_ROLE");
     bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
+    bytes32 public constant FEE_CLAIMER_ROLE = keccak256("FEE_CLAIMER_ROLE");
 
     Counters.Counter private loanIdTracker;
-    mapping(uint256 => LoanData.LoanData) private loans;
+    mapping(uint256 => LoanLibrary.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
     IPromissoryNote public borrowerNote;
     IPromissoryNote public lenderNote;
@@ -37,11 +40,11 @@ contract LoanCore is ILoanCore, AccessControl {
     // 10k bps per whole
     uint256 private constant BPS_DENOMINATOR = 10_000;
 
-    // the last known balances by ERC20 token address
-    mapping(address => uint256) private tokenBalances;
-
     constructor(IERC721 _collateralToken, IFeeController _feeController) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(FEE_CLAIMER_ROLE, _msgSender());
+        // only those with FEE_CLAIMER_ROLE can update or grant FEE_CLAIMER_ROLE
+        _setRoleAdmin(FEE_CLAIMER_ROLE, FEE_CLAIMER_ROLE);
 
         feeController = _feeController;
         collateralToken = _collateralToken;
@@ -58,33 +61,33 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function getLoan(uint256 loanId) external view override returns (LoanData.LoanData memory loanData) {
+    function getLoan(uint256 loanId) external view override returns (LoanLibrary.LoanData memory loanData) {
         return loans[loanId];
     }
 
     /**
      * @inheritdoc ILoanCore
      */
-    function createLoan(LoanData.LoanTerms calldata terms)
+    function createLoan(LoanLibrary.LoanTerms calldata terms)
         external
         override
+        whenNotPaused
         onlyRole(ORIGINATOR_ROLE)
         returns (uint256 loanId)
     {
-        require(terms.dueDate > block.timestamp, "LoanCore::create: Loan is already expired");
+        require(terms.durationSecs > 0, "LoanCore::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
-
-        // The following line could be removed to save gas
-        // as it will be implicitly ensured in startLoan when we take ownership of the collateral
-        require(
-            collateralToken.ownerOf(terms.collateralTokenId) != address(0),
-            "LoanCore::create: nonexistent collateral"
-        );
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
 
-        loans[loanId] = LoanData.LoanData(0, 0, terms, LoanData.LoanState.Created);
+        loans[loanId] = LoanLibrary.LoanData(
+            0,
+            0,
+            terms,
+            LoanLibrary.LoanState.Created,
+            block.timestamp + terms.durationSecs
+        );
         collateralInUse[terms.collateralTokenId] = true;
         emit LoanCreated(terms, loanId);
     }
@@ -96,31 +99,29 @@ contract LoanCore is ILoanCore, AccessControl {
         address lender,
         address borrower,
         uint256 loanId
-    ) external override onlyRole(ORIGINATOR_ROLE) {
-        LoanData.LoanData memory data = loans[loanId];
+    ) external override whenNotPaused onlyRole(ORIGINATOR_ROLE) {
+        LoanLibrary.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanData.LoanState.Created, "LoanCore::start: Invalid loan state");
-        // Ensure collateral and principal were deposited
-        require(
-            collateralToken.ownerOf(data.terms.collateralTokenId) == address(this),
-            "LoanCore::start: collateral not sent"
-        );
-        uint256 received = tokensReceived(IERC20(data.terms.payableCurrency));
-        require(received >= data.terms.principal, "LoanCore::start: Insufficient lender deposit");
+        require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
+        // Pull collateral token and principal
+        collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
+
+        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), data.terms.principal);
 
         // Distribute notes and principal
-        loans[loanId].state = LoanData.LoanState.Active;
+        loans[loanId].state = LoanLibrary.LoanState.Active;
         uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        loans[loanId] = LoanData.LoanData(borrowerNoteId, lenderNoteId, data.terms, LoanData.LoanState.Active);
-        SafeERC20.safeTransfer(
-            IERC20(data.terms.payableCurrency),
-            borrower,
-            getPrincipalLessFees(data.terms.principal)
+        loans[loanId] = LoanLibrary.LoanData(
+            borrowerNoteId,
+            lenderNoteId,
+            data.terms,
+            LoanLibrary.LoanState.Active,
+            data.dueDate
         );
 
-        updateTokenBalance(IERC20(data.terms.payableCurrency));
+        IERC20(data.terms.payableCurrency).safeTransfer(borrower, getPrincipalLessFees(data.terms.principal));
         emit LoanStarted(loanId, lender, borrower);
     }
 
@@ -128,29 +129,26 @@ contract LoanCore is ILoanCore, AccessControl {
      * @inheritdoc ILoanCore
      */
     function repay(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
-        LoanData.LoanData memory data = loans[loanId];
+        LoanLibrary.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanData.LoanState.Active, "LoanCore::repay: Invalid loan state");
+        require(data.state == LoanLibrary.LoanState.Active, "LoanCore::repay: Invalid loan state");
 
         // ensure repayment was valid
         uint256 returnAmount = data.terms.principal.add(data.terms.interest);
-        uint256 received = tokensReceived(IERC20(data.terms.payableCurrency));
-        require(received >= returnAmount, "LoanCore::repay: Insufficient repayment");
+        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), returnAmount);
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
         address borrower = borrowerNote.ownerOf(data.borrowerNoteId);
 
         // state changes and cleanup
         // NOTE: these must be performed before assets are released to prevent reentrance
-        loans[loanId].state = LoanData.LoanState.Repaid;
+        loans[loanId].state = LoanLibrary.LoanState.Repaid;
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
         // asset and collateral redistribution
-        SafeERC20.safeTransfer(IERC20(data.terms.payableCurrency), lender, returnAmount);
+        IERC20(data.terms.payableCurrency).safeTransfer(lender, returnAmount);
         collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
-
-        updateTokenBalance(IERC20(data.terms.payableCurrency));
 
         emit LoanRepaid(loanId);
     }
@@ -158,17 +156,17 @@ contract LoanCore is ILoanCore, AccessControl {
     /**
      * @inheritdoc ILoanCore
      */
-    function claim(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
-        LoanData.LoanData memory data = loans[loanId];
+    function claim(uint256 loanId) external override whenNotPaused onlyRole(REPAYER_ROLE) {
+        LoanLibrary.LoanData memory data = loans[loanId];
 
         // Ensure valid initial loan state
-        require(data.state == LoanData.LoanState.Active, "LoanCore::claim: Invalid loan state");
-        require(data.terms.dueDate < block.timestamp, "LoanCore::claim: Loan not expired");
+        require(data.state == LoanLibrary.LoanState.Active, "LoanCore::claim: Invalid loan state");
+        require(data.dueDate < block.timestamp, "LoanCore::claim: Loan not expired");
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
 
         // NOTE: these must be performed before assets are released to prevent reentrance
-        loans[loanId].state = LoanData.LoanState.Defaulted;
+        loans[loanId].state = LoanLibrary.LoanState.Defaulted;
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
@@ -176,20 +174,6 @@ contract LoanCore is ILoanCore, AccessControl {
         collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);
 
         emit LoanClaimed(loanId);
-    }
-
-    /**
-     * @dev Check the amount of tokens received for a given ERC20 token since last checked
-     */
-    function tokensReceived(IERC20 token) internal view returns (uint256 amount) {
-        amount = token.balanceOf(address(this)).sub(tokenBalances[address(token)]);
-    }
-
-    /**
-     * @dev Update the internal state of our token balance for the given token
-     */
-    function updateTokenBalance(IERC20 token) internal {
-        tokenBalances[address(token)] = token.balanceOf(address(this));
     }
 
     /**
@@ -208,7 +192,7 @@ contract LoanCore is ILoanCore, AccessControl {
      *
      * - Must be called by the owner of this contract
      */
-    function setFeeController(IFeeController _newController) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setFeeController(IFeeController _newController) external onlyRole(FEE_CLAIMER_ROLE) {
         feeController = _newController;
     }
 
@@ -221,10 +205,32 @@ contract LoanCore is ILoanCore, AccessControl {
      *
      * - Must be called by the owner of this contract
      */
-    function claimFees(IERC20 token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function claimFees(IERC20 token) external onlyRole(FEE_CLAIMER_ROLE) {
         // any token balances remaining on this contract are fees owned by the protocol
         uint256 amount = token.balanceOf(address(this));
-        SafeERC20.safeTransfer(token, _msgSender(), amount);
+        token.safeTransfer(_msgSender(), amount);
         emit FeesClaimed(address(token), _msgSender(), amount);
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 }

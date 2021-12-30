@@ -32,7 +32,7 @@ describe("RepaymentController", () => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const [deployer, borrower, lender, otherParty] = signers;
 
-    const mockCollateral = <MockERC721>await deploy("MockERC721", deployer, ["Mock Collateral", "McNFT"]);
+    const mockCollateral = <MockERC721>await deploy("MockERC721", deployer, ["Mock Collateral", "MwNFT"]);
     const mockLoanCore = <MockLoanCore>await deploy("MockLoanCore", deployer, []);
 
     const borrowerNoteAddress = await mockLoanCore.borrowerNote();
@@ -59,9 +59,9 @@ describe("RepaymentController", () => {
     // token Id is 0 since it's the first one minted
     const collateralTokenId = 0;
 
-    const dueDate = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 14;
+    const durationSecs = 60 * 60 * 24 * 14;
     const terms = {
-      dueDate: dueDate,
+      durationSecs: durationSecs,
       principal: utils.parseEther(TEST_LOAN_PRINCIPAL.toString()),
       interest: utils.parseEther(TEST_LOAN_INTEREST.toString()),
       collateralTokenId,
