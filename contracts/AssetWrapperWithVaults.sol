@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -24,41 +22,17 @@ import "./ERC721Permit.sol";
  * At any time, the holder of the bundle NFT can redeem it for the
  * underlying assets.
  */
-contract AssetWrapper is
+ // TODO: Add inheritance from EscrowVaultFactory
+contract AssetWrapperWithVaults is
     Context,
-    ERC721Enumerable,
-    ERC721Burnable,
-    ERC1155Holder,
-    ERC721Holder,
-    ERC721Permit,
     IAssetWrapper
 {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    Counters.Counter private _tokenIdTracker;
-
-    struct ERC20Holding {
-        address tokenAddress;
-        uint256 amount;
-    }
-    mapping(uint256 => ERC20Holding[]) public bundleERC20Holdings;
-
-    struct ERC721Holding {
-        address tokenAddress;
-        uint256 tokenId;
-    }
-    mapping(uint256 => ERC721Holding[]) public bundleERC721Holdings;
-
-    struct ERC1155Holding {
-        address tokenAddress;
-        uint256 tokenId;
-        uint256 amount;
-    }
-    mapping(uint256 => ERC1155Holding[]) public bundleERC1155Holdings;
-
-    mapping(uint256 => uint256) public bundleETHHoldings;
+    /// @notice mapping from address of user to address where their vault lives
+    mapping(address => address) vaultRegistry;
 
     /**
      * @dev Initializes the token with name and symbol parameters
