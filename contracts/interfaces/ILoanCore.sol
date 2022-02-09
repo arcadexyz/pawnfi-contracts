@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "../libraries/LoanLibrary.sol";
 
 import "./IPromissoryNote.sol";
-import "./IAssetWrapper.sol";
 import "./IFeeController.sol";
 import "./ILoanCore.sol";
 
@@ -15,11 +14,6 @@ import "./ILoanCore.sol";
  * @dev Interface for the LoanCore contract
  */
 interface ILoanCore {
-    /**
-     * @dev Emitted on initialization to share location of dependent notes
-     */
-    event Initialized(address collateralToken, address borrowerNote, address lenderNote);
-
     /**
      * @dev Emitted when a loan is initially created
      */

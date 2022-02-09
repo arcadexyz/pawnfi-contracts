@@ -5,7 +5,9 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber } from "ethers";
 
 import {
-    AssetWrapper,
+    VaultFactory,
+    AssetVault,
+    AssetVault__factory,
     FeeController,
     OriginationController,
     PromissoryNote,
@@ -27,7 +29,7 @@ interface TestContext {
     mockERC20: MockERC20;
     borrowerNote: PromissoryNote;
     lenderNote: PromissoryNote;
-    assetWrapper: AssetWrapper;
+    assetWrapper: VaultFactory;
     repaymentController: RepaymentController;
     originationController: OriginationController;
     borrower: SignerWithAddress;
@@ -45,7 +47,8 @@ describe("Integration", () => {
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
-        const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", admin, ["AssetWrapper", "MA"]);
+        const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
+        const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
         const feeController = <FeeController>await deploy("FeeController", admin, []);
         const loanCore = <LoanCore>await deploy("LoanCore", admin, [assetWrapper.address, feeController.address]);
 
@@ -116,11 +119,11 @@ describe("Integration", () => {
         };
     };
 
-    const createWnft = async (assetWrapper: AssetWrapper, user: SignerWithAddress) => {
+    const createWnft = async (assetWrapper: VaultFactory, user: SignerWithAddress) => {
         const tx = await assetWrapper.initializeBundle(await user.getAddress());
         const receipt = await tx.wait();
-        if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-            return receipt.events[0].args.tokenId;
+        if (receipt && receipt.events && receipt.events.length === 2 && receipt.events[1].args) {
+            return receipt.events[1].args.vault;
         } else {
             throw new Error("Unable to initialize bundle");
         }
@@ -159,7 +162,7 @@ describe("Integration", () => {
                 .to.emit(loanCore, "LoanStarted");
         });
 
-        it("should fail to start loan if wNFT is withdrawn", async () => {
+        it("should fail to start loan if wNFT has withdraws enabled", async () => {
             const { originationController, mockERC20, assetWrapper, lender, borrower } = await loadFixture(fixture);
 
             const bundleId = await createWnft(assetWrapper, borrower);
@@ -176,18 +179,19 @@ describe("Integration", () => {
             await approve(mockERC20, lender, originationController.address, loanTerms.principal);
             await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
             // simulate someone trying to withdraw just before initializing the loan
-            await assetWrapper.connect(borrower).withdraw(bundleId);
+            await AssetVault__factory.connect(bundleId, borrower).connect(borrower).enableWithdraw();
             await expect(
                 originationController
                     .connect(lender)
                     .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
-            ).to.be.revertedWith("ERC721: operator query for nonexistent token");
+            ).to.be.revertedWith("Origination: withdraws enabled");
         });
 
         it("should fail to create a loan with nonexistent collateral", async () => {
             const { originationController, mockERC20, lender, borrower } = await loadFixture(fixture);
 
-            const bundleId = BigNumber.from(25);
+            const mockOpenVault = await deploy("MockOpenVault", borrower, []);
+            const bundleId = BigNumber.from(mockOpenVault.address);
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
             await mint(mockERC20, lender, loanTerms.principal);
 

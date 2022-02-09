@@ -3,13 +3,13 @@ import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 
-import { AssetWrapper, PunkRouter, CryptoPunksMarket, WrappedPunk } from "../typechain";
+import { VaultFactory, AssetVault, PunkRouter, CryptoPunksMarket, WrappedPunk } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 type Signer = SignerWithAddress;
 
 interface TestContext {
-    assetWrapper: AssetWrapper;
+    assetWrapper: VaultFactory;
     punkRouter: PunkRouter;
     punks: CryptoPunksMarket;
     wrappedPunks: WrappedPunk;
@@ -34,7 +34,8 @@ describe("PunkRouter", () => {
         const signers: Signer[] = await hre.ethers.getSigners();
         const punks = <CryptoPunksMarket>await deploy("CryptoPunksMarket", signers[0], []);
         const wrappedPunks = <WrappedPunk>await deploy("WrappedPunk", signers[0], [punks.address]);
-        const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
+        const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
+        const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
         const punkRouter = <PunkRouter>(
             await deploy("PunkRouter", signers[0], [assetWrapper.address, wrappedPunks.address, punks.address])
         );
@@ -70,12 +71,12 @@ describe("PunkRouter", () => {
     /**
      * Initialize a new bundle, returning the bundleId
      */
-    const initializeBundle = async (assetWrapper: AssetWrapper, user: Signer): Promise<BigNumber> => {
+    const initializeBundle = async (assetWrapper: VaultFactory, user: Signer): Promise<BigNumber> => {
         const tx = await assetWrapper.connect(user).initializeBundle(await user.getAddress());
         const receipt = await tx.wait();
 
-        if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-            return receipt.events[0].args.tokenId;
+        if (receipt && receipt.events && receipt.events.length === 2 && receipt.events[1].args) {
+            return receipt.events[1].args.vault;
         } else {
             throw new Error("Unable to initialize bundle");
         }
@@ -94,13 +95,9 @@ describe("PunkRouter", () => {
             const bundleId = await initializeBundle(assetWrapper, user);
             await expect(punkRouter.depositPunk(punkIndex, bundleId))
                 .to.emit(wrappedPunks, "Transfer")
-                .withArgs(punkRouter.address, assetWrapper.address, punkIndex)
-                .to.emit(assetWrapper, "DepositERC721")
-                .withArgs(punkRouter.address, bundleId, wrappedPunks.address, punkIndex);
+                .withArgs(punkRouter.address, bundleId, punkIndex);
 
-            const holdings = await assetWrapper.bundleERC721Holdings(bundleId, 0);
-            expect(holdings.tokenAddress).to.equal(wrappedPunks.address);
-            expect(holdings.tokenId).to.equal(punkIndex);
+            expect(await wrappedPunks.ownerOf(punkIndex)).to.equal(bundleId);
         });
 
         it("should fail if not approved", async () => {

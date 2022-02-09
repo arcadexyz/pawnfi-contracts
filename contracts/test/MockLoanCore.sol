@@ -27,8 +27,6 @@ contract MockLoanCore is ILoanCore {
 
         // Avoid having loanId = 0
         loanIdTracker.increment();
-
-        emit Initialized(address(0), address(borrowerNote), address(lenderNote));
     }
 
     /**

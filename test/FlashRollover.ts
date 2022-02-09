@@ -5,7 +5,8 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber } from "ethers";
 
 import {
-    AssetWrapper,
+    AssetVault,
+    VaultFactory,
     FeeController,
     OriginationController,
     PromissoryNote,
@@ -34,7 +35,7 @@ interface TestContext {
     legacy: VersionedContracts;
     common: {
         mockERC20: MockERC20;
-        assetWrapper: AssetWrapper;
+        assetWrapper: VaultFactory;
         flashRollover: FlashRollover;
         lendingPool: MockLendingPool;
         feeController: FeeController;
@@ -62,7 +63,8 @@ describe("FlashRollover", () => {
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
-        const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", admin, ["AssetWrapper", "MA"]);
+        const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
+        const assetWrapper = <VaultFactory>await deploy("VaultFactory", admin, [vaultTemplate.address]);
         const feeController = <FeeController>await deploy("FeeController", admin, []);
         const mockERC20 = <MockERC20>await deploy("MockERC20", admin, ["Mock ERC20", "MOCK"]);
 
@@ -157,11 +159,11 @@ describe("FlashRollover", () => {
         };
     };
 
-    const createWnft = async (assetWrapper: AssetWrapper, user: SignerWithAddress): Promise<BigNumber> => {
+    const createWnft = async (assetWrapper: VaultFactory, user: SignerWithAddress): Promise<BigNumber> => {
         const tx = await assetWrapper.initializeBundle(await user.getAddress());
         const receipt = await tx.wait();
-        if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-            return receipt.events[0].args.tokenId;
+        if (receipt && receipt.events && receipt.events.length === 2 && receipt.events[1].args) {
+            return receipt.events[1].args.vault;
         } else {
             throw new Error("Unable to initialize bundle");
         }
@@ -619,7 +621,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("885296");
+            expect(gasUsed.toString()).to.equal("931867");
         });
     });
 
@@ -729,7 +731,8 @@ describe("FlashRollover", () => {
             } = ctx;
             const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
 
-            const assetWrapper2 = <AssetWrapper>await deploy("AssetWrapper", admin, ["AssetWrapper", "MA"]);
+            const vaultTemplate = <AssetVault>await deploy("AssetVault", admin, []);
+            const assetWrapper2 = <VaultFactory>await deploy("VaultFactory", admin, [vaultTemplate.address]);
             const newLoanCore = <LoanCore>(
                 await deploy("LoanCore", admin, [assetWrapper2.address, feeController.address])
             );
@@ -1096,7 +1099,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("1096538");
+            expect(gasUsed.toString()).to.equal("1154228");
         });
     });
 

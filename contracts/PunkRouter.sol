@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IWrappedPunks.sol";
-import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IPunks.sol";
 
 /**
@@ -12,13 +11,13 @@ import "./interfaces/IPunks.sol";
  *  wrap and deposit original cryptopunks into the AssetWrapper
  */
 contract PunkRouter is ERC721Holder, Ownable {
-    IAssetWrapper public assetWrapper;
+    address public immutable assetWrapper;
+    IPunks public immutable punks;
+    address public immutable proxy;
     IWrappedPunks public wrappedPunks;
-    IPunks public punks;
-    address public proxy;
 
     constructor(
-        IAssetWrapper _assetWrapper,
+        address _assetWrapper,
         IWrappedPunks _wrappedPunks,
         IPunks _punks
     ) {
@@ -42,17 +41,14 @@ contract PunkRouter is ERC721Holder, Ownable {
      * - msg.sender must be the owner of punkIndex
      */
     function depositPunk(uint256 punkIndex, uint256 bundleId) external {
-        IPunks _punks = punks;
         IWrappedPunks _wrappedPunks = wrappedPunks;
-        IAssetWrapper _assetWrapper = assetWrapper;
-        address punkOwner = _punks.punkIndexToAddress(punkIndex);
+        address punkOwner = punks.punkIndexToAddress(punkIndex);
         require(punkOwner == msg.sender, "PunkRouter: not owner");
-        _punks.buyPunk(punkIndex);
-        _punks.transferPunk(proxy, punkIndex);
+        punks.buyPunk(punkIndex);
+        punks.transferPunk(proxy, punkIndex);
 
         _wrappedPunks.mint(punkIndex);
-        _wrappedPunks.approve(address(_assetWrapper), punkIndex);
-        _assetWrapper.depositERC721(address(_wrappedPunks), punkIndex, bundleId);
+        _wrappedPunks.safeTransferFrom(address(this), address(uint160(bundleId)), punkIndex);
     }
 
     /**

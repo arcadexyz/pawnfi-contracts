@@ -12,7 +12,6 @@ import "./interfaces/IFlashRollover.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IOriginationController.sol";
 import "./interfaces/IRepaymentController.sol";
-import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 
 /**
