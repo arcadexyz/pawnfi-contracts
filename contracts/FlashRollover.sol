@@ -14,6 +14,7 @@ import "./interfaces/IOriginationController.sol";
 import "./interfaces/IRepaymentController.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
+import "hardhat/console.sol";
 
 /**
  *
@@ -57,9 +58,13 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
         ILoanCore sourceLoanCore = contracts.sourceLoanCore;
         LoanLibrary.LoanData memory loanData = sourceLoanCore.getLoan(loanId);
         LoanLibrary.LoanTerms memory loanTerms = loanData.terms;
-
+        console.log("======rollover loan in contract======");
+        console.log("sourceLoanCore : ", address(sourceLoanCore));
+        console.log("loanId : ", loanId);
+        console.log("collateralTokenId : ", loanTerms.collateralTokenId);
+        console.log("======rollover loan in contract======");
         _validateRollover(sourceLoanCore, contracts.targetLoanCore, loanTerms, newLoanTerms, loanData.borrowerNoteId);
-
+        console.log("======rollover validation complete======");
         {
             address[] memory assets = new address[](1);
             assets[0] = loanTerms.payableCurrency;
@@ -74,6 +79,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
                 OperationData({ contracts: contracts, loanId: loanId, newLoanTerms: newLoanTerms, v: v, r: r, s: s })
             );
 
+            console.log("=======rollover calling LENDING POOL ======");
             // Flash loan based on principal + interest
             LENDING_POOL.flashLoan(address(this), assets, amounts, modes, address(this), params, 0);
         }

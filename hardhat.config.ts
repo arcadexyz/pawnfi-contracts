@@ -28,10 +28,17 @@ const chainIds = {
 
 // Ensure that we have all the environment variables we need.
 let mnemonic: string;
+let etherscanApiKey: string;
 if (!process.env.MNEMONIC) {
     mnemonic = "test test test test test test test test test test test junk";
 } else {
     mnemonic = process.env.MNEMONIC;
+}
+
+if (!process.env.ETHERSCAN_API_KEY) {
+    etherscanApiKey = "";
+} else {
+    etherscanApiKey = process.env.ETHERSCAN_API_KEY;
 }
 
 const forkMainnet = process.env.FORK_MAINNET === "true";
@@ -88,7 +95,10 @@ function createMainnetConfig(): NetworkUserConfig {
 
 const optimizerEnabled = process.env.DISABLE_OPTIMIZER ? false : true;
 
-const config: HardhatUserConfig = {
+interface HHConfig extends HardhatUserConfig {
+    etherscan: { apiKey: string };
+}
+const config: HHConfig = {
     defaultNetwork: "hardhat",
     gasReporter: {
         currency: "USD",
@@ -147,7 +157,7 @@ const config: HardhatUserConfig = {
         target: "ethers-v5",
     },
     etherscan: {
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: etherscanApiKey,
     },
 };
 
