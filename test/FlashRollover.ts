@@ -6,6 +6,7 @@ import { BigNumber } from "ethers";
 
 import {
     AssetVault,
+    CallWhitelist,
     VaultFactory,
     FeeController,
     OriginationController,
@@ -59,12 +60,15 @@ describe("FlashRollover", () => {
     /**
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
-    const fixture = async (): Promise<TestContext> => {
+    async function fixture(): Promise<TestContext> {
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
+        const callWhitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
         const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-        const assetWrapper = <VaultFactory>await deploy("VaultFactory", admin, [vaultTemplate.address]);
+        const assetWrapper = <VaultFactory>(
+            await deploy("VaultFactory", admin, [vaultTemplate.address, callWhitelist.address])
+        );
         const feeController = <FeeController>await deploy("FeeController", admin, []);
         const mockERC20 = <MockERC20>await deploy("MockERC20", admin, ["Mock ERC20", "MOCK"]);
 
@@ -136,7 +140,7 @@ describe("FlashRollover", () => {
             lender,
             admin,
         };
-    };
+    }
 
     /**
      * Create a LoanTerms object using the given parameters, or defaults
@@ -195,11 +199,11 @@ describe("FlashRollover", () => {
 
         let loanId;
 
-        if (receipt && receipt.events && receipt.events.length == 15) {
-            const LoanCreatedLog = new hre.ethers.utils.Interface([
+        if (receipt && receipt.events) {
+            const loanCreatedLog = new hre.ethers.utils.Interface([
                 "event LoanStarted(uint256 loanId, address lender, address borrower)",
             ]);
-            const log = LoanCreatedLog.parseLog(receipt.events[14]);
+            const log = loanCreatedLog.parseLog(receipt.events[receipt.events.length - 1]);
             loanId = log.args.loanId;
         } else {
             throw new Error("Unable to initialize loan");
@@ -621,7 +625,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("931867");
+            expect(gasUsed.toString()).to.equal("931937");
         });
     });
 
@@ -731,8 +735,11 @@ describe("FlashRollover", () => {
             } = ctx;
             const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
 
+            const whitelist = <CallWhitelist>await deploy("CallWhitelist", admin, []);
             const vaultTemplate = <AssetVault>await deploy("AssetVault", admin, []);
-            const assetWrapper2 = <VaultFactory>await deploy("VaultFactory", admin, [vaultTemplate.address]);
+            const assetWrapper2 = <VaultFactory>(
+                await deploy("VaultFactory", admin, [vaultTemplate.address, whitelist.address])
+            );
             const newLoanCore = <LoanCore>(
                 await deploy("LoanCore", admin, [assetWrapper2.address, feeController.address])
             );
@@ -1099,7 +1106,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("1154228");
+            expect(gasUsed.toString()).to.equal("1154299");
         });
     });
 

@@ -3,7 +3,7 @@ import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 
-import { VaultFactory, AssetVault, PunkRouter, CryptoPunksMarket, WrappedPunk } from "../typechain";
+import { VaultFactory, CallWhitelist, AssetVault, PunkRouter, CryptoPunksMarket, WrappedPunk } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 type Signer = SignerWithAddress;
@@ -34,8 +34,11 @@ describe("PunkRouter", () => {
         const signers: Signer[] = await hre.ethers.getSigners();
         const punks = <CryptoPunksMarket>await deploy("CryptoPunksMarket", signers[0], []);
         const wrappedPunks = <WrappedPunk>await deploy("WrappedPunk", signers[0], [punks.address]);
+        const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
         const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-        const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+        const assetWrapper = <VaultFactory>(
+            await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+        );
         const punkRouter = <PunkRouter>(
             await deploy("PunkRouter", signers[0], [assetWrapper.address, wrappedPunks.address, punks.address])
         );
@@ -72,11 +75,15 @@ describe("PunkRouter", () => {
      * Initialize a new bundle, returning the bundleId
      */
     const initializeBundle = async (assetWrapper: VaultFactory, user: Signer): Promise<BigNumber> => {
-        const tx = await assetWrapper.connect(user).initializeBundle(await user.getAddress());
+        const tx = await assetWrapper.initializeBundle(await user.getAddress());
         const receipt = await tx.wait();
-
-        if (receipt && receipt.events && receipt.events.length === 2 && receipt.events[1].args) {
-            return receipt.events[1].args.vault;
+        if (receipt && receipt.events) {
+            for (const event of receipt.events) {
+                if (event.event && event.event === "VaultCreated" && event.args && event.args.vault) {
+                    return event.args.vault;
+                }
+            }
+            throw new Error("Unable to initialize bundle");
         } else {
             throw new Error("Unable to initialize bundle");
         }

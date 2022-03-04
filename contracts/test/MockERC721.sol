@@ -21,7 +21,7 @@ contract MockERC721 is Context, ERC721Enumerable {
      */
     function mint(address to) external returns (uint256 tokenId) {
         tokenId = _tokenIdTracker.current();
-        _mint(to, tokenId);
+        _mint(to, uint256(uint160(address(this))) + tokenId);
         _tokenIdTracker.increment();
     }
 

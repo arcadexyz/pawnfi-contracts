@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import "./ICallWhitelist.sol";
 
 pragma solidity ^0.8.0;
 
@@ -38,9 +39,15 @@ interface IAssetVault {
     event WithdrawETH(address indexed operator, address indexed recipient, uint256 amount);
 
     /**
-     * @dev Sets up the vault
+     * @dev Emitted when an external call is made from the vault
      */
-    function initialize() external;
+    event Call(address indexed operator, address indexed to, bytes data);
+
+    /**
+     * @dev Sets up the vault
+     * @param _whitelist The whitelist contract which decides what external calls are valid
+     */
+    function initialize(address _whitelist) external;
 
     /**
      * @dev Return true if withdrawing is enabled on the vault
@@ -49,6 +56,11 @@ interface IAssetVault {
      *  as the held assets may be withdrawn without notice, i.e. to frontrun a deposit
      */
     function withdrawEnabled() external view returns (bool);
+
+    /**
+     * @dev Return the contract being used to whitelist function calls
+     */
+    function whitelist() external view returns (ICallWhitelist);
 
     /**
      * @dev Enables withdrawals on the vault
@@ -118,4 +130,19 @@ interface IAssetVault {
      * - The caller must be the owner
      */
     function withdrawETH(address to) external;
+
+    /**
+     * @dev Call a function on an external contract
+     * @dev This is intended for claiming airdrops while the vault is being used as collateral
+     * @param to The contract address to call
+     * @param data The data to call the contract with
+     *
+     * Requirements:
+     *
+     * - The vault must be in closed state
+     * - The caller must either be the owner, or the owner must have explicitly
+     *  delegated this ability to the caller through ICallDelegator interface
+     * - The call must be in the whitelist
+     */
+    function call(address to, bytes memory data) external;
 }
