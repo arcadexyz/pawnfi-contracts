@@ -56,7 +56,41 @@ export async function mintNFTs(
         `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
     ];
 
-    await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], uris, "0x00");
+    for (let i = 0; i < numBeats0; i++) {
+      const mod = i % 3;
+      if (mod === 0) {
+        // Always send 2 at once.
+        await beats["mint(address,uint256,string)"](
+          target,
+          2,
+          `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+        );
+      } else if (mod === 1) {
+        // Send only 1.
+        await beats["mint(address,uint256,string)"](
+          target,
+          1,
+          `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+        );
+      } else {
+        // Send 3, one with 2 at once, one with 1 at once.
+        await beats["mint(address,uint256,string)"](
+          target,
+          2,
+          `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+        );
+
+        await beats["mint(address,uint256,string)"](
+          target,
+          1,
+          `https://s3.amazonaws.com/images.pawn.fi/test-nft-metadata/PawnBeats/nft-${j++}.json`,
+        );
+      }
+    }
+
+
+
+    // await beats.mintBatch(target, [0, 1], [numBeats0, numBeats1], uris, "0x00");
 }
 
 export async function mintAndDistribute(
