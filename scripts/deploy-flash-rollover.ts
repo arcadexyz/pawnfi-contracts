@@ -1,11 +1,12 @@
 import { ethers } from "hardhat";
 
-import { FlashRollover } from "../typechain";
+import { FlashRollover, MockLendingPool, MockAddressesProvider } from "../typechain";
 
 import { SECTION_SEPARATOR } from "./bootstrap-tools";
 
 export interface DeployedResources {
     flashRollover: FlashRollover;
+    mockAddressProvider: MockAddressesProvider;
 }
 
 // TODO: Set arguments once a new loan core is deployed.
@@ -23,15 +24,27 @@ export async function main(
     console.log("Deployer balance: ", (await signers[0].getBalance()).toString());
     console.log(SECTION_SEPARATOR);
 
+    const MockLendingPoolFactory = await ethers.getContractFactory("MockLendingPool");
+    const mockLendingPool = <MockLendingPool>await MockLendingPoolFactory.deploy();
+    await mockLendingPool.deployed();
+
+    console.log("MockLendingPool deployed to:", mockLendingPool.address);
+
+    const MockAddressProviderFactory = await ethers.getContractFactory("MockAddressesProvider");
+    const mockAddressProvider = <MockAddressesProvider>await MockAddressProviderFactory.deploy(mockLendingPool.address);
+    await mockAddressProvider.deployed();
+
+    console.log("MockAddressProvider deployed to:", mockAddressProvider.address);
+
     const FlashRolloverFactory = await ethers.getContractFactory("FlashRollover");
-    console.log("deploying", ADDRESSES_PROVIDER_ADDRESS);
-    const flashRollover = <FlashRollover>await FlashRolloverFactory.deploy(ADDRESSES_PROVIDER_ADDRESS);
+    // console.log("deploying ", ADDRESSES_PROVIDER_ADDRESS);
+    const flashRollover = <FlashRollover>await FlashRolloverFactory.deploy(mockAddressProvider.address);
 
     await flashRollover.deployed();
 
     console.log("FlashRollover deployed to:", flashRollover.address);
 
-    return { flashRollover };
+    return { flashRollover, mockAddressProvider };
 }
 
 // We recommend this pattern to be able to use async/await everywhere

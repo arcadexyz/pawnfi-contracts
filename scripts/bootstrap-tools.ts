@@ -67,6 +67,7 @@ export async function mintAndDistribute(
     punks: MockERC721Metadata,
     art: MockERC721Metadata,
     beats: MockERC1155Metadata,
+    mockLendingPoolAddress: string,
 ): Promise<void> {
     // Give a bunch of everything to signer[0]
     await mintTokens(signers[0].address, [1000, 500000, 2000000], weth, pawnToken, usd);
@@ -75,7 +76,8 @@ export async function mintAndDistribute(
     // Give a mix to signers[1] through signers[5]
     await mintTokens(signers[1].address, [0, 2000, 10000], weth, pawnToken, usd);
     await mintNFTs(signers[1].address, [5, 0, 2, 1], punks, art, beats);
-
+    // Give some tokens to the MockLendingPool for rollovers
+    await mintTokens(mockLendingPoolAddress, [5, 10000, 0], weth, pawnToken, usd);
     await mintTokens(signers[2].address, [450, 350.5, 5000], weth, pawnToken, usd);
     await mintNFTs(signers[2].address, [0, 0, 1, 0], punks, art, beats);
 
@@ -101,6 +103,9 @@ export async function mintAndDistribute(
         console.log("PAWN balance:", await getBalance(pawnToken, signerAddr));
         console.log("PUSD balance:", await getBalance(usd, signerAddr));
     }
+    console.log(SUBSECTION_SEPARATOR);
+    console.log("MockLendingPool WETH balance: ", await getBalance(weth, mockLendingPoolAddress));
+    console.log("MockLendingPool PAWN balance: ", await getBalance(pawnToken, mockLendingPoolAddress));
 }
 
 interface DeployedNFT {
