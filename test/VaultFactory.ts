@@ -6,7 +6,7 @@ import { BigNumber, BigNumberish } from "ethers";
 import { fromRpcSig } from "ethereumjs-util";
 
 import { ZERO_ADDRESS } from "./utils/erc20";
-import { AssetVault, VaultFactory } from "../typechain";
+import { CallWhitelist, AssetVault, VaultFactory } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 type Signer = SignerWithAddress;
@@ -25,8 +25,11 @@ describe("VaultFactory", () => {
      */
     const fixture = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
+        const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
         const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-        const factory = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+        const factory = <VaultFactory>(
+            await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+        );
 
         return {
             factory,

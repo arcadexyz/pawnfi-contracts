@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "../interfaces/ICallWhitelist.sol";
+import "../interfaces/ICallDelegator.sol";
 import "../interfaces/IAssetVault.sol";
 import "./OwnableERC721.sol";
 
@@ -20,12 +22,21 @@ import "./OwnableERC721.sol";
 ///  Withdraws cannot be disabled once enabled
 ///  This restriction protects integrations and purchasers of AssetVaults from unexpected withdrawal
 ///  I.e. Someone buys an AV assuming it contains token X, but I withdraw token X right before the sale concludes
+/// @dev note that there is an arbitrary external call which can be made by either:
+///     - the current owner of the vault
+///     - someone who the current owner "delegates" through the ICallDelegator interface
+///  This is to enable airdrop claims by borrowers during loans.
 contract AssetVault is IAssetVault, OwnableERC721, Initializable, ERC1155Holder, ERC721Holder, ReentrancyGuard {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
 
+    // True if withdrawals are allowed out of this vault
+    // Note once set to true, it cannot be reverted back to false
     bool public override withdrawEnabled;
+
+    // Whitelist contract to determine if a given external call is allowed
+    ICallWhitelist public override whitelist;
 
     modifier onlyWithdrawEnabled() {
         require(withdrawEnabled, "AssetVault: withdraws disabled");
@@ -48,12 +59,13 @@ contract AssetVault is IAssetVault, OwnableERC721, Initializable, ERC1155Holder,
     /**
      * @dev Function to initialize the contract
      */
-    function initialize() external override initializer {
+    function initialize(address _whitelist) external override initializer {
         require(!withdrawEnabled && ownershipToken == address(0), "AssetVault: Already initialized");
         // set ownership to inherit from the factory who deployed us
         // The factory should have a tokenId == uint256(address(this))
         // whose owner has ownership control over this contract
         OwnableERC721._setNFT(msg.sender);
+        whitelist = ICallWhitelist(_whitelist);
     }
 
     receive() external payable {}
@@ -117,5 +129,19 @@ contract AssetVault is IAssetVault, OwnableERC721, Initializable, ERC1155Holder,
         uint256 balance = address(this).balance;
         payable(to).sendValue(balance);
         emit WithdrawETH(msg.sender, to, balance);
+    }
+
+    /**
+     * @inheritdoc IAssetVault
+     */
+    function call(address to, bytes calldata data) external override onlyWithdrawDisabled nonReentrant {
+        require(
+            msg.sender == owner() || ICallDelegator(owner()).canCallOn(msg.sender, address(this)),
+            "AssetVault: call disallowed"
+        );
+        require(whitelist.isWhitelisted(to, bytes4(data[:4])), "AssetVault: non-whitelisted call");
+
+        to.functionCall(data);
+        emit Call(msg.sender, to, data);
     }
 }

@@ -1,10 +1,18 @@
 import { expect } from "chai";
-import hre, { waffle } from "hardhat";
+import hre, { ethers, waffle } from "hardhat";
 const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber } from "ethers";
 
-import { AssetVault, VaultFactory, MockERC20, MockERC721, MockERC1155 } from "../typechain";
+import {
+    AssetVault,
+    CallWhitelist,
+    VaultFactory,
+    MockCallDelegator,
+    MockERC20,
+    MockERC721,
+    MockERC1155,
+} from "../typechain";
 import { mint } from "./utils/erc20";
 import { mint as mintERC721 } from "./utils/erc721";
 import { mint as mintERC1155 } from "./utils/erc1155";
@@ -15,6 +23,7 @@ type Signer = SignerWithAddress;
 interface TestContext {
     vault: AssetVault;
     nft: VaultFactory;
+    whitelist: CallWhitelist;
     bundleId: BigNumber;
     mockERC20: MockERC20;
     mockERC721: MockERC721;
@@ -50,17 +59,21 @@ describe("AssetVault", () => {
      */
     const fixture = async (): Promise<TestContext> => {
         const signers: Signer[] = await hre.ethers.getSigners();
+        const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
         const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
         const mockERC721 = <MockERC721>await deploy("MockERC721", signers[0], ["Mock ERC721", "MOCK"]);
         const mockERC1155 = <MockERC1155>await deploy("MockERC1155", signers[0], []);
 
         const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-        const factory = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+        const factory = <VaultFactory>(
+            await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+        );
         const vault = await createVault(factory, signers[0]);
 
         return {
             nft: factory,
             vault,
+            whitelist,
             bundleId: BigNumber.from(vault.address),
             mockERC20,
             mockERC721,
@@ -272,6 +285,208 @@ describe("AssetVault", () => {
             );
 
             expect(await vault.withdrawEnabled()).to.equal(false);
+        });
+    });
+
+    describe("call", async () => {
+        it("succeeds if current owner and on whitelist", async () => {
+            const { whitelist, vault, mockERC20, user } = await loadFixture(fixture);
+
+            const selector = mockERC20.interface.getSighash("mint");
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            await whitelist.add(mockERC20.address, selector);
+
+            const startingBalance = await mockERC20.balanceOf(await user.getAddress());
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data))
+                .to.emit(vault, "Call")
+                .withArgs(await user.getAddress(), mockERC20.address, mintData.data);
+            const endingBalance = await mockERC20.balanceOf(await user.getAddress());
+            expect(endingBalance.sub(startingBalance)).to.equal(ethers.utils.parseEther("1"));
+        });
+
+        it("succeeds if delegated and on whitelist", async () => {
+            const { nft, whitelist, vault, mockERC20, user, other } = await loadFixture(fixture);
+
+            const mockCallDelegator = <MockCallDelegator>await deploy("MockCallDelegator", other, []);
+            await mockCallDelegator.connect(other).setCanCall(true);
+
+            const selector = mockERC20.interface.getSighash("mint");
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            // transfer the NFT to the call delegator (like using it as loan collateral)
+            await nft.transferFrom(await user.getAddress(), mockCallDelegator.address, vault.address);
+            await whitelist.add(mockERC20.address, selector);
+
+            const startingBalance = await mockERC20.balanceOf(await user.getAddress());
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data))
+                .to.emit(vault, "Call")
+                .withArgs(await user.getAddress(), mockERC20.address, mintData.data);
+            const endingBalance = await mockERC20.balanceOf(await user.getAddress());
+            expect(endingBalance.sub(startingBalance)).to.equal(ethers.utils.parseEther("1"));
+        });
+
+        it("fails if delegator disallows", async () => {
+            const { nft, whitelist, vault, mockERC20, user, other } = await loadFixture(fixture);
+
+            const mockCallDelegator = <MockCallDelegator>await deploy("MockCallDelegator", other, []);
+            await mockCallDelegator.connect(other).setCanCall(false);
+
+            const selector = mockERC20.interface.getSighash("mint");
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            // transfer the NFT to the call delegator (like using it as loan collateral)
+            await nft.transferFrom(await user.getAddress(), mockCallDelegator.address, vault.address);
+            await whitelist.add(mockERC20.address, selector);
+
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data)).to.be.revertedWith(
+                "AssetVault: call disallowed",
+            );
+        });
+
+        it("fails if delegator is EOA", async () => {
+            const { nft, whitelist, vault, mockERC20, user, other } = await loadFixture(fixture);
+
+            const selector = mockERC20.interface.getSighash("mint");
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            // transfer the NFT to the call delegator (like using it as loan collateral)
+            await nft.transferFrom(await user.getAddress(), await other.getAddress(), vault.address);
+            await whitelist.add(mockERC20.address, selector);
+
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data)).to.be.revertedWith(
+                "Transaction reverted: function call to a non-contract account",
+            );
+        });
+
+        it("fails if delegator is contract which doesn't support interface", async () => {
+            const { nft, whitelist, vault, mockERC20, user } = await loadFixture(fixture);
+
+            const selector = mockERC20.interface.getSighash("mint");
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            // transfer the NFT to the call delegator (like using it as loan collateral)
+            await nft.transferFrom(await user.getAddress(), mockERC20.address, vault.address);
+            await whitelist.add(mockERC20.address, selector);
+
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data)).to.be.revertedWith(
+                "Transaction reverted: function selector was not recognized and there's no fallback function",
+            );
+        });
+
+        it("fails from current owner if not whitelisted", async () => {
+            const { vault, mockERC20, user } = await loadFixture(fixture);
+
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data)).to.be.revertedWith(
+                "AssetVault: non-whitelisted call",
+            );
+        });
+
+        it("fails if delegated and not whitelisted", async () => {
+            const { nft, vault, mockERC20, user, other } = await loadFixture(fixture);
+
+            const mockCallDelegator = <MockCallDelegator>await deploy("MockCallDelegator", other, []);
+            await mockCallDelegator.connect(other).setCanCall(true);
+
+            const mintData = await mockERC20.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            await nft.transferFrom(await user.getAddress(), mockCallDelegator.address, vault.address);
+
+            await expect(vault.connect(user).call(mockERC20.address, mintData.data)).to.be.revertedWith(
+                "AssetVault: non-whitelisted call",
+            );
+        });
+
+        it("fails if on global blacklist", async () => {
+            const { vault, mockERC20, user } = await loadFixture(fixture);
+
+            const transferData = await mockERC20.populateTransaction.transfer(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!transferData || !transferData.data) throw new Error("Populate transaction failed");
+
+            await expect(vault.connect(user).call(mockERC20.address, transferData.data)).to.be.revertedWith(
+                "AssetVault: non-whitelisted call",
+            );
+        });
+
+        it("fails if on global blacklist even after whitelisting", async () => {
+            const { whitelist, vault, mockERC20, user } = await loadFixture(fixture);
+
+            const selector = mockERC20.interface.getSighash("transfer");
+            const transferData = await mockERC20.populateTransaction.transfer(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!transferData || !transferData.data) throw new Error("Populate transaction failed");
+
+            await whitelist.add(mockERC20.address, selector);
+
+            await expect(vault.connect(user).call(mockERC20.address, transferData.data)).to.be.revertedWith(
+                "AssetVault: non-whitelisted call",
+            );
+        });
+
+        it("fails if address is on the whitelist but selector is not", async () => {
+            const { whitelist, vault, mockERC721, user } = await loadFixture(fixture);
+
+            const selector = mockERC721.interface.getSighash("burn");
+            const mintData = await mockERC721.populateTransaction.mint(await user.getAddress());
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            await whitelist.add(mockERC721.address, selector);
+
+            await expect(vault.connect(user).call(mockERC721.address, mintData.data)).to.be.revertedWith(
+                "AssetVault: non-whitelisted call",
+            );
+        });
+
+        it("fails if selector is on the whitelist but address is not", async () => {
+            const { whitelist, vault, mockERC20, mockERC1155, user } = await loadFixture(fixture);
+
+            const selector = mockERC20.interface.getSighash("mint");
+            const mintData = await mockERC1155.populateTransaction.mint(
+                await user.getAddress(),
+                ethers.utils.parseEther("1"),
+            );
+            if (!mintData || !mintData.data) throw new Error("Populate transaction failed");
+
+            await whitelist.add(mockERC20.address, selector);
+
+            await expect(vault.connect(user).call(mockERC1155.address, mintData.data)).to.be.revertedWith(
+                "AssetVault: non-whitelisted call",
+            );
         });
     });
 

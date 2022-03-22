@@ -17,10 +17,15 @@ import "../ERC721Permit.sol";
  */
 contract VaultFactory is ERC721Enumerable, ERC721Permit, IVaultFactory {
     address public immutable template;
+    address public immutable whitelist;
 
-    constructor(address _template) ERC721("Asset Wrapper V2", "AW-V2") ERC721Permit("Asset Wrapper V2") {
+    constructor(address _template, address _whitelist)
+        ERC721("Asset Wrapper V2", "AW-V2")
+        ERC721Permit("Asset Wrapper V2")
+    {
         require(_template != address(0), "VaultFactory: invalid template");
         template = _template;
+        whitelist = _whitelist;
     }
 
     /**
@@ -64,12 +69,13 @@ contract VaultFactory is ERC721Enumerable, ERC721Permit, IVaultFactory {
      */
     function _create() internal returns (address vault) {
         vault = Clones.clone(template);
-        IAssetVault(vault).initialize();
+        IAssetVault(vault).initialize(whitelist);
         return vault;
     }
 
     /**
      * @dev Hook that is called before any token transfer
+     * @dev note this notifies the vault contract about the ownership transfer
      */
     function _beforeTokenTransfer(
         address from,

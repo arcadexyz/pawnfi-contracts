@@ -6,6 +6,7 @@ import { BigNumber } from "ethers";
 
 import {
     VaultFactory,
+    CallWhitelist,
     AssetVault,
     AssetVault__factory,
     FeeController,
@@ -47,8 +48,11 @@ describe("Integration", () => {
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
+        const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
         const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-        const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+        const assetWrapper = <VaultFactory>(
+            await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+        );
         const feeController = <FeeController>await deploy("FeeController", admin, []);
         const loanCore = <LoanCore>await deploy("LoanCore", admin, [assetWrapper.address, feeController.address]);
 
@@ -269,11 +273,11 @@ describe("Integration", () => {
 
             let loanId;
 
-            if (receipt && receipt.events && receipt.events.length == 15) {
-                const LoanCreatedLog = new hre.ethers.utils.Interface([
+            if (receipt && receipt.events) {
+                const loanCreatedLog = new hre.ethers.utils.Interface([
                     "event LoanStarted(uint256 loanId, address lender, address borrower)",
                 ]);
-                const log = LoanCreatedLog.parseLog(receipt.events[14]);
+                const log = loanCreatedLog.parseLog(receipt.events[receipt.events.length - 1]);
                 loanId = log.args.loanId;
             } else {
                 throw new Error("Unable to initialize loan");
@@ -393,11 +397,11 @@ describe("Integration", () => {
             const receipt = await tx.wait();
 
             let loanId;
-            if (receipt && receipt.events && receipt.events.length == 15) {
+            if (receipt && receipt.events) {
                 const LoanCreatedLog = new hre.ethers.utils.Interface([
                     "event LoanStarted(uint256 loanId, address lender, address borrower)",
                 ]);
-                const log = LoanCreatedLog.parseLog(receipt.events[14]);
+                const log = LoanCreatedLog.parseLog(receipt.events[receipt.events.length - 1]);
                 loanId = log.args.loanId;
             } else {
                 throw new Error("Unable to initialize loan");

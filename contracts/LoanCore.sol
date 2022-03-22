@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "./interfaces/ICallDelegator.sol";
 import "./interfaces/IPromissoryNote.sol";
 import "./interfaces/IAssetVault.sol";
 import "./interfaces/IFeeController.sol";
@@ -18,7 +19,7 @@ import "./PromissoryNote.sol";
 /**
  * @dev LoanCore contract - core contract for creating, repaying, and claiming collateral for PawnFi loans
  */
-contract LoanCore is ILoanCore, AccessControl, Pausable {
+contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -232,5 +233,27 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
      */
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
+    }
+
+    /**
+     * @inheritdoc ICallDelegator
+     */
+    function canCallOn(address caller, address vault) external view override returns (bool) {
+        // if the collateral is not currently being used in a loan, disallow
+        if (!collateralInUse[uint256(uint160(vault))]) {
+            return false;
+        }
+
+        for (uint256 i = 0; i < borrowerNote.balanceOf(caller); i++) {
+            uint256 borrowerNoteId = borrowerNote.tokenOfOwnerByIndex(caller, i);
+            uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
+            // if the borrower is currently borrowing against this vault,
+            // return true
+            if (loans[loanId].terms.collateralTokenId == uint256(uint160(vault))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

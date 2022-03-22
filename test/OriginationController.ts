@@ -5,7 +5,15 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber } from "ethers";
 import { deploy } from "./utils/contracts";
 
-import { OriginationController, MockERC20, VaultFactory, AssetVault, PromissoryNote, MockLoanCore } from "../typechain";
+import {
+    OriginationController,
+    CallWhitelist,
+    MockERC20,
+    VaultFactory,
+    AssetVault,
+    PromissoryNote,
+    MockLoanCore,
+} from "../typechain";
 import { approve, mint, ZERO_ADDRESS } from "./utils/erc20";
 import { LoanTerms } from "./utils/types";
 import { createLoanTermsSignature, createPermitSignature } from "./utils/eip712";
@@ -28,8 +36,13 @@ const initializeBundle = async (assetWrapper: VaultFactory, user: Signer): Promi
     const tx = await assetWrapper.connect(user).initializeBundle(await user.getAddress());
     const receipt = await tx.wait();
 
-    if (receipt && receipt.events && receipt.events.length === 2 && receipt.events[1].args) {
-        return receipt.events[1].args.vault;
+    if (receipt && receipt.events) {
+        for (const event of receipt.events) {
+            if (event.event && event.event === "VaultCreated" && event.args && event.args.vault) {
+                return event.args.vault;
+            }
+        }
+        throw new Error("Unable to initialize bundle");
     } else {
         throw new Error("Unable to initialize bundle");
     }
@@ -38,8 +51,11 @@ const initializeBundle = async (assetWrapper: VaultFactory, user: Signer): Promi
 const fixture = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
+    const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
     const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-    const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+    const assetWrapper = <VaultFactory>(
+        await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+    );
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
     const originationController = <OriginationController>(
@@ -90,8 +106,11 @@ describe("OriginationController", () => {
     describe("constructor", () => {
         it("Reverts if _loanCore address is not provided", async () => {
             const signers: Signer[] = await hre.ethers.getSigners();
+            const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
             const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-            const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+            const assetWrapper = <VaultFactory>(
+                await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+            );
             await expect(
                 deploy("OriginationController", signers[0], [ZERO_ADDRESS, assetWrapper.address]),
             ).to.be.revertedWith("Origination: loanCore not defined");
@@ -100,8 +119,11 @@ describe("OriginationController", () => {
         it("Instantiates the OriginationController", async () => {
             const signers: Signer[] = await hre.ethers.getSigners();
             const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
+            const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
             const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
-            const assetWrapper = <VaultFactory>await deploy("VaultFactory", signers[0], [vaultTemplate.address]);
+            const assetWrapper = <VaultFactory>(
+                await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+            );
             const originationController = await deploy("OriginationController", signers[0], [
                 loanCore.address,
                 assetWrapper.address,
