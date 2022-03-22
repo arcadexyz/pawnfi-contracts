@@ -5,7 +5,15 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber } from "ethers";
 import { deploy } from "./utils/contracts";
 
-import { OriginationController, MockERC20, AssetWrapper, PromissoryNote, MockLoanCore } from "../typechain";
+import {
+    OriginationController,
+    CallWhitelist,
+    MockERC20,
+    VaultFactory,
+    AssetVault,
+    PromissoryNote,
+    MockLoanCore,
+} from "../typechain";
 import { approve, mint, ZERO_ADDRESS } from "./utils/erc20";
 import { LoanTerms } from "./utils/types";
 import { createLoanTermsSignature, createPermitSignature } from "./utils/eip712";
@@ -15,7 +23,7 @@ type Signer = SignerWithAddress;
 interface TestContext {
     originationController: OriginationController;
     mockERC20: MockERC20;
-    assetWrapper: AssetWrapper;
+    assetWrapper: VaultFactory;
     lenderPromissoryNote: PromissoryNote;
     borrowerPromissoryNote: PromissoryNote;
     loanCore: MockLoanCore;
@@ -24,12 +32,17 @@ interface TestContext {
     signers: Signer[];
 }
 
-const initializeBundle = async (AssetWrapper: AssetWrapper, user: Signer): Promise<BigNumber> => {
-    const tx = await AssetWrapper.connect(user).initializeBundle(await user.getAddress());
+const initializeBundle = async (assetWrapper: VaultFactory, user: Signer): Promise<BigNumber> => {
+    const tx = await assetWrapper.connect(user).initializeBundle(await user.getAddress());
     const receipt = await tx.wait();
 
-    if (receipt && receipt.events && receipt.events.length === 1 && receipt.events[0].args) {
-        return receipt.events[0].args.tokenId;
+    if (receipt && receipt.events) {
+        for (const event of receipt.events) {
+            if (event.event && event.event === "VaultCreated" && event.args && event.args.vault) {
+                return event.args.vault;
+            }
+        }
+        throw new Error("Unable to initialize bundle");
     } else {
         throw new Error("Unable to initialize bundle");
     }
@@ -38,7 +51,11 @@ const initializeBundle = async (AssetWrapper: AssetWrapper, user: Signer): Promi
 const fixture = async (): Promise<TestContext> => {
     const signers: Signer[] = await hre.ethers.getSigners();
     const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
-    const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
+    const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
+    const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
+    const assetWrapper = <VaultFactory>(
+        await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+    );
     const mockERC20 = <MockERC20>await deploy("MockERC20", signers[0], ["Mock ERC20", "MOCK"]);
 
     const originationController = <OriginationController>(
@@ -89,7 +106,11 @@ describe("OriginationController", () => {
     describe("constructor", () => {
         it("Reverts if _loanCore address is not provided", async () => {
             const signers: Signer[] = await hre.ethers.getSigners();
-            const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
+            const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
+            const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
+            const assetWrapper = <VaultFactory>(
+                await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+            );
             await expect(
                 deploy("OriginationController", signers[0], [ZERO_ADDRESS, assetWrapper.address]),
             ).to.be.revertedWith("Origination: loanCore not defined");
@@ -98,12 +119,16 @@ describe("OriginationController", () => {
         it("Instantiates the OriginationController", async () => {
             const signers: Signer[] = await hre.ethers.getSigners();
             const loanCore = <MockLoanCore>await deploy("MockLoanCore", signers[0], []);
-            const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
+            const whitelist = <CallWhitelist>await deploy("CallWhitelist", signers[0], []);
+            const vaultTemplate = <AssetVault>await deploy("AssetVault", signers[0], []);
+            const assetWrapper = <VaultFactory>(
+                await deploy("VaultFactory", signers[0], [vaultTemplate.address, whitelist.address])
+            );
             const originationController = await deploy("OriginationController", signers[0], [
                 loanCore.address,
                 assetWrapper.address,
             ]);
-            expect(await originationController.assetWrapper()).to.equal(assetWrapper.address);
+            expect(await originationController.vaultFactory()).to.equal(assetWrapper.address);
         });
     });
 

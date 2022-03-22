@@ -9,11 +9,13 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IOriginationController.sol";
 import "./interfaces/ILoanCore.sol";
 import "./interfaces/IERC721Permit.sol";
+import "./interfaces/IAssetVault.sol";
+import "./interfaces/IVaultFactory.sol";
 
 contract OriginationController is Context, IOriginationController, EIP712 {
     using SafeERC20 for IERC20;
-    address public loanCore;
-    address public assetWrapper;
+    address public immutable loanCore;
+    address public immutable vaultFactory;
 
     // solhint-disable-next-line var-name-mixedcase
     bytes32 private immutable _LOAN_TERMS_TYPEHASH =
@@ -22,10 +24,10 @@ contract OriginationController is Context, IOriginationController, EIP712 {
             "LoanTerms(uint256 durationSecs,uint256 principal,uint256 interest,uint256 collateralTokenId,address payableCurrency)"
         );
 
-    constructor(address _loanCore, address _assetWrapper) EIP712("OriginationController", "1") {
+    constructor(address _loanCore, address _vaultFactory) EIP712("OriginationController", "1") {
         require(_loanCore != address(0), "Origination: loanCore not defined");
         loanCore = _loanCore;
-        assetWrapper = _assetWrapper;
+        vaultFactory = _vaultFactory;
     }
 
     /**
@@ -40,6 +42,12 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         bytes32 s
     ) public override returns (uint256 loanId) {
         require(_msgSender() == lender || _msgSender() == borrower, "Origination: sender not participant");
+        // vault must be in withdraw-disabled state,
+        // otherwise its unsafe as assets could have been withdrawn to frontrun this call
+        require(
+            !IAssetVault(address(uint160(loanTerms.collateralTokenId))).withdrawEnabled(),
+            "Origination: withdraws enabled"
+        );
 
         bytes32 loanHash = keccak256(
             abi.encode(
@@ -59,8 +67,8 @@ contract OriginationController is Context, IOriginationController, EIP712 {
 
         IERC20(loanTerms.payableCurrency).safeTransferFrom(lender, address(this), loanTerms.principal);
         IERC20(loanTerms.payableCurrency).approve(loanCore, loanTerms.principal);
-        IERC721(assetWrapper).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
-        IERC721(assetWrapper).approve(loanCore, loanTerms.collateralTokenId);
+        IERC721(vaultFactory).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
+        IERC721(vaultFactory).approve(loanCore, loanTerms.collateralTokenId);
 
         loanId = ILoanCore(loanCore).createLoan(loanTerms);
         ILoanCore(loanCore).startLoan(lender, borrower, loanId);
@@ -81,7 +89,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         bytes32 collateralS,
         uint256 permitDeadline
     ) external override returns (uint256 loanId) {
-        IERC721Permit(assetWrapper).permit(
+        IERC721Permit(vaultFactory).permit(
             borrower,
             address(this),
             loanTerms.collateralTokenId,

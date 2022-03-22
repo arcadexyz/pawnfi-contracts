@@ -214,7 +214,7 @@ describe("LoanCore", () => {
             const tx = await loanCore.connect(user).createLoan(terms);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("197218");
+            expect(gasUsed.toString()).to.equal("217380");
         });
     });
 
@@ -639,7 +639,7 @@ describe("LoanCore", () => {
                 .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("499715");
+            expect(gasUsed.toString()).to.equal("511256");
         });
     });
 
@@ -792,7 +792,7 @@ describe("LoanCore", () => {
             const tx = await loanCore.connect(borrower).repay(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("212419");
+            expect(gasUsed.toString()).to.equal("225315");
         });
     });
 
@@ -960,7 +960,7 @@ describe("LoanCore", () => {
             const tx = await loanCore.connect(borrower).claim(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("172397");
+            expect(gasUsed.toString()).to.equal("185445");
         });
     });
 
@@ -1092,6 +1092,156 @@ describe("LoanCore", () => {
                     await borrower.getAddress()
                 ).toLowerCase()} is missing role ${CLAIM_FEES_ROLE}`,
             );
+        });
+    });
+
+    describe("canCallOn", function () {
+        interface StartLoanState extends TestContext {
+            loanId: BigNumber;
+            terms: LoanTerms;
+            borrower: Signer;
+            lender: Signer;
+        }
+
+        const setupLoan = async (): Promise<StartLoanState> => {
+            const context = await loadFixture(fixture);
+
+            const { mockAssetWrapper, mockERC20, loanCore, user: borrower, other: lender } = context;
+            const collateralTokenId = await mintERC721(mockAssetWrapper, borrower);
+            const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
+            const loanId = await createLoan(loanCore, borrower, terms);
+            return { ...context, loanId, terms, borrower, lender };
+        };
+
+        it("should return true for borrower on vault in use as collateral", async () => {
+            const {
+                mockAssetWrapper,
+                loanCore,
+                mockERC20,
+                loanId,
+                terms: { collateralTokenId, principal },
+                borrower,
+                lender,
+            } = await setupLoan();
+            await mockAssetWrapper
+                .connect(borrower)
+                .transferFrom(await borrower.getAddress(), await borrower.getAddress(), collateralTokenId);
+            await mockAssetWrapper.connect(borrower).approve(loanCore.address, collateralTokenId);
+
+            await mockERC20.connect(lender).mint(await lender.getAddress(), principal);
+            await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
+            await mockERC20.connect(borrower).approve(loanCore.address, principal);
+
+            await expect(
+                loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId),
+            )
+                .to.emit(loanCore, "LoanStarted")
+                .withArgs(loanId, await lender.getAddress(), await borrower.getAddress());
+            expect(await loanCore.canCallOn(await borrower.getAddress(), collateralTokenId.toHexString())).to.be.true;
+        });
+
+        it("should return true for any vaults if borrower has several", async () => {
+            const context = await loadFixture(fixture);
+
+            const { mockAssetWrapper, mockERC20, loanCore, user: borrower, other: lender } = context;
+            const collateralTokenId = await mintERC721(mockAssetWrapper, borrower);
+            const terms = createLoanTerms(mockERC20.address, { collateralTokenId });
+            const loanId = await createLoan(loanCore, borrower, terms);
+
+            await mockAssetWrapper
+                .connect(borrower)
+                .transferFrom(await borrower.getAddress(), await borrower.getAddress(), collateralTokenId);
+            await mockAssetWrapper.connect(borrower).approve(loanCore.address, collateralTokenId);
+            await mockERC20.connect(lender).mint(await lender.getAddress(), terms.principal);
+            await mockERC20.connect(lender).transfer(await borrower.getAddress(), terms.principal);
+            await mockERC20.connect(borrower).approve(loanCore.address, terms.principal);
+            await loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
+
+            const collateralTokenId2 = await mintERC721(mockAssetWrapper, borrower);
+            const terms2 = createLoanTerms(mockERC20.address, { collateralTokenId: collateralTokenId2 });
+            const loanId2 = await createLoan(loanCore, borrower, terms2);
+
+            await mockAssetWrapper
+                .connect(borrower)
+                .transferFrom(await borrower.getAddress(), await borrower.getAddress(), collateralTokenId2);
+            await mockAssetWrapper.connect(borrower).approve(loanCore.address, collateralTokenId2);
+            await mockERC20.connect(lender).mint(await lender.getAddress(), terms2.principal);
+            await mockERC20.connect(lender).transfer(await borrower.getAddress(), terms2.principal);
+            await mockERC20.connect(borrower).approve(loanCore.address, terms2.principal);
+            await loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId2);
+
+            expect(await loanCore.canCallOn(await borrower.getAddress(), collateralTokenId.toHexString())).to.be.true;
+            expect(await loanCore.canCallOn(await borrower.getAddress(), collateralTokenId2.toHexString())).to.be.true;
+        });
+
+        it("should return false if loan is created but not started", async () => {
+            const {
+                loanCore,
+                borrower,
+                terms: { collateralTokenId },
+            } = await setupLoan();
+            expect(await loanCore.canCallOn(await borrower.getAddress(), collateralTokenId.toHexString())).to.be.false;
+        });
+
+        it("should return false for irrelevant user and vault", async () => {
+            const { loanCore, signers } = await setupLoan();
+            expect(await loanCore.canCallOn(await signers[2].getAddress(), await signers[3].getAddress())).to.be.false;
+        });
+
+        it("should return false for irrelevant user on vault in use as collateral", async () => {
+            const {
+                mockAssetWrapper,
+                loanCore,
+                mockERC20,
+                loanId,
+                terms: { collateralTokenId, principal },
+                borrower,
+                lender,
+                signers,
+            } = await setupLoan();
+            await mockAssetWrapper
+                .connect(borrower)
+                .transferFrom(await borrower.getAddress(), await borrower.getAddress(), collateralTokenId);
+            await mockAssetWrapper.connect(borrower).approve(loanCore.address, collateralTokenId);
+
+            await mockERC20.connect(lender).mint(await lender.getAddress(), principal);
+            await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
+            await mockERC20.connect(borrower).approve(loanCore.address, principal);
+
+            await expect(
+                loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId),
+            )
+                .to.emit(loanCore, "LoanStarted")
+                .withArgs(loanId, await lender.getAddress(), await borrower.getAddress());
+            expect(await loanCore.canCallOn(await signers[2].getAddress(), collateralTokenId.toHexString())).to.be
+                .false;
+        });
+
+        it("should return false for lender user on vault in use as collateral", async () => {
+            const {
+                mockAssetWrapper,
+                loanCore,
+                mockERC20,
+                loanId,
+                terms: { collateralTokenId, principal },
+                borrower,
+                lender,
+            } = await setupLoan();
+            await mockAssetWrapper
+                .connect(borrower)
+                .transferFrom(await borrower.getAddress(), await borrower.getAddress(), collateralTokenId);
+            await mockAssetWrapper.connect(borrower).approve(loanCore.address, collateralTokenId);
+
+            await mockERC20.connect(lender).mint(await lender.getAddress(), principal);
+            await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
+            await mockERC20.connect(borrower).approve(loanCore.address, principal);
+
+            await expect(
+                loanCore.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId),
+            )
+                .to.emit(loanCore, "LoanStarted")
+                .withArgs(loanId, await lender.getAddress(), await borrower.getAddress());
+            expect(await loanCore.canCallOn(await lender.getAddress(), collateralTokenId.toHexString())).to.be.false;
         });
     });
 });
