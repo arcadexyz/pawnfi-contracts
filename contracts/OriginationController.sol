@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -7,12 +8,12 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interfaces/IOriginationController.sol";
-import "./interfaces/ILoanCore.sol";
+import "./interfaces/ILoanCoreV2.sol";
 import "./interfaces/IERC721Permit.sol";
 
 contract OriginationController is Context, IOriginationController, EIP712 {
     using SafeERC20 for IERC20;
-    address public loanCore;
+    address public loanCoreV2;
     address public assetWrapper;
 
     // solhint-disable-next-line var-name-mixedcase
@@ -22,9 +23,9 @@ contract OriginationController is Context, IOriginationController, EIP712 {
             "LoanTerms(uint256 durationSecs,uint256 principal,uint256 interest,uint256 collateralTokenId,address payableCurrency)"
         );
 
-    constructor(address _loanCore, address _assetWrapper) EIP712("OriginationController", "1") {
-        require(_loanCore != address(0), "Origination: loanCore not defined");
-        loanCore = _loanCore;
+    constructor(address _loanCoreV2, address _assetWrapper) EIP712("OriginationController", "1") {
+        require(_loanCoreV2 != address(0), "Origination: loanCoreV2 not defined");
+        loanCoreV2 = _loanCoreV2;
         assetWrapper = _assetWrapper;
     }
 
@@ -32,7 +33,7 @@ contract OriginationController is Context, IOriginationController, EIP712 {
      * @inheritdoc IOriginationController
      */
     function initializeLoan(
-        LoanLibrary.LoanTerms calldata loanTerms,
+        LoanLibraryV2.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
@@ -58,19 +59,19 @@ contract OriginationController is Context, IOriginationController, EIP712 {
         require(externalSigner != _msgSender(), "Origination: approved own loan");
 
         IERC20(loanTerms.payableCurrency).safeTransferFrom(lender, address(this), loanTerms.principal);
-        IERC20(loanTerms.payableCurrency).approve(loanCore, loanTerms.principal);
+        IERC20(loanTerms.payableCurrency).approve(loanCoreV2, loanTerms.principal);
         IERC721(assetWrapper).transferFrom(borrower, address(this), loanTerms.collateralTokenId);
-        IERC721(assetWrapper).approve(loanCore, loanTerms.collateralTokenId);
+        IERC721(assetWrapper).approve(loanCoreV2, loanTerms.collateralTokenId);
 
-        loanId = ILoanCore(loanCore).createLoan(loanTerms);
-        ILoanCore(loanCore).startLoan(lender, borrower, loanId);
+        loanId = ILoanCoreV2(loanCoreV2).createLoan(loanTerms);
+        ILoanCoreV2(loanCoreV2).startLoan(lender, borrower, loanId);
     }
 
     /**
      * @inheritdoc IOriginationController
      */
     function initializeLoanWithCollateralPermit(
-        LoanLibrary.LoanTerms calldata loanTerms,
+        LoanLibraryV2.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,

@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-import "../libraries/LoanLibrary.sol";
+import "../libraries/LoanLibraryV2.sol";
 
 import "./IPromissoryNote.sol";
 import "./IAssetWrapper.sol";
 import "./IFeeController.sol";
-import "./ILoanCore.sol";
+import "./ILoanCoreV2.sol";
 
 /**
  * @dev Interface for the LoanCore contract
  */
-interface ILoanCore {
+interface ILoanCoreV2 {
     /**
      * @dev Emitted on initialization to share location of dependent notes
      */
@@ -23,7 +22,7 @@ interface ILoanCore {
     /**
      * @dev Emitted when a loan is initially created
      */
-    event LoanCreated(LoanLibrary.LoanTerms terms, uint256 loanId);
+    event LoanCreated(LoanLibraryV2.LoanTerms terms, uint256 loanId);
 
     /**
      * @dev Emitted when a loan is started and principal is distributed to the borrower.
@@ -48,12 +47,12 @@ interface ILoanCore {
     /**
      * @dev Get LoanData by loanId
      */
-    function getLoan(uint256 loanId) external view returns (LoanLibrary.LoanData calldata loanData);
+    function getLoan(uint256 loanId) external view returns (LoanLibraryV2.LoanData calldata loanData);
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanLibrary.LoanTerms calldata terms) external returns (uint256 loanId);
+    function createLoan(LoanLibraryV2.LoanTerms calldata terms) external returns (uint256 loanId);
 
     /**
      * @dev Start a loan with the given borrower and lender

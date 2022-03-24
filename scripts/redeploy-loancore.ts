@@ -3,9 +3,9 @@ import { ethers } from "hardhat";
 import {
     AssetWrapper,
     FeeController,
-    LoanCore,
+    LoanCoreV2,
     PromissoryNote,
-    RepaymentController,
+    RepaymentControllerV2,
     OriginationController,
 } from "../typechain";
 
@@ -14,24 +14,24 @@ import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REP
 import { SECTION_SEPARATOR } from "./bootstrap-tools";
 
 /**
- *  October 2021: LoanCore Redeploy
+ *  October 2021: LoanCoreV2 Redeploy
  *  This deploy addresses the issue of AssetWrapper re-use.
- *  The following contracts need to be re-deployed for any LoanCore change:
- *      - LoanCore
+ *  The following contracts need to be re-deployed for any LoanCoreV2 change:
+ *      - LoanCoreV2
  *      - BorrowerNote (implicit)
  *      - LenderNote (implicit)
- *      - OriginationController (LoanCore address is immutable)
- *      - RepaymentController (LoanCore address is immutable)
+ *      - OriginationController (LoanCoreV2 address is immutable)
+ *      - RepaymentControllerV2 (LoanCoreV2 address is immutable)
  *
  */
 
 export interface DeployedResources {
     assetWrapper: AssetWrapper;
     feeController: FeeController;
-    loanCore: LoanCore;
+    LoanCoreV2: LoanCoreV2V2;
     borrowerNote: PromissoryNote;
     lenderNote: PromissoryNote;
-    repaymentController: RepaymentController;
+    RepaymentControllerV2: RepaymentControllerV2;
     originationController: OriginationController;
 }
 
@@ -60,36 +60,36 @@ export async function main(
     const feeController = <FeeController>await FeeControllerFactory.attach(FEE_CONTROLLER_ADDRESS);
 
     // Start deploying new contracts
-    const LoanCoreFactory = await ethers.getContractFactory("LoanCore");
-    const loanCore = <LoanCore>await LoanCoreFactory.deploy(ASSET_WRAPPER_ADDRESS, FEE_CONTROLLER_ADDRESS);
-    await loanCore.deployed();
+    const LoanCoreV2Factory = await ethers.getContractFactory("LoanCoreV2");
+    const LoanCoreV2 = <LoanCoreV2>await LoanCoreV2Factory.deploy(ASSET_WRAPPER_ADDRESS, FEE_CONTROLLER_ADDRESS);
+    await LoanCoreV2.deployed();
 
     const promissoryNoteFactory = await ethers.getContractFactory("PromissoryNote");
-    const borrowerNoteAddr = await loanCore.borrowerNote();
+    const borrowerNoteAddr = await LoanCoreV2.borrowerNote();
     const borrowerNote = <PromissoryNote>await promissoryNoteFactory.attach(borrowerNoteAddr);
-    const lenderNoteAddr = await loanCore.lenderNote();
+    const lenderNoteAddr = await LoanCoreV2.lenderNote();
     const lenderNote = <PromissoryNote>await promissoryNoteFactory.attach(lenderNoteAddr);
 
-    console.log("LoanCore deployed to:", loanCore.address);
+    console.log("LoanCoreV2 deployed to:", LoanCoreV2.address);
     console.log("BorrowerNote deployed to:", borrowerNoteAddr);
     console.log("LenderNote deployed to:", lenderNoteAddr);
 
-    const RepaymentControllerFactory = await ethers.getContractFactory("RepaymentController");
-    const repaymentController = <RepaymentController>(
-        await RepaymentControllerFactory.deploy(loanCore.address, borrowerNoteAddr, lenderNoteAddr)
+    const RepaymentControllerV2Factory = await ethers.getContractFactory("RepaymentControllerV2");
+    const RepaymentControllerV2 = <RepaymentControllerV2>(
+        await RepaymentControllerV2Factory.deploy(LoanCoreV2.address, borrowerNoteAddr, lenderNoteAddr)
     );
-    await repaymentController.deployed();
-    const updateRepaymentControllerPermissions = await loanCore.grantRole(REPAYER_ROLE, repaymentController.address);
-    await updateRepaymentControllerPermissions.wait();
+    await RepaymentControllerV2.deployed();
+    const updateRepaymentControllerV2Permissions = await LoanCoreV2.grantRole(REPAYER_ROLE, RepaymentControllerV2.address);
+    await updateRepaymentControllerV2Permissions.wait();
 
-    console.log("RepaymentController deployed to:", repaymentController.address);
+    console.log("RepaymentControllerV2 deployed to:", RepaymentControllerV2.address);
 
     const OriginationControllerFactory = await ethers.getContractFactory("OriginationController");
     const originationController = <OriginationController>(
-        await OriginationControllerFactory.deploy(loanCore.address, ASSET_WRAPPER_ADDRESS)
+        await OriginationControllerFactory.deploy(LoanCoreV2.address, ASSET_WRAPPER_ADDRESS)
     );
     await originationController.deployed();
-    const updateOriginationControllerPermissions = await loanCore.grantRole(
+    const updateOriginationControllerPermissions = await LoanCoreV2.grantRole(
         ORIGINATOR_ROLE,
         originationController.address,
     );
@@ -100,10 +100,10 @@ export async function main(
     return {
         assetWrapper,
         feeController,
-        loanCore,
+        LoanCoreV2,
         borrowerNote,
         lenderNote,
-        repaymentController,
+        RepaymentControllerV2,
         originationController,
     };
 }

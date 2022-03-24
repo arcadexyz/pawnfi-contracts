@@ -3,7 +3,7 @@ import hre, { ethers, waffle } from "hardhat";
 const { loadFixture } = waffle;
 import { utils, Signer, BigNumber } from "ethers";
 
-import { MockLoanCore, MockERC20, MockERC721, RepaymentController } from "../typechain";
+import { MockLoanCore, MockERC20, MockERC721, RepaymentControllerV2 } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 interface TestContext {
@@ -12,7 +12,7 @@ interface TestContext {
         borrowerNoteId: BigNumber;
         lenderNoteId: BigNumber;
     };
-    repaymentController: RepaymentController;
+    repaymentControllerV2: RepaymentControllerV2;
     mockERC20: MockERC20;
     mockLoanCore: MockLoanCore;
     borrower: Signer;
@@ -21,7 +21,7 @@ interface TestContext {
     signers: Signer[];
 }
 
-describe("RepaymentController", () => {
+describe("RepaymentControllerV2", () => {
     const TEST_LOAN_PRINCIPAL = 10;
     const TEST_LOAN_INTEREST = 1;
     let context: TestContext;
@@ -49,8 +49,8 @@ describe("RepaymentController", () => {
             utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString()),
         );
 
-        const repaymentController = <RepaymentController>(
-            await deploy("RepaymentController", deployer, [
+        const repaymentControllerV2 = <RepaymentControllerV2>(
+            await deploy("RepaymentControllerV2", deployer, [
                 mockLoanCore.address,
                 borrowerNoteAddress,
                 lenderNoteAddress,
@@ -96,7 +96,7 @@ describe("RepaymentController", () => {
         return {
             loanId,
             loanData,
-            repaymentController,
+            repaymentControllerV2,
             mockLoanCore,
             mockERC20,
             borrower,
@@ -112,33 +112,33 @@ describe("RepaymentController", () => {
         });
 
         it("reverts for an invalid note ID", async () => {
-            const { repaymentController, borrower } = context;
+            const { repaymentControllerV2, borrower } = context;
             // Use junk note ID, like 1000
-            await expect(repaymentController.connect(borrower).repay(1000)).to.be.revertedWith(
+            await expect(repaymentControllerV2.connect(borrower).repay(1000)).to.be.revertedWith(
                 "RepaymentController: repay could not dereference loan",
             );
         });
 
         it("fails to repay the loan and if the payable currency is not approved", async () => {
-            const { mockERC20, borrower, repaymentController, loanData } = context;
+            const { mockERC20, borrower, repaymentControllerV2, loanData } = context;
 
             const balanceBefore = await mockERC20.balanceOf(await borrower.getAddress());
             expect(balanceBefore.eq(utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString())));
 
             // approve withdrawal
-            await mockERC20.connect(borrower).approve(repaymentController.address, utils.parseEther("0.001"));
-            await expect(repaymentController.connect(borrower).repay(loanData.borrowerNoteId)).to.be.reverted;
+            await mockERC20.connect(borrower).approve(repaymentControllerV2.address, utils.parseEther("0.001"));
+            await expect(repaymentControllerV2.connect(borrower).repay(loanData.borrowerNoteId)).to.be.reverted;
         });
 
         it("repays the loan and withdraws from the borrower's account", async () => {
-            const { mockERC20, borrower, repaymentController, loanData } = context;
+            const { mockERC20, borrower, repaymentControllerV2, loanData } = context;
 
             const balanceBefore = await mockERC20.balanceOf(await borrower.getAddress());
             expect(balanceBefore.eq(utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString())));
 
             // approve withdrawal
-            await mockERC20.connect(borrower).approve(repaymentController.address, utils.parseEther("100"));
-            await repaymentController.connect(borrower).repay(loanData.borrowerNoteId);
+            await mockERC20.connect(borrower).approve(repaymentControllerV2.address, utils.parseEther("100"));
+            await repaymentControllerV2.connect(borrower).repay(loanData.borrowerNoteId);
 
             // Test that borrower no longer has funds
             const balanceAfter = await mockERC20.balanceOf(await borrower.getAddress());
@@ -148,13 +148,13 @@ describe("RepaymentController", () => {
         });
 
         it("allows any party to repay the loan, even if not the borrower", async () => {
-            const { mockERC20, otherParty, repaymentController, loanData } = context;
+            const { mockERC20, otherParty, repaymentControllerV2, loanData } = context;
 
             const balanceBefore = await mockERC20.balanceOf(await otherParty.getAddress());
             expect(balanceBefore.eq(utils.parseEther((TEST_LOAN_PRINCIPAL + TEST_LOAN_INTEREST).toString())));
 
-            await mockERC20.connect(otherParty).approve(repaymentController.address, utils.parseEther("100"));
-            await repaymentController.connect(otherParty).repay(loanData.borrowerNoteId);
+            await mockERC20.connect(otherParty).approve(repaymentControllerV2.address, utils.parseEther("100"));
+            await repaymentControllerV2.connect(otherParty).repay(loanData.borrowerNoteId);
 
             // Test that otherParty no longer has funds
             const balanceAfter = await mockERC20.balanceOf(await otherParty.getAddress());
@@ -169,16 +169,16 @@ describe("RepaymentController", () => {
         });
 
         it("reverts for an invalid note ID", async () => {
-            const { repaymentController, lender } = context;
+            const { repaymentControllerV2, lender } = context;
 
             // Use junk note ID, like 1000
-            await expect(repaymentController.connect(lender).claim(1000)).to.be.revertedWith(
+            await expect(repaymentControllerV2.connect(lender).claim(1000)).to.be.revertedWith(
                 "ERC721: owner query for nonexistent token",
             );
         });
 
         it("reverts for a note ID not owned by caller", async () => {
-            const { repaymentController, lender, borrower, mockLoanCore, loanData } = context;
+            const { repaymentControllerV2, lender, borrower, mockLoanCore, loanData } = context;
 
             const lenderNote = await (
                 await ethers.getContractFactory("PromissoryNote")
@@ -188,24 +188,24 @@ describe("RepaymentController", () => {
                 .transferFrom(await lender.getAddress(), await borrower.getAddress(), loanData.lenderNoteId);
 
             // Use junk note ID, like 1000
-            await expect(repaymentController.connect(lender).claim(loanData.lenderNoteId)).to.be.revertedWith(
+            await expect(repaymentControllerV2.connect(lender).claim(loanData.lenderNoteId)).to.be.revertedWith(
                 "RepaymentController: not owner of lender note",
             );
         });
 
         it("reverts if the claimant is not the lender", async () => {
-            const { repaymentController, borrower, loanData } = context;
+            const { repaymentControllerV2, borrower, loanData } = context;
 
             // Attempt to claim note from the borrower account
-            await expect(repaymentController.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith(
+            await expect(repaymentControllerV2.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith(
                 "RepaymentController: not owner of lender note",
             );
         });
 
         it("claims the collateral and sends it to the lender's account", async () => {
-            const { repaymentController, lender, loanData } = context;
+            const { repaymentControllerV2, lender, loanData } = context;
 
-            await repaymentController.connect(lender).claim(loanData.lenderNoteId);
+            await repaymentControllerV2.connect(lender).claim(loanData.lenderNoteId);
 
             // Not reverted - correct loan state and disbursement should be updated in LoanCore
         });

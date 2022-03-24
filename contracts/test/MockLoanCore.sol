@@ -1,16 +1,17 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-import "../interfaces/ILoanCore.sol";
+import "../interfaces/ILoanCoreV2.sol";
 import "../interfaces/IPromissoryNote.sol";
 
 import "../PromissoryNote.sol";
 
 /**
- * @dev Interface for the LoanCore contract
+ * @dev Interface for the LoanCoreV2 contract
  */
-contract MockLoanCore is ILoanCore {
+contract MockLoanCore is ILoanCoreV2 {
     using Counters for Counters.Counter;
     Counters.Counter private loanIdTracker;
 
@@ -19,7 +20,7 @@ contract MockLoanCore is ILoanCore {
     IERC721 public override collateralToken;
     IFeeController public override feeController;
 
-    mapping(uint256 => LoanLibrary.LoanData) public loans;
+    mapping(uint256 => LoanLibraryV2.LoanData) public loans;
 
     constructor() {
         borrowerNote = new PromissoryNote("Mock BorrowerNote", "MB");
@@ -34,28 +35,34 @@ contract MockLoanCore is ILoanCore {
     /**
      * @dev Get LoanData by loanId
      */
-    function getLoan(uint256 loanId) public view override returns (LoanLibrary.LoanData memory _loanData) {
+    function getLoan(uint256 loanId) public view override returns (LoanLibraryV2.LoanData memory _loanData) {
         return loans[loanId];
     }
 
     /**
      * @dev Create store a loan object with some given terms
      */
-    function createLoan(LoanLibrary.LoanTerms calldata terms) external override returns (uint256 loanId) {
-        LoanLibrary.LoanTerms memory _loanTerms = LoanLibrary.LoanTerms(
+    function createLoan(LoanLibraryV2.LoanTerms calldata terms) external override returns (uint256 loanId) {
+        LoanLibraryV2.LoanTerms memory _loanTerms = LoanLibraryV2.LoanTerms(
             terms.durationSecs,
             terms.principal,
             terms.interest,
             terms.collateralTokenId,
-            terms.payableCurrency
+            terms.payableCurrency,
+            terms.startDate,
+            terms.numInstallments
         );
 
-        LoanLibrary.LoanData memory _loanData = LoanLibrary.LoanData(
+        LoanLibraryV2.LoanData memory _loanData = LoanLibraryV2.LoanData(
             0,
             0,
             _loanTerms,
-            LoanLibrary.LoanState.Created,
-            terms.durationSecs
+            LoanLibraryV2.LoanState.Created,
+            terms.durationSecs,
+            terms.principal,
+            0,
+            0,
+            0
         );
 
         loanId = loanIdTracker.current();
@@ -84,13 +91,17 @@ contract MockLoanCore is ILoanCore {
         uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        LoanLibrary.LoanData memory data = loans[loanId];
-        loans[loanId] = LoanLibrary.LoanData(
+        LoanLibraryV2.LoanData memory data = loans[loanId];
+        loans[loanId] = LoanLibraryV2.LoanData(
             borrowerNoteId,
             lenderNoteId,
             data.terms,
-            LoanLibrary.LoanState.Active,
-            data.dueDate
+            LoanLibraryV2.LoanState.Active,
+            data.dueDate,
+            data.balance,
+            data.balancePaid,
+            data.lateFeesAccrued,
+            data.numMissedPayments
         );
 
         emit LoanStarted(loanId, lender, borrower);
@@ -105,7 +116,7 @@ contract MockLoanCore is ILoanCore {
      *  - The loan must be in state Active
      */
     function repay(uint256 loanId) public override {
-        loans[loanId].state = LoanLibrary.LoanState.Repaid;
+        loans[loanId].state = LoanLibraryV2.LoanState.Repaid;
         emit LoanRepaid(loanId);
     }
 

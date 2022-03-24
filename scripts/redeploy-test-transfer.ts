@@ -24,7 +24,7 @@ export async function main(): Promise<void> {
     console.log("Deploying resources...\n");
 
     // Deploy the smart contracts
-    const { assetWrapper, originationController, repaymentController, borrowerNote, loanCore } = await deploy();
+    const { assetWrapper, originationControllerV2, repaymentControllerV2, borrowerNote, loanCore } = await deploy();
 
     // Mint some NFTs
     console.log(SECTION_SEPARATOR);
@@ -43,7 +43,7 @@ export async function main(): Promise<void> {
         assetWrapper,
         originationController,
         borrowerNote,
-        repaymentController,
+        repaymentControllerV2,
         punks,
         usd,
         beats,
@@ -55,13 +55,13 @@ export async function main(): Promise<void> {
     console.log("Transferring ownership...\n");
 
     // Transfer ownership and try to withdraw fees
-    await transferOwnership(loanCore.address, adminAddress);
+    await transferOwnership(loanCoreV2.address, adminAddress);
 
     console.log("Testing permissions...\n");
 
     // Try to have deployer withdraw
     try {
-        await loanCore.connect(deployer.address).claimFees(weth.address);
+        await loanCoreV2.connect(deployer.address).claimFees(weth.address);
         throw new Error("<Unexpected> Deployer fee claim did not revert!");
     } catch (e) {
         if ((e as Error).message.includes("<Unexpected>")) throw e;
@@ -70,7 +70,7 @@ export async function main(): Promise<void> {
 
     // Try to have deployer pause
     try {
-        await loanCore.connect(deployer.address).pause();
+        await loanCoreV2.connect(deployer.address).pause();
         throw new Error("<Unexpected> Deployer pause did not revert!");
     } catch (e) {
         if ((e as Error).message.includes("<Unexpected>")) throw e;
@@ -89,16 +89,16 @@ export async function main(): Promise<void> {
     });
     const adminSigner = await ethers.getSigner(adminAddress);
 
-    console.log(`Loan core balance pre-withdraw: ${await getBalance(weth, loanCore.address)}`);
+    console.log(`Loan core balance pre-withdraw: ${await getBalance(weth, loanCoreV2.address)}`);
     console.log(`Fee claimer balance pre-withdraw: ${await getBalance(weth, adminAddress)}`);
-    await loanCore.connect(adminSigner).claimFees(weth.address);
-    console.log(`Loan core balance post-withdraw: ${await getBalance(weth, loanCore.address)}`);
+    await loanCoreV2.connect(adminSigner).claimFees(weth.address);
+    console.log(`Loan core balance post-withdraw: ${await getBalance(weth, loanCoreV2.address)}`);
     console.log(`Fee claimer balance post-withdraw: ${await getBalance(weth, adminAddress)}`);
     console.log(`Admin successfully withdrew fees.`);
 
     // Have admin pause
-    await loanCore.connect(adminSigner).pause();
-    await loanCore.connect(adminSigner).unpause();
+    await loanCoreV2.connect(adminSigner).pause();
+    await loanCoreV2.connect(adminSigner).unpause();
     console.log(`Admin successfully paused and unpaused contract.`);
 
     console.log(SECTION_SEPARATOR);

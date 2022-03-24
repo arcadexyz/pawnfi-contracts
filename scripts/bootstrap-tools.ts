@@ -25,7 +25,7 @@ export async function mintTokens(
 ): Promise<void> {
     await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
     await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
-    await usd.mint(target, ethers.utils.parseUnits(usdAmount.toString(), 6));
+    await usd.mint(target, ethers.utils.parseUnits(usdAmount.toString(),6)); // was parseUnits to the 6th decimal. This does not work with % interest calculation
 }
 
 export async function mintNFTs(
@@ -74,7 +74,7 @@ export async function mintAndDistribute(
     await mintNFTs(signers[0].address, [20, 20, 20, 20], punks, art, beats);
 
     // Give a mix to signers[1] through signers[5]
-    await mintTokens(signers[1].address, [0, 2000, 10000], weth, pawnToken, usd);
+    await mintTokens(signers[1].address, [0, 800, 10000], weth, pawnToken, usd);
     await mintNFTs(signers[1].address, [5, 0, 2, 1], punks, art, beats);
     // Give some tokens to the MockLendingPool for rollovers
     await mintTokens(mockLendingPoolAddress, [5, 10000, 0], weth, pawnToken, usd);
@@ -284,6 +284,8 @@ export async function wrapAssetsAndMakeLoans(
         interest: ethers.utils.parseEther("1.5"),
         collateralTokenId: aw1Bundle1Id,
         payableCurrency: weth.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -311,6 +313,8 @@ export async function wrapAssetsAndMakeLoans(
         interest: ethers.utils.parseEther("500"),
         collateralTokenId: aw1Bundle2Id,
         payableCurrency: pawnToken.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -335,9 +339,11 @@ export async function wrapAssetsAndMakeLoans(
     const loan3Terms: LoanTerms = {
         durationSecs: relSecondsFromMs(oneDayMs) - 10,
         principal: ethers.utils.parseUnits("1000", 6),
-        interest: ethers.utils.parseUnits("80", 6),
+        interest: ethers.utils.parseEther("80"),
         collateralTokenId: aw3Bundle1Id,
         payableCurrency: usd.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -362,9 +368,11 @@ export async function wrapAssetsAndMakeLoans(
     const loan4Terms: LoanTerms = {
         durationSecs: relSecondsFromMs(oneMonthMs),
         principal: ethers.utils.parseUnits("1000", 6),
-        interest: ethers.utils.parseUnits("140", 6),
+        interest: ethers.utils.parseEther("140"), // any value less than 0.01 with break
         collateralTokenId: aw3Bundle2Id,
         payableCurrency: usd.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -389,9 +397,11 @@ export async function wrapAssetsAndMakeLoans(
     const loan5Terms: LoanTerms = {
         durationSecs: relSecondsFromMs(900000),
         principal: ethers.utils.parseEther("20"),
-        interest: ethers.utils.parseEther("0.4"),
+        interest: ethers.utils.parseEther("1"),
         collateralTokenId: aw3Bundle3Id,
         payableCurrency: weth.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -419,6 +429,8 @@ export async function wrapAssetsAndMakeLoans(
         interest: ethers.utils.parseEther("18.0198"),
         collateralTokenId: aw4Bundle1Id,
         payableCurrency: pawnToken.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -445,6 +457,7 @@ export async function wrapAssetsAndMakeLoans(
     console.log("Repaying (some) loans...\n");
 
     // 1 will pay off loan from 3
+    console.log("PAWN balance:", await getBalance(pawnToken, signer1.address));
     const loan1BorrowerNoteId = await borrowerNote.tokenOfOwnerByIndex(signer1.address, 1);
     await pawnToken.connect(signer1).approve(repaymentController.address, ethers.utils.parseEther("10500"));
     await repaymentController.connect(signer1).repay(loan1BorrowerNoteId);
@@ -453,10 +466,10 @@ export async function wrapAssetsAndMakeLoans(
 
     // 3 will pay off one loan from 2
     const loan4BorrowerNoteId = await borrowerNote.tokenOfOwnerByIndex(signer3.address, 1);
-    await usd.connect(signer3).approve(repaymentController.address, ethers.utils.parseUnits("1140", 6));
+    await usd.connect(signer3).approve(repaymentController.address, ethers.utils.parseUnits("1014", 6));
     await repaymentController.connect(signer3).repay(loan4BorrowerNoteId);
 
-    console.log(`(Loan 4) Borrower ${signer3.address} repaid 1140 PUSD to ${signer2.address}`);
+    console.log(`(Loan 4) Borrower ${signer3.address} repaid 1014 PUSD to ${signer2.address}`);
 
     console.log(SECTION_SEPARATOR);
     console.log("Reusing a bundle..\n");
@@ -465,9 +478,11 @@ export async function wrapAssetsAndMakeLoans(
     const loan7Terms: LoanTerms = {
         durationSecs: relSecondsFromMs(oneMonthMs),
         principal: ethers.utils.parseUnits("500", 6),
-        interest: ethers.utils.parseUnits("5", 6),
+        interest: ethers.utils.parseEther("5"),
         collateralTokenId: aw3Bundle2Id,
         payableCurrency: usd.address,
+        startDate: 0,
+        numInstallments:0,
     };
 
     const {
@@ -487,6 +502,24 @@ export async function wrapAssetsAndMakeLoans(
     console.log(
         `(Loan 7) Signer ${signer3.address} re-borrowed 500 PUSD at 5% interest from ${signer2.address} against Bundle 4`,
     );
+
+    console.log(SUBSECTION_SEPARATOR);
+    console.log("Ending balances:");
+    for (const i in signers) {
+        const signer = signers[i];
+        const { address: signerAddr } = signer;
+
+        console.log(SUBSECTION_SEPARATOR);
+        console.log(`Signer ${i}: ${signerAddr}`);
+        console.log("PawnPunks balance:", await getBalance(punks, signerAddr));
+        console.log("PawnArt balance:", await getBalance(art, signerAddr));
+        console.log("PawnBeats Edition 0 balance:", await getBalanceERC1155(beats, 0, signerAddr));
+        console.log("PawnBeats Edition 1 balance:", await getBalanceERC1155(beats, 1, signerAddr));
+        console.log("ETH balance:", (await signer.getBalance()).toString());
+        console.log("WETH balance:", await getBalance(weth, signerAddr));
+        console.log("PAWN balance:", await getBalance(pawnToken, signerAddr));
+        console.log("PUSD balance:", await getBalance(usd, signerAddr));
+    }
 
     console.log(SECTION_SEPARATOR);
     console.log("Bootstrapping complete!");

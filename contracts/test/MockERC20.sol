@@ -34,7 +34,7 @@ contract MockERC20WithDecimals is ERC20PresetMinterPauser {
         _decimals = decimals;
     }
 
-    function decimals() public view virtual override returns (uint8) {
+    function getDecimals() public view returns (uint8) {
         return _decimals;
     }
 }

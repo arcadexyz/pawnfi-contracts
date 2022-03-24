@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
-interface IRepaymentController {
+interface IRepaymentControllerV2 {
     /**
      * @dev used to repay a currently active loan.
      *

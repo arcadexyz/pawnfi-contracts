@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
-import "../libraries/LoanLibrary.sol";
+import "../libraries/LoanLibraryV2.sol";
 
 /**
  * @dev Interface for the OriginationController contracts
@@ -20,7 +19,7 @@ interface IOriginationController {
      * @param v, r, s - signature from erc20
      */
     function initializeLoan(
-        LoanLibrary.LoanTerms calldata loanTerms,
+        LoanLibraryV2.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,
@@ -38,7 +37,7 @@ interface IOriginationController {
      * @param permitDeadline - timestamp at which the collateral signature becomes invalid
      */
     function initializeLoanWithCollateralPermit(
-        LoanLibrary.LoanTerms calldata loanTerms,
+        LoanLibraryV2.LoanTerms calldata loanTerms,
         address borrower,
         address lender,
         uint8 v,

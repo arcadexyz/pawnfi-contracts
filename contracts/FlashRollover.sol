@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
@@ -9,9 +10,9 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./external/interfaces/ILendingPool.sol";
 
 import "./interfaces/IFlashRollover.sol";
-import "./interfaces/ILoanCore.sol";
+import "./interfaces/ILoanCoreV2.sol";
 import "./interfaces/IOriginationController.sol";
-import "./interfaces/IRepaymentController.sol";
+import "./interfaces/IRepaymentControllerV2.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
 
@@ -49,14 +50,14 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
     function rolloverLoan(
         RolloverContractParams calldata contracts,
         uint256 loanId,
-        LoanLibrary.LoanTerms calldata newLoanTerms,
+        LoanLibraryV2.LoanTerms calldata newLoanTerms,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) external override {
-        ILoanCore sourceLoanCore = contracts.sourceLoanCore;
-        LoanLibrary.LoanData memory loanData = sourceLoanCore.getLoan(loanId);
-        LoanLibrary.LoanTerms memory loanTerms = loanData.terms;
+        ILoanCoreV2 sourceLoanCore = contracts.sourceLoanCore;
+        LoanLibraryV2.LoanData memory loanData = sourceLoanCore.getLoan(loanId);
+        LoanLibraryV2.LoanTerms memory loanTerms = loanData.terms;
 
         _validateRollover(sourceLoanCore, contracts.targetLoanCore, loanTerms, newLoanTerms, loanData.borrowerNoteId);
 
@@ -104,7 +105,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
         OperationContracts memory opContracts = _getContracts(opData.contracts);
 
         // Get loan details
-        LoanLibrary.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
+        LoanLibraryV2.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
 
         address borrower = opContracts.borrowerNote.ownerOf(loanData.borrowerNoteId);
         address lender = opContracts.lenderNote.ownerOf(loanData.lenderNoteId);
@@ -177,7 +178,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
 
     function _repayLoan(
         OperationContracts memory contracts,
-        LoanLibrary.LoanData memory loanData,
+        LoanLibraryV2.LoanData memory loanData,
         address borrower
     ) internal {
         // Take BorrowerNote from borrower
@@ -221,7 +222,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
             opData.s
         );
 
-        LoanLibrary.LoanData memory newLoanData = contracts.targetLoanCore.getLoan(newLoanId);
+        LoanLibraryV2.LoanData memory newLoanData = contracts.targetLoanCore.getLoan(newLoanId);
         contracts.targetBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
 
         return newLoanId;
@@ -243,10 +244,10 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
     }
 
     function _validateRollover(
-        ILoanCore sourceLoanCore,
-        ILoanCore targetLoanCore,
-        LoanLibrary.LoanTerms memory sourceLoanTerms,
-        LoanLibrary.LoanTerms calldata newLoanTerms,
+        ILoanCoreV2 sourceLoanCore,
+        ILoanCoreV2 targetLoanCore,
+        LoanLibraryV2.LoanTerms memory sourceLoanTerms,
+        LoanLibraryV2.LoanTerms calldata newLoanTerms,
         uint256 borrowerNoteId
     ) internal {
         require(sourceLoanCore.borrowerNote().ownerOf(borrowerNoteId) == msg.sender, "caller not borrower");

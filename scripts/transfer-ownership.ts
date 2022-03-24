@@ -24,7 +24,7 @@ export async function main(
         console.log(`Fee controller address: ${FEE_CONTROLLER_ADDRESS}`);
     }
 
-    const loanCore = await ethers.getContractAt("LoanCore", LOAN_CORE_ADDRESS);
+    const loanCoreV2 = await ethers.getContractAt("LoanCoreV2", LOAN_CORE_ADDRESS);
     // set LoanCore admin and fee claimer
     const updateLoanCoreFeeClaimer = await loanCore.grantRole(FEE_CLAIMER_ROLE, ADMIN_ADDRESS);
     await updateLoanCoreFeeClaimer.wait();

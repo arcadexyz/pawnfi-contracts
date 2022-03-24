@@ -11,14 +11,17 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "./interfaces/IPromissoryNote.sol";
 import "./interfaces/IAssetWrapper.sol";
 import "./interfaces/IFeeController.sol";
-import "./interfaces/ILoanCore.sol";
+import "./interfaces/ILoanCoreV2.sol";
 
 import "./PromissoryNote.sol";
 
+// * * * * testing only * * * *
+import "hardhat/console.sol";
+
 /**
- * @dev LoanCore contract - core contract for creating, repaying, and claiming collateral for PawnFi loans
+ * @dev LoanCoreV2 contract - core contract for creating, repaying, and claiming collateral for PawnFi intallment loans
  */
-contract LoanCore is ILoanCore, AccessControl, Pausable {
+contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -27,8 +30,12 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     bytes32 public constant REPAYER_ROLE = keccak256("REPAYER_ROLE");
     bytes32 public constant FEE_CLAIMER_ROLE = keccak256("FEE_CLAIMER_ROLE");
 
+    //interest rate parameters
+    uint256 public constant INTEREST_DENOMINATOR = 1*10**18;
+    uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
+
     Counters.Counter private loanIdTracker;
-    mapping(uint256 => LoanLibrary.LoanData) private loans;
+    mapping(uint256 => LoanLibraryV2.LoanData) private loans;
     mapping(uint256 => bool) private collateralInUse;
     IPromissoryNote public override borrowerNote;
     IPromissoryNote public override lenderNote;
@@ -57,66 +64,77 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     }
 
     /**
-     * @inheritdoc ILoanCore
+     * @inheritdoc ILoanCoreV2
      */
-    function getLoan(uint256 loanId) external view override returns (LoanLibrary.LoanData memory loanData) {
+    function getLoan(uint256 loanId) external view override returns (LoanLibraryV2.LoanData memory loanData) {
         return loans[loanId];
     }
 
     /**
-     * @inheritdoc ILoanCore
+     * @inheritdoc ILoanCoreV2
      */
-    function createLoan(LoanLibrary.LoanTerms calldata terms)
+    function createLoan(LoanLibraryV2.LoanTerms calldata terms)
         external
         override
         whenNotPaused
         onlyRole(ORIGINATOR_ROLE)
         returns (uint256 loanId)
     {
-        require(terms.durationSecs > 0, "LoanCore::create: Loan is already expired");
-        require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
+        require(terms.durationSecs > 0, "LoanCoreV2::create: Loan is already expired");
+        require(!collateralInUse[terms.collateralTokenId], "LoanCoreV2::create: Collateral token already in use");
+        // interest rate must be entered as 10**18
+        require(terms.interest / 10**18 >= 1, "Interest must be greater than 0.01%.");
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
 
-        loans[loanId] = LoanLibrary.LoanData(
+        loans[loanId] = LoanLibraryV2.LoanData(
             0,
             0,
             terms,
-            LoanLibrary.LoanState.Created,
-            block.timestamp + terms.durationSecs
+            LoanLibraryV2.LoanState.Created,
+            block.timestamp + terms.durationSecs,
+            terms.principal,
+            0,
+            0,
+            0
         );
         collateralInUse[terms.collateralTokenId] = true;
         emit LoanCreated(terms, loanId);
     }
 
     /**
-     * @inheritdoc ILoanCore
+     * @inheritdoc ILoanCoreV2
      */
     function startLoan(
         address lender,
         address borrower,
         uint256 loanId
     ) external override whenNotPaused onlyRole(ORIGINATOR_ROLE) {
-        LoanLibrary.LoanData memory data = loans[loanId];
+        LoanLibraryV2.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
+        require(data.state == LoanLibraryV2.LoanState.Created, "LoanCoreV2::start: Invalid loan state");
         // Pull collateral token and principal
         collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
 
+        // _msgSender() is the OriginationController. The temporary holder of the collateral token
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), data.terms.principal);
 
         // Distribute notes and principal
-        loans[loanId].state = LoanLibrary.LoanState.Active;
+        loans[loanId].state = LoanLibraryV2.LoanState.Active;
         uint256 borrowerNoteId = borrowerNote.mint(borrower, loanId);
         uint256 lenderNoteId = lenderNote.mint(lender, loanId);
 
-        loans[loanId] = LoanLibrary.LoanData(
+        loans[loanId] = LoanLibraryV2.LoanData(
             borrowerNoteId,
             lenderNoteId,
             data.terms,
-            LoanLibrary.LoanState.Active,
-            data.dueDate
+            LoanLibraryV2.LoanState.Active,
+            data.dueDate,
+            data.balance,
+            data.balancePaid,
+            data.lateFeesAccrued,
+            data.numMissedPayments
         );
 
         IERC20(data.terms.payableCurrency).safeTransfer(borrower, getPrincipalLessFees(data.terms.principal));
@@ -124,15 +142,18 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     }
 
     /**
-     * @inheritdoc ILoanCore
+     * @inheritdoc ILoanCoreV2
      */
     function repay(uint256 loanId) external override onlyRole(REPAYER_ROLE) {
-        LoanLibrary.LoanData memory data = loans[loanId];
+        LoanLibraryV2.LoanData memory data = loans[loanId];
         // Ensure valid initial loan state
-        require(data.state == LoanLibrary.LoanState.Active, "LoanCore::repay: Invalid loan state");
+        require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
 
-        // ensure repayment was valid
-        uint256 returnAmount = data.terms.principal.add(data.terms.interest);
+        // calc total repayment amount (principal + interest)
+        uint256 returnAmount = data.terms.principal +
+            ((data.terms.principal * (data.terms.interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR);
+        console.log("LoanCore Calc: ", returnAmount);
+        // transfer funds
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), returnAmount);
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
@@ -140,7 +161,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
 
         // state changes and cleanup
         // NOTE: these must be performed before assets are released to prevent reentrance
-        loans[loanId].state = LoanLibrary.LoanState.Repaid;
+        loans[loanId].state = LoanLibraryV2.LoanState.Repaid;
         collateralInUse[data.terms.collateralTokenId] = false;
 
         lenderNote.burn(data.lenderNoteId);
@@ -154,19 +175,19 @@ contract LoanCore is ILoanCore, AccessControl, Pausable {
     }
 
     /**
-     * @inheritdoc ILoanCore
+     * @inheritdoc ILoanCoreV2
      */
     function claim(uint256 loanId) external override whenNotPaused onlyRole(REPAYER_ROLE) {
-        LoanLibrary.LoanData memory data = loans[loanId];
+        LoanLibraryV2.LoanData memory data = loans[loanId];
 
         // Ensure valid initial loan state
-        require(data.state == LoanLibrary.LoanState.Active, "LoanCore::claim: Invalid loan state");
-        require(data.dueDate < block.timestamp, "LoanCore::claim: Loan not expired");
+        require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::claim: Invalid loan state");
+        require(data.dueDate < block.timestamp, "LoanCoreV2::claim: Loan not expired");
 
         address lender = lenderNote.ownerOf(data.lenderNoteId);
 
         // NOTE: these must be performed before assets are released to prevent reentrance
-        loans[loanId].state = LoanLibrary.LoanState.Defaulted;
+        loans[loanId].state = LoanLibraryV2.LoanState.Defaulted;
         collateralInUse[data.terms.collateralTokenId] = false;
 
         lenderNote.burn(data.lenderNoteId);

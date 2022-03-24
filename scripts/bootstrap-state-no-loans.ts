@@ -16,9 +16,9 @@ export async function main(): Promise<void> {
     console.log("Deploying resources...\n");
 
     // Deploy the smart contracts
-    const { loanCore } = await deploy();
+    const { loanCoreV2 } = await deploy();
     console.log(SECTION_SEPARATOR);
-    const { mockAddressProvider } = await flashRolloverDeploy(loanCore.address);
+    const { mockAddressProvider } = await flashRolloverDeploy(loanCoreV2.address);
     const lendingPool = await mockAddressProvider.getLendingPool();
 
     // Mint some NFTs

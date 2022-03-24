@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import "../external/interfaces/ILendingPool.sol";
-import "./ILoanCore.sol";
+import "./ILoanCoreV2.sol";
 import "./IOriginationController.sol";
-import "./IRepaymentController.sol";
+import "./IRepaymentControllerV2.sol";
 
 interface IFlashLoanReceiver {
     function executeOperation(
@@ -39,9 +38,9 @@ interface IFlashRollover is IFlashLoanReceiver {
      * contracts.
      */
     struct RolloverContractParams {
-        ILoanCore sourceLoanCore;
-        ILoanCore targetLoanCore;
-        IRepaymentController sourceRepaymentController;
+        ILoanCoreV2 sourceLoanCore;
+        ILoanCoreV2 targetLoanCore;
+        IRepaymentControllerV2 sourceRepaymentController;
         IOriginationController targetOriginationController;
     }
 
@@ -55,7 +54,7 @@ interface IFlashRollover is IFlashLoanReceiver {
     struct OperationData {
         RolloverContractParams contracts;
         uint256 loanId;
-        LoanLibrary.LoanTerms newLoanTerms;
+        LoanLibraryV2.LoanTerms newLoanTerms;
         uint8 v;
         bytes32 r;
         bytes32 s;
@@ -68,21 +67,21 @@ interface IFlashRollover is IFlashLoanReceiver {
      * which case it requires migration).
      */
     struct OperationContracts {
-        ILoanCore loanCore;
+        ILoanCoreV2 loanCore;
         IERC721 borrowerNote;
         IERC721 lenderNote;
         IFeeController feeController;
         IERC721 assetWrapper;
-        IRepaymentController repaymentController;
+        IRepaymentControllerV2 repaymentController;
         IOriginationController originationController;
-        ILoanCore targetLoanCore;
+        ILoanCoreV2 targetLoanCore;
         IERC721 targetBorrowerNote;
     }
 
     function rolloverLoan(
         RolloverContractParams calldata contracts,
         uint256 loanId,
-        LoanLibrary.LoanTerms calldata newLoanTerms,
+        LoanLibraryV2.LoanTerms calldata newLoanTerms,
         uint8 v,
         bytes32 r,
         bytes32 s
