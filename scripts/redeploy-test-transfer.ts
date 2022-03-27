@@ -4,6 +4,7 @@ import hre, { ethers } from "hardhat";
 
 import { main as deploy } from "./redeploy-loancore";
 import { main as transferOwnership } from "./transfer-ownership";
+import { main as flashRolloverDeploy } from "./deploy-flash-rollover";
 import {
     getBalance,
     deployNFTs,
@@ -25,6 +26,8 @@ export async function main(): Promise<void> {
 
     // Deploy the smart contracts
     const { assetWrapper, originationController, repaymentController, borrowerNote, loanCore } = await deploy();
+    const { mockAddressProvider } = await flashRolloverDeploy(loanCore.address);
+    const lendingPool = await mockAddressProvider.getLendingPool();
 
     // Mint some NFTs
     console.log(SECTION_SEPARATOR);
@@ -33,7 +36,7 @@ export async function main(): Promise<void> {
     // Distribute NFTs and ERC20s
     console.log(SECTION_SEPARATOR);
     console.log("Distributing assets...\n");
-    await mintAndDistribute(signers, weth, pawnToken, usd, punks, art, beats);
+    await mintAndDistribute(signers, weth, pawnToken, usd, punks, art, beats, lendingPool);
 
     // Wrap some assets
     console.log(SECTION_SEPARATOR);

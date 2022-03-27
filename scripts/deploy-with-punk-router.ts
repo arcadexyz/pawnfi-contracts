@@ -15,7 +15,7 @@ export async function main(
     CRYPTO_PUNKS = "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb",
 ): Promise<DeployedResourcesWithPunks> {
     const {
-        assetWrapper,
+        assetVault,
         feeController,
         loanCore,
         borrowerNote,
@@ -24,14 +24,14 @@ export async function main(
         originationController,
     } = await deployMain(ORIGINATOR_ROLE, REPAYER_ROLE);
 
-    const PunkRouter = await ethers.getContractFactor("PunkRouter");
-    const punkRouter = await PunkRouter.deploy(assetWrapper.address, WRAPPED_PUNKS, CRYPTO_PUNKS);
+    const PunkRouter = await ethers.getContractFactory("PunkRouter");
+    const punkRouter = await PunkRouter.deploy(assetVault.address, WRAPPED_PUNKS, CRYPTO_PUNKS);
     await punkRouter.deployed();
 
     console.log("PunkRouter deployed to:", punkRouter.address);
 
     return {
-        assetWrapper,
+        assetVault,
         feeController,
         loanCore,
         borrowerNote,

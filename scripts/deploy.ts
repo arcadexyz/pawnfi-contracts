@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { ORIGINATOR_ROLE as DEFAULT_ORIGINATOR_ROLE, REPAYER_ROLE as DEFAULT_REPAYER_ROLE } from "./constants";
 
 import {
-    AssetWrapper,
+    AssetVault,
     FeeController,
     LoanCore,
     PromissoryNote,
@@ -11,7 +11,7 @@ import {
     OriginationController,
 } from "../typechain";
 export interface DeployedResources {
-    assetWrapper: AssetWrapper;
+    assetVault: AssetVault;
     feeController: FeeController;
     loanCore: LoanCore;
     borrowerNote: PromissoryNote;
@@ -30,11 +30,11 @@ export async function main(
     // await run("compile");
 
     // We get the contract to deploy
-    const AssetWrapperFactory = await ethers.getContractFactory("AssetWrapper");
-    const assetWrapper = <AssetWrapper>await AssetWrapperFactory.deploy("AssetWrapper", "AW");
-    await assetWrapper.deployed();
+    const AssetVaultFactory = await ethers.getContractFactory("AssetVault");
+    const assetVault = <AssetVault>await AssetVaultFactory.deploy();
+    await assetVault.deployed();
 
-    console.log("AssetWrapper deployed to:", assetWrapper.address);
+    console.log("AssetVault deployed to:", assetVault.address);
 
     const FeeControllerFactory = await ethers.getContractFactory("FeeController");
     const feeController = <FeeController>await FeeControllerFactory.deploy();
@@ -43,7 +43,7 @@ export async function main(
     console.log("FeeController deployed to: ", feeController.address);
 
     const LoanCoreFactory = await ethers.getContractFactory("LoanCore");
-    const loanCore = <LoanCore>await LoanCoreFactory.deploy(assetWrapper.address, feeController.address);
+    const loanCore = <LoanCore>await LoanCoreFactory.deploy(assetVault.address, feeController.address);
     await loanCore.deployed();
 
     const promissoryNoteFactory = await ethers.getContractFactory("PromissoryNote");
@@ -68,7 +68,7 @@ export async function main(
 
     const OriginationControllerFactory = await ethers.getContractFactory("OriginationController");
     const originationController = <OriginationController>(
-        await OriginationControllerFactory.deploy(loanCore.address, assetWrapper.address)
+        await OriginationControllerFactory.deploy(loanCore.address, assetVault.address)
     );
     await originationController.deployed();
     const updateOriginationControllerPermissions = await loanCore.grantRole(
@@ -80,7 +80,7 @@ export async function main(
     console.log("OriginationController deployed to:", originationController.address);
 
     return {
-        assetWrapper,
+        assetVault,
         feeController,
         loanCore,
         borrowerNote,
