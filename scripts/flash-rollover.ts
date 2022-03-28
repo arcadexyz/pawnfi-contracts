@@ -23,8 +23,10 @@ export async function main(): Promise<void> {
 
     // Deploy the smart contracts
     const legacyContracts = await deploy();
-    const { assetWrapper, feeController } = legacyContracts;
-    const currentContracts = await redeploy(ORIGINATOR_ROLE, REPAYER_ROLE, assetWrapper.address, feeController.address);
+    const { assetVault, feeController, loanCore } = legacyContracts;
+    const currentContracts = await redeploy(ORIGINATOR_ROLE, REPAYER_ROLE, assetVault.address, feeController.address);
+    const { mockAddressProvider } = await deployFlashRollover(loanCore.address);
+    const lendingPool = await mockAddressProvider.getLendingPool();
 
     const { flashRollover } = await deployFlashRollover("0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5");
 
@@ -35,7 +37,7 @@ export async function main(): Promise<void> {
     // Distribute NFTs and ERC20s
     console.log(SECTION_SEPARATOR);
     console.log("Distributing assets...\n");
-    await mintAndDistribute(signers, weth, pawnToken, usd, punks, art, beats);
+    await mintAndDistribute(signers, weth, pawnToken, usd, punks, art, beats, lendingPool);
 
     // Also distribute USDC by impersonating a large account
     const WHALE = "0xe78388b4ce79068e89bf8aa7f218ef6b9ab0e9d0";
@@ -61,7 +63,7 @@ export async function main(): Promise<void> {
     console.log("Wrapping assets...\n");
 
     const signer1 = signers[1];
-    const aw1 = await assetWrapper.connect(signer1);
+    const aw1 = await assetVault.connect(signer1);
 
     // Deposit 1 punk and 1000 usd for bundle 1
     await aw1.initializeBundle(signer1.address);
@@ -120,7 +122,7 @@ export async function main(): Promise<void> {
     await realWeth
         .connect(signer2)
         .approve(legacyContracts.originationController.address, ethers.utils.parseEther("10"));
-    await assetWrapper.connect(signer1).approve(legacyContracts.originationController.address, aw1Bundle1Id);
+    await assetVault.connect(signer1).approve(legacyContracts.originationController.address, aw1Bundle1Id);
 
     // Borrower signed, so lender will initialize
     const loan1Tx = await legacyContracts.originationController
@@ -167,7 +169,7 @@ export async function main(): Promise<void> {
     await usdc
         .connect(signer3)
         .approve(currentContracts.originationController.address, ethers.utils.parseEther("10000"));
-    await assetWrapper.connect(signer1).approve(currentContracts.originationController.address, aw1Bundle2Id);
+    await assetVault.connect(signer1).approve(currentContracts.originationController.address, aw1Bundle2Id);
 
     // Borrower signed, so lender will initialize
     const loan2Tx = await currentContracts.originationController

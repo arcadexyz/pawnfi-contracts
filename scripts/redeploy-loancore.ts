@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 
 import {
-    AssetWrapper,
+    AssetVault,
     FeeController,
     LoanCore,
     PromissoryNote,
@@ -26,7 +26,7 @@ import { SECTION_SEPARATOR } from "./bootstrap-tools";
  */
 
 export interface DeployedResources {
-    assetWrapper: AssetWrapper;
+    assetWrapper: AssetVault;
     feeController: FeeController;
     loanCore: LoanCore;
     borrowerNote: PromissoryNote;
@@ -54,7 +54,7 @@ export async function main(
 
     // Attach to existing contracts
     const AssetWrapperFactory = await ethers.getContractFactory("AssetWrapper");
-    const assetWrapper = <AssetWrapper>await AssetWrapperFactory.attach(ASSET_WRAPPER_ADDRESS);
+    const assetWrapper = <AssetVault>await AssetWrapperFactory.attach(ASSET_WRAPPER_ADDRESS);
 
     const FeeControllerFactory = await ethers.getContractFactory("FeeController");
     const feeController = <FeeController>await FeeControllerFactory.attach(FEE_CONTROLLER_ADDRESS);
