@@ -58,7 +58,6 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
     function repay(uint256 borrowerNoteId) external override {
         // get loan from borrower note
         uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
-
         require(loanId != 0, "RepaymentController: repay could not dereference loan");
 
         LoanLibraryV2.LoanTerms memory terms = loanCoreV2.getLoan(loanId).terms;
