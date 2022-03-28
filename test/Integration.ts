@@ -9,8 +9,8 @@ import {
     FeeController,
     OriginationController,
     PromissoryNote,
-    RepaymentController,
-    LoanCore,
+    RepaymentControllerV2,
+    LoanCoreV2,
     MockERC20,
 } from "../typechain";
 import { BlockchainTime } from "./utils/time";
@@ -22,13 +22,17 @@ import { createLoanTermsSignature } from "./utils/eip712";
 const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
 
+//interest rate parameters
+const  INTEREST_DENOMINATOR = ethers.utils.parseEther("1"); //1*10**18
+const BASIS_POINTS_DENOMINATOR = BigNumber.from(10000);
+
 interface TestContext {
-    loanCore: LoanCore;
+    loanCoreV2: LoanCoreV2;
     mockERC20: MockERC20;
     borrowerNote: PromissoryNote;
     lenderNote: PromissoryNote;
     assetWrapper: AssetWrapper;
-    repaymentController: RepaymentController;
+    repaymentControllerV2: RepaymentControllerV2;
     originationController: OriginationController;
     borrower: SignerWithAddress;
     lender: SignerWithAddress;
@@ -47,46 +51,46 @@ describe("Integration", () => {
 
         const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", admin, ["AssetWrapper", "MA"]);
         const feeController = <FeeController>await deploy("FeeController", admin, []);
-        const loanCore = <LoanCore>await deploy("LoanCore", admin, [assetWrapper.address, feeController.address]);
+        const loanCoreV2 = <LoanCoreV2>await deploy("LoanCoreV2", admin, [assetWrapper.address, feeController.address]);
 
-        const borrowerNoteAddress = await loanCore.borrowerNote();
+        const borrowerNoteAddress = await loanCoreV2.borrowerNote();
         const borrowerNote = <PromissoryNote>(
             (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)
         );
 
-        const lenderNoteAddress = await loanCore.lenderNote();
+        const lenderNoteAddress = await loanCoreV2.lenderNote();
         const lenderNote = <PromissoryNote>(
             (await ethers.getContractFactory("PromissoryNote")).attach(lenderNoteAddress)
         );
 
         const mockERC20 = <MockERC20>await deploy("MockERC20", admin, ["Mock ERC20", "MOCK"]);
 
-        const repaymentController = <RepaymentController>(
-            await deploy("RepaymentController", admin, [loanCore.address, borrowerNoteAddress, lenderNoteAddress])
+        const repaymentControllerV2 = <RepaymentControllerV2>(
+            await deploy("RepaymentControllerV2", admin, [loanCoreV2.address, borrowerNoteAddress, lenderNoteAddress])
         );
-        await repaymentController.deployed();
-        const updateRepaymentControllerPermissions = await loanCore.grantRole(
+        await repaymentControllerV2.deployed();
+        const updateRepaymentControllerPermissions = await loanCoreV2.grantRole(
             REPAYER_ROLE,
-            repaymentController.address,
+            repaymentControllerV2.address,
         );
         await updateRepaymentControllerPermissions.wait();
 
         const originationController = <OriginationController>(
-            await deploy("OriginationController", admin, [loanCore.address, assetWrapper.address])
+            await deploy("OriginationController", admin, [loanCoreV2.address, assetWrapper.address])
         );
         await originationController.deployed();
-        const updateOriginationControllerPermissions = await loanCore.grantRole(
+        const updateOriginationControllerPermissions = await loanCoreV2.grantRole(
             ORIGINATOR_ROLE,
             originationController.address,
         );
         await updateOriginationControllerPermissions.wait();
 
         return {
-            loanCore,
+            loanCoreV2,
             borrowerNote,
             lenderNote,
             assetWrapper,
-            repaymentController,
+            repaymentControllerV2,
             originationController,
             mockERC20,
             borrower,
@@ -105,6 +109,8 @@ describe("Integration", () => {
             principal = hre.ethers.utils.parseEther("100"),
             interest = hre.ethers.utils.parseEther("1"),
             collateralTokenId = BigNumber.from(1),
+            startDate = 0,
+            numInstallments = 0,
         }: Partial<LoanTerms> = {},
     ): LoanTerms => {
         return {
@@ -113,6 +119,8 @@ describe("Integration", () => {
             interest,
             collateralTokenId,
             payableCurrency,
+            startDate,
+            numInstallments
         };
     };
 
@@ -128,7 +136,7 @@ describe("Integration", () => {
 
     describe("Originate Loan", function () {
         it("should successfully create a loan", async () => {
-            const { originationController, mockERC20, loanCore, assetWrapper, lender, borrower } = await loadFixture(
+            const { originationController, mockERC20, loanCoreV2, assetWrapper, lender, borrower } = await loadFixture(
                 fixture,
             );
 
@@ -154,9 +162,9 @@ describe("Integration", () => {
                 .to.emit(mockERC20, "Transfer")
                 .withArgs(await lender.getAddress(), originationController.address, loanTerms.principal)
                 .to.emit(mockERC20, "Transfer")
-                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
-                .to.emit(loanCore, "LoanCreated")
-                .to.emit(loanCore, "LoanStarted");
+                .withArgs(originationController.address, loanCoreV2.address, loanTerms.principal)
+                .to.emit(loanCoreV2, "LoanCreated")
+                .to.emit(loanCoreV2, "LoanStarted");
         });
 
         it("should fail to start loan if wNFT is withdrawn", async () => {
@@ -229,7 +237,7 @@ describe("Integration", () => {
                 originationController
                     .connect(lender)
                     .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s),
-            ).to.be.revertedWith("LoanCore::create: Loan is already expired");
+            ).to.be.revertedWith("LoanCoreV2::create: Loan is already expired");
         });
     });
 
@@ -242,7 +250,7 @@ describe("Integration", () => {
         }
 
         const initializeLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
-            const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
+            const { originationController, mockERC20, assetWrapper, loanCoreV2, lender, borrower } = context;
             const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
             if (terms) Object.assign(loanTerms, terms);
@@ -279,46 +287,56 @@ describe("Integration", () => {
                 loanId,
                 bundleId,
                 loanTerms,
-                loanData: await loanCore.getLoan(loanId),
+                loanData: await loanCoreV2.getLoan(loanId),
             };
         };
 
         it("should successfully repay loan", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, assetWrapper, mockERC20, loanCore, borrower, lender } = context;
+            const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
             const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
 
             await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
             await mockERC20
                 .connect(borrower)
-                .approve(repaymentController.address, loanTerms.principal.add(loanTerms.interest));
+                .approve(repaymentControllerV2.address, loanTerms.principal.add(loanTerms.interest));
 
             // pre-repaid state
-            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCore.address);
+            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCoreV2.address);
             const preLenderBalance = await mockERC20.balanceOf(await lender.getAddress());
 
-            await expect(repaymentController.connect(borrower).repay(loanData.borrowerNoteId))
-                .to.emit(loanCore, "LoanRepaid")
+            await expect(repaymentControllerV2.connect(borrower).repay(loanData.borrowerNoteId))
+                .to.emit(loanCoreV2, "LoanRepaid")
                 .withArgs(loanId);
 
             // post-repaid state
             expect(await assetWrapper.ownerOf(bundleId)).to.equal(await borrower.getAddress());
             const postLenderBalance = await mockERC20.balanceOf(await lender.getAddress());
-            expect(postLenderBalance.sub(preLenderBalance)).to.equal(loanTerms.principal.add(loanTerms.interest));
+            // calc total repayment amount (principal + interest)
+            const returnAmount = loanTerms.principal.add(
+                (
+                  (
+                    loanTerms.principal.mul(
+                      loanTerms.interest.div(INTEREST_DENOMINATOR)
+                    )
+                  ).div(BASIS_POINTS_DENOMINATOR)
+                )
+            );
+            expect(postLenderBalance.sub(preLenderBalance)).to.equal(returnAmount);
         });
 
         it("should allow the collateral to be reused after repay", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, mockERC20, loanCore, borrower } = context;
+            const { repaymentControllerV2, mockERC20, loanCoreV2, borrower } = context;
             const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
 
             await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
             await mockERC20
                 .connect(borrower)
-                .approve(repaymentController.address, loanTerms.principal.add(loanTerms.interest));
+                .approve(repaymentControllerV2.address, loanTerms.principal.add(loanTerms.interest));
 
-            await expect(repaymentController.connect(borrower).repay(loanData.borrowerNoteId))
-                .to.emit(loanCore, "LoanRepaid")
+            await expect(repaymentControllerV2.connect(borrower).repay(loanData.borrowerNoteId))
+                .to.emit(loanCoreV2, "LoanRepaid")
                 .withArgs(loanId);
 
             // create a new loan with the same bundleId
@@ -332,28 +350,28 @@ describe("Integration", () => {
 
         it("fails if payable currency is not approved", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, mockERC20, borrower } = context;
+            const { repaymentControllerV2, mockERC20, borrower } = context;
             const { loanTerms, loanData } = await initializeLoan(context);
 
             await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
 
-            await expect(repaymentController.connect(borrower).repay(loanData.borrowerNoteId)).to.be.revertedWith(
+            await expect(repaymentControllerV2.connect(borrower).repay(loanData.borrowerNoteId)).to.be.revertedWith(
                 "ERC20: transfer amount exceeds allowance",
             );
         });
 
         it("fails with invalid note ID", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, mockERC20, borrower } = context;
+            const { repaymentControllerV2, mockERC20, borrower } = context;
             const { loanTerms } = await initializeLoan(context);
 
             await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
             await mockERC20
                 .connect(borrower)
-                .approve(repaymentController.address, loanTerms.principal.add(loanTerms.interest));
+                .approve(repaymentControllerV2.address, loanTerms.principal.add(loanTerms.interest));
 
-            await expect(repaymentController.connect(borrower).repay(1234)).to.be.revertedWith(
-                "RepaymentController: repay could not dereference loan",
+            await expect(repaymentControllerV2.connect(borrower).repay(1234)).to.be.revertedWith(
+                "RepaymentControllerV2: repay could not dereference loan",
             );
         });
     });
@@ -367,7 +385,7 @@ describe("Integration", () => {
         }
 
         const initializeLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
-            const { originationController, mockERC20, assetWrapper, loanCore, lender, borrower } = context;
+            const { originationController, mockERC20, assetWrapper, loanCoreV2, lender, borrower } = context;
             const durationSecs = 1000;
             const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
             const loanTerms = createLoanTerms(mockERC20.address, { collateralTokenId: bundleId, durationSecs });
@@ -403,21 +421,21 @@ describe("Integration", () => {
                 loanId,
                 bundleId,
                 loanTerms,
-                loanData: await loanCore.getLoan(loanId),
+                loanData: await loanCoreV2.getLoan(loanId),
             };
         };
 
         it("should successfully claim loan", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, assetWrapper, loanCore, lender } = context;
+            const { repaymentControllerV2, assetWrapper, loanCoreV2, lender } = context;
             const { loanId, loanData, bundleId } = await initializeLoan(context);
 
             // pre-repaid state
-            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCore.address);
+            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCoreV2.address);
             await blockchainTime.increaseTime(5000);
 
-            await expect(repaymentController.connect(lender).claim(loanData.lenderNoteId))
-                .to.emit(loanCore, "LoanClaimed")
+            await expect(repaymentControllerV2.connect(lender).claim(loanData.lenderNoteId))
+                .to.emit(loanCoreV2, "LoanClaimed")
                 .withArgs(loanId);
 
             // post-repaid state
@@ -426,15 +444,15 @@ describe("Integration", () => {
 
         it("should allow the collateral to be reused after claim", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, assetWrapper, loanCore, lender, borrower } = context;
+            const { repaymentControllerV2, assetWrapper, loanCoreV2, lender, borrower } = context;
             const { loanId, loanData, bundleId } = await initializeLoan(context);
 
             // pre-repaid state
-            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCore.address);
+            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCoreV2.address);
             await blockchainTime.increaseTime(5000);
 
-            await expect(repaymentController.connect(lender).claim(loanData.lenderNoteId))
-                .to.emit(loanCore, "LoanClaimed")
+            await expect(repaymentControllerV2.connect(lender).claim(loanData.lenderNoteId))
+                .to.emit(loanCoreV2, "LoanClaimed")
                 .withArgs(loanId);
 
             // create a new loan with the same bundleId
@@ -452,32 +470,32 @@ describe("Integration", () => {
 
         it("fails if not past durationSecs", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, lender } = context;
+            const { repaymentControllerV2, lender } = context;
             const { loanData } = await initializeLoan(context);
 
-            await expect(repaymentController.connect(lender).claim(loanData.lenderNoteId)).to.be.revertedWith(
-                "LoanCore::claim: Loan not expired",
+            await expect(repaymentControllerV2.connect(lender).claim(loanData.lenderNoteId)).to.be.revertedWith(
+                "LoanCoreV2::claim: Loan not expired",
             );
         });
 
         it("fails for invalid noteId", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, lender } = context;
+            const { repaymentControllerV2, lender } = context;
 
             await blockchainTime.increaseTime(5000);
-            await expect(repaymentController.connect(lender).claim(1234)).to.be.revertedWith(
+            await expect(repaymentControllerV2.connect(lender).claim(1234)).to.be.revertedWith(
                 "ERC721: owner query for nonexistent token",
             );
         });
 
         it("fails if not called by lender", async () => {
             const context = await loadFixture(fixture);
-            const { repaymentController, borrower } = context;
+            const { repaymentControllerV2, borrower } = context;
             const { loanData } = await initializeLoan(context);
 
             await blockchainTime.increaseTime(5000);
-            await expect(repaymentController.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith(
-                "RepaymentController: not owner of lender note",
+            await expect(repaymentControllerV2.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith(
+                "RepaymentControllerV2: not owner of lender note",
             );
         });
     });

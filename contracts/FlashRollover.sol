@@ -36,6 +36,10 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
     ILendingPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
     ILendingPool public immutable override LENDING_POOL;
 
+    //interest rate parameters
+    uint256 public constant INTEREST_DENOMINATOR = 1*10**18;
+    uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
+
     /* solhint-enable var-name-mixedcase */
 
     address private owner;
@@ -55,18 +59,19 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
         bytes32 r,
         bytes32 s
     ) external override {
-        ILoanCoreV2 sourceLoanCore = contracts.sourceLoanCore;
-        LoanLibraryV2.LoanData memory loanData = sourceLoanCore.getLoan(loanId);
+        ILoanCoreV2 sourceLoanCoreV2 = contracts.sourceLoanCoreV2;
+        LoanLibraryV2.LoanData memory loanData = sourceLoanCoreV2.getLoan(loanId);
         LoanLibraryV2.LoanTerms memory loanTerms = loanData.terms;
 
-        _validateRollover(sourceLoanCore, contracts.targetLoanCore, loanTerms, newLoanTerms, loanData.borrowerNoteId);
+        _validateRollover(sourceLoanCoreV2, contracts.sourceLoanCoreV2, loanTerms, newLoanTerms, loanData.borrowerNoteId);
 
         {
             address[] memory assets = new address[](1);
             assets[0] = loanTerms.payableCurrency;
 
             uint256[] memory amounts = new uint256[](1);
-            amounts[0] = loanTerms.principal + loanTerms.interest;
+            amounts[0] = loanTerms.principal +
+                ((loanTerms.principal * (loanTerms.interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR);
 
             uint256[] memory modes = new uint256[](1);
             modes[0] = 0;
@@ -105,7 +110,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
         OperationContracts memory opContracts = _getContracts(opData.contracts);
 
         // Get loan details
-        LoanLibraryV2.LoanData memory loanData = opContracts.loanCore.getLoan(opData.loanId);
+        LoanLibraryV2.LoanData memory loanData = opContracts.loanCoreV2.getLoan(opData.loanId);
 
         address borrower = opContracts.borrowerNote.ownerOf(loanData.borrowerNoteId);
         address lender = opContracts.lenderNote.ownerOf(loanData.lenderNoteId);
@@ -139,8 +144,8 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
 
         emit Rollover(lender, borrower, loanData.terms.collateralTokenId, newLoanId);
 
-        if (address(opData.contracts.sourceLoanCore) != address(opData.contracts.targetLoanCore)) {
-            emit Migration(address(opContracts.loanCore), address(opContracts.targetLoanCore), newLoanId);
+        if (address(opData.contracts.sourceLoanCoreV2) != address(opData.contracts.targetLoanCoreV2)) {
+            emit Migration(address(opContracts.loanCoreV2), address(opContracts.targetLoanCoreV2), newLoanId);
         }
 
         return true;
@@ -187,12 +192,12 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
 
         // Approve repayment
         IERC20(loanData.terms.payableCurrency).approve(
-            address(contracts.repaymentController),
+            address(contracts.repaymentControllerV2),
             loanData.terms.principal + loanData.terms.interest
         );
 
         // Repay loan
-        contracts.repaymentController.repay(loanData.borrowerNoteId);
+        contracts.repaymentControllerV2.repay(loanData.borrowerNoteId);
 
         // contract now has asset wrapper but has lost funds
         require(
@@ -222,7 +227,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
             opData.s
         );
 
-        LoanLibraryV2.LoanData memory newLoanData = contracts.targetLoanCore.getLoan(newLoanId);
+        LoanLibraryV2.LoanData memory newLoanData = contracts.loanCoreV2.getLoan(newLoanId);
         contracts.targetBorrowerNote.safeTransferFrom(address(this), borrower, newLoanData.borrowerNoteId);
 
         return newLoanId;
@@ -231,33 +236,33 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
     function _getContracts(RolloverContractParams memory contracts) internal returns (OperationContracts memory) {
         return
             OperationContracts({
-                loanCore: contracts.sourceLoanCore,
-                borrowerNote: contracts.sourceLoanCore.borrowerNote(),
-                lenderNote: contracts.sourceLoanCore.lenderNote(),
-                feeController: contracts.targetLoanCore.feeController(),
-                assetWrapper: contracts.sourceLoanCore.collateralToken(),
-                repaymentController: contracts.sourceRepaymentController,
+                loanCoreV2: contracts.sourceLoanCoreV2,
+                borrowerNote: contracts.sourceLoanCoreV2.borrowerNote(),
+                lenderNote: contracts.sourceLoanCoreV2.lenderNote(),
+                feeController: contracts.sourceLoanCoreV2.feeController(),
+                assetWrapper: contracts.sourceLoanCoreV2.collateralToken(),
+                repaymentControllerV2: contracts.sourceRepaymentControllerV2,
                 originationController: contracts.targetOriginationController,
-                targetLoanCore: contracts.targetLoanCore,
-                targetBorrowerNote: contracts.targetLoanCore.borrowerNote()
+                targetLoanCoreV2: contracts.targetLoanCoreV2,
+                targetBorrowerNote: contracts.targetLoanCoreV2.borrowerNote()
             });
     }
 
     function _validateRollover(
-        ILoanCoreV2 sourceLoanCore,
-        ILoanCoreV2 targetLoanCore,
+        ILoanCoreV2 sourceLoanCoreV2,
+        ILoanCoreV2 targetLoanCoreV2,
         LoanLibraryV2.LoanTerms memory sourceLoanTerms,
         LoanLibraryV2.LoanTerms calldata newLoanTerms,
         uint256 borrowerNoteId
     ) internal {
-        require(sourceLoanCore.borrowerNote().ownerOf(borrowerNoteId) == msg.sender, "caller not borrower");
+        require(sourceLoanCoreV2.borrowerNote().ownerOf(borrowerNoteId) == msg.sender, "caller not borrower");
 
         require(newLoanTerms.payableCurrency == sourceLoanTerms.payableCurrency, "currency mismatch");
 
         require(newLoanTerms.collateralTokenId == sourceLoanTerms.collateralTokenId, "collateral mismatch");
 
         require(
-            address(sourceLoanCore.collateralToken()) == address(targetLoanCore.collateralToken()),
+            address(sourceLoanCoreV2.collateralToken()) == address(sourceLoanCoreV2.collateralToken()),
             "non-compatible AssetWrapper"
         );
     }

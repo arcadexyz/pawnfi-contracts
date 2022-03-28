@@ -71,6 +71,8 @@ describe("RepaymentControllerV2", () => {
             interest: utils.parseEther(TEST_LOAN_INTEREST.toString()),
             collateralTokenId,
             payableCurrency: mockERC20.address,
+            startDate: 0,
+            numInstallments: 0,
         };
 
         const createLoanTx = await mockLoanCore.createLoan(terms);
@@ -115,7 +117,7 @@ describe("RepaymentControllerV2", () => {
             const { repaymentControllerV2, borrower } = context;
             // Use junk note ID, like 1000
             await expect(repaymentControllerV2.connect(borrower).repay(1000)).to.be.revertedWith(
-                "RepaymentController: repay could not dereference loan",
+                "RepaymentControllerV2: repay could not dereference loan",
             );
         });
 
@@ -189,7 +191,7 @@ describe("RepaymentControllerV2", () => {
 
             // Use junk note ID, like 1000
             await expect(repaymentControllerV2.connect(lender).claim(loanData.lenderNoteId)).to.be.revertedWith(
-                "RepaymentController: not owner of lender note",
+                "RepaymentControllerV2: not owner of lender note",
             );
         });
 
@@ -198,7 +200,7 @@ describe("RepaymentControllerV2", () => {
 
             // Attempt to claim note from the borrower account
             await expect(repaymentControllerV2.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith(
-                "RepaymentController: not owner of lender note",
+                "RepaymentControllerV2: not owner of lender note",
             );
         });
 

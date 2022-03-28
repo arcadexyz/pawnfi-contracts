@@ -9,8 +9,8 @@ import {
     FeeController,
     OriginationController,
     PromissoryNote,
-    RepaymentController,
-    LoanCore,
+    RepaymentControllerV2,
+    LoanCoreV2,
     FlashRollover,
     MockLendingPool,
     MockAddressesProvider,
@@ -22,10 +22,10 @@ import { LoanTerms, LoanData } from "./utils/types";
 import { createLoanTermsSignature } from "./utils/eip712";
 
 interface VersionedContracts {
-    loanCore: LoanCore;
+    loanCoreV2: LoanCoreV2;
     borrowerNote: PromissoryNote;
     lenderNote: PromissoryNote;
-    repaymentController: RepaymentController;
+    repaymentControllerV2: RepaymentControllerV2;
     originationController: OriginationController;
 }
 
@@ -66,50 +66,50 @@ describe("FlashRollover", () => {
         const feeController = <FeeController>await deploy("FeeController", admin, []);
         const mockERC20 = <MockERC20>await deploy("MockERC20", admin, ["Mock ERC20", "MOCK"]);
 
-        const deployLoanCore = async () => {
-            const loanCore = <LoanCore>await deploy("LoanCore", admin, [assetWrapper.address, feeController.address]);
+        const deployLoanCoreV2 = async () => {
+            const loanCoreV2 = <LoanCoreV2>await deploy("LoanCoreV2", admin, [assetWrapper.address, feeController.address]);
 
-            const borrowerNoteAddress = await loanCore.borrowerNote();
+            const borrowerNoteAddress = await loanCoreV2.borrowerNote();
             const borrowerNote = <PromissoryNote>(
                 (await ethers.getContractFactory("PromissoryNote")).attach(borrowerNoteAddress)
             );
 
-            const lenderNoteAddress = await loanCore.lenderNote();
+            const lenderNoteAddress = await loanCoreV2.lenderNote();
             const lenderNote = <PromissoryNote>(
                 (await ethers.getContractFactory("PromissoryNote")).attach(lenderNoteAddress)
             );
 
-            const repaymentController = <RepaymentController>(
-                await deploy("RepaymentController", admin, [loanCore.address, borrowerNoteAddress, lenderNoteAddress])
+            const repaymentControllerV2 = <RepaymentControllerV2>(
+                await deploy("RepaymentControllerV2", admin, [loanCoreV2.address, borrowerNoteAddress, lenderNoteAddress])
             );
-            await repaymentController.deployed();
-            const updateRepaymentControllerPermissions = await loanCore.grantRole(
+            await repaymentControllerV2.deployed();
+            const updateRepaymentControllerV2Permissions = await loanCoreV2.grantRole(
                 REPAYER_ROLE,
-                repaymentController.address,
+                repaymentControllerV2.address,
             );
-            await updateRepaymentControllerPermissions.wait();
+            await updateRepaymentControllerV2Permissions.wait();
 
             const originationController = <OriginationController>(
-                await deploy("OriginationController", admin, [loanCore.address, assetWrapper.address])
+                await deploy("OriginationController", admin, [loanCoreV2.address, assetWrapper.address])
             );
             await originationController.deployed();
-            const updateOriginationControllerPermissions = await loanCore.grantRole(
+            const updateOriginationControllerPermissions = await loanCoreV2.grantRole(
                 ORIGINATOR_ROLE,
                 originationController.address,
             );
             await updateOriginationControllerPermissions.wait();
 
             return {
-                loanCore,
+                loanCoreV2,
                 borrowerNote,
                 lenderNote,
                 originationController,
-                repaymentController,
+                repaymentControllerV2,
             };
         };
 
-        const legacyLoanCore = await deployLoanCore();
-        const currentLoanCore = await deployLoanCore();
+        const legacyLoanCoreV2 = await deployLoanCoreV2();
+        const currentLoanCoreV2 = await deployLoanCoreV2();
 
         // Create and fund lending pool
         const lendingPool = <MockLendingPool>await deploy("MockLendingPool", admin, []);
@@ -121,8 +121,8 @@ describe("FlashRollover", () => {
         const flashRollover = <FlashRollover>await deploy("FlashRollover", admin, [addressesProvider.address]);
 
         return {
-            legacy: legacyLoanCore,
-            current: currentLoanCore,
+            legacy: legacyLoanCoreV2,
+            current: currentLoanCoreV2,
             common: {
                 mockERC20,
                 assetWrapper,
@@ -146,6 +146,8 @@ describe("FlashRollover", () => {
             principal = hre.ethers.utils.parseEther("100"),
             interest = hre.ethers.utils.parseEther("1"),
             collateralTokenId = BigNumber.from(1),
+            startDate = 0,
+            numInstallments = 0,
         }: Partial<LoanTerms> = {},
     ): LoanTerms => {
         return {
@@ -154,6 +156,8 @@ describe("FlashRollover", () => {
             interest,
             collateralTokenId,
             payableCurrency,
+            startDate,
+            numInstallments
         };
     };
 
@@ -169,7 +173,7 @@ describe("FlashRollover", () => {
 
     const createLoan = async (ctx: TestContext, contracts: VersionedContracts): Promise<LoanDef> => {
         const { lender, borrower } = ctx;
-        const { originationController, loanCore } = contracts;
+        const { originationController, loanCoreV2 } = contracts;
         const { mockERC20, assetWrapper } = ctx.common;
 
         const bundleId = await createWnft(assetWrapper, borrower);
@@ -207,7 +211,7 @@ describe("FlashRollover", () => {
             loanId,
             bundleId,
             loanTerms,
-            loanData: await loanCore.getLoan(loanId),
+            loanData: await loanCoreV2.getLoan(loanId),
         };
     };
 
@@ -238,9 +242,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -269,9 +273,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -294,9 +298,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -324,9 +328,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -356,9 +360,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -391,9 +395,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -429,9 +433,9 @@ describe("FlashRollover", () => {
             await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -452,7 +456,7 @@ describe("FlashRollover", () => {
                 bundleId,
                 loanData: { borrowerNoteId },
             } = await createLoan(ctx, currentContracts);
-            const { borrowerNote, loanCore, originationController } = currentContracts;
+            const { borrowerNote, loanCoreV2, originationController } = currentContracts;
 
             const principal = hre.ethers.utils.parseEther("200");
             const loanTerms = createLoanTerms(mockERC20.address, {
@@ -470,9 +474,9 @@ describe("FlashRollover", () => {
             await borrowerNote.connect(borrower).approve(flashRollover.address, borrowerNoteId);
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -484,20 +488,20 @@ describe("FlashRollover", () => {
                 .to.emit(mockERC20, "Transfer")
                 .withArgs(lender.address, originationController.address, loanTerms.principal)
                 .to.emit(mockERC20, "Transfer")
-                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
-                .to.emit(loanCore, "LoanCreated")
-                .to.emit(loanCore, "LoanStarted")
+                .withArgs(originationController.address, loanCoreV2.address, loanTerms.principal)
+                .to.emit(loanCoreV2, "LoanCreated")
+                .to.emit(loanCoreV2, "LoanStarted")
                 .to.emit(flashRollover, "Rollover")
                 .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
                 .to.emit(lendingPool, "FlashLoan")
                 .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
 
-            const loanData = await loanCore.getLoan(expectedLoanId);
+            const loanData = await loanCoreV2.getLoan(expectedLoanId);
 
             // Check that borrower owns borrower note
             expect(await borrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
-            // Check that loanCore owns collateral
-            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
+            // Check that LoanCoreV2 owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCoreV2.address);
             // Check that borrower received extra principal
             const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
             const originationFee = await feeController.getOriginationFee();
@@ -505,7 +509,7 @@ describe("FlashRollover", () => {
             const expectedBalance = newPrincipal
                 .sub(premiumPaid)
                 .add(initialBalance)
-                .sub(hre.ethers.utils.parseEther("101"));
+                .sub(hre.ethers.utils.parseEther("100.01"));
             expect(await mockERC20.balanceOf(borrower.address)).to.equal(expectedBalance);
         });
 
@@ -521,7 +525,7 @@ describe("FlashRollover", () => {
                 bundleId,
                 loanData: { borrowerNoteId },
             } = await createLoan(ctx, currentContracts);
-            const { borrowerNote, loanCore, originationController } = currentContracts;
+            const { borrowerNote, loanCoreV2, originationController } = currentContracts;
 
             const principal = hre.ethers.utils.parseEther("50");
             const loanTerms = createLoanTerms(mockERC20.address, {
@@ -540,9 +544,9 @@ describe("FlashRollover", () => {
             await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -554,20 +558,20 @@ describe("FlashRollover", () => {
                 .to.emit(mockERC20, "Transfer")
                 .withArgs(lender.address, originationController.address, loanTerms.principal)
                 .to.emit(mockERC20, "Transfer")
-                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
-                .to.emit(loanCore, "LoanCreated")
-                .to.emit(loanCore, "LoanStarted")
+                .withArgs(originationController.address, loanCoreV2.address, loanTerms.principal)
+                .to.emit(loanCoreV2, "LoanCreated")
+                .to.emit(loanCoreV2, "LoanStarted")
                 .to.emit(flashRollover, "Rollover")
                 .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
                 .to.emit(lendingPool, "FlashLoan")
                 .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
 
-            const loanData = await loanCore.getLoan(expectedLoanId);
+            const loanData = await loanCoreV2.getLoan(expectedLoanId);
 
             // Check that borrower owns borrower note
             expect(await borrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
-            // Check that loanCore owns collateral
-            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
+            // Check that LoanCoreV2 owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCoreV2.address);
             // Check that borrower balance was deducted
             const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
             const originationFee = await feeController.getOriginationFee();
@@ -610,9 +614,9 @@ describe("FlashRollover", () => {
             await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: currentContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: currentContracts.repaymentController.address,
+                sourceLoanCoreV2: currentContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: currentContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -651,9 +655,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -683,9 +687,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -708,9 +712,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -719,7 +723,7 @@ describe("FlashRollover", () => {
             ).to.be.revertedWith("currency mismatch");
         });
 
-        it("should revert if target loanCore does not use same AssetWrapper", async () => {
+        it("should revert if target LoanCoreV2 does not use same AssetWrapper", async () => {
             const {
                 common: { feeController, mockERC20 },
                 borrower,
@@ -730,14 +734,14 @@ describe("FlashRollover", () => {
             const { loanId, bundleId } = await createLoan(ctx, legacyContracts);
 
             const assetWrapper2 = <AssetWrapper>await deploy("AssetWrapper", admin, ["AssetWrapper", "MA"]);
-            const newLoanCore = <LoanCore>(
-                await deploy("LoanCore", admin, [assetWrapper2.address, feeController.address])
+            const newLoanCoreV2 = <LoanCoreV2>(
+                await deploy("LoanCoreV2", admin, [assetWrapper2.address, feeController.address])
             );
             const newOriginationController = <OriginationController>(
-                await deploy("OriginationController", admin, [newLoanCore.address, assetWrapper2.address])
+                await deploy("OriginationController", admin, [newLoanCoreV2.address, assetWrapper2.address])
             );
             await newOriginationController.deployed();
-            const updateOriginationControllerPermissions = await newLoanCore.grantRole(
+            const updateOriginationControllerPermissions = await newLoanCoreV2.grantRole(
                 ORIGINATOR_ROLE,
                 newOriginationController.address,
             );
@@ -756,9 +760,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: newLoanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: newLoanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: newOriginationController.address,
             };
 
@@ -787,9 +791,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -820,9 +824,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -856,9 +860,9 @@ describe("FlashRollover", () => {
             );
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -895,9 +899,9 @@ describe("FlashRollover", () => {
             await mockERC20.connect(borrower).approve(flashRollover.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
@@ -919,7 +923,7 @@ describe("FlashRollover", () => {
                 bundleId,
                 loanData: { borrowerNoteId },
             } = await createLoan(ctx, legacyContracts);
-            const { loanCore, originationController, borrowerNote: newBorrowerNote } = currentContracts;
+            const { loanCoreV2, originationController, borrowerNote: newBorrowerNote } = currentContracts;
             const { borrowerNote } = legacyContracts;
 
             const principal = hre.ethers.utils.parseEther("200");
@@ -939,13 +943,13 @@ describe("FlashRollover", () => {
             await mockERC20.connect(lender).approve(originationController.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
-            // Should be first loan on new loancore since contracts are redeployed every test
+            // Should be first loan on new LoanCoreV2 since contracts are redeployed every test
             const expectedLoanId = 1;
 
             const initialBalance = await mockERC20.balanceOf(borrower.address);
@@ -953,22 +957,22 @@ describe("FlashRollover", () => {
                 .to.emit(mockERC20, "Transfer")
                 .withArgs(lender.address, originationController.address, loanTerms.principal)
                 .to.emit(mockERC20, "Transfer")
-                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
-                .to.emit(loanCore, "LoanCreated")
-                .to.emit(loanCore, "LoanStarted")
+                .withArgs(originationController.address, loanCoreV2.address, loanTerms.principal)
+                .to.emit(loanCoreV2, "LoanCreated")
+                .to.emit(loanCoreV2, "LoanStarted")
                 .to.emit(flashRollover, "Rollover")
                 .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
                 .to.emit(flashRollover, "Migration")
-                .withArgs(legacyContracts.loanCore.address, currentContracts.loanCore.address, expectedLoanId)
+                .withArgs(legacyContracts.loanCoreV2.address, currentContracts.loanCoreV2.address, expectedLoanId)
                 .to.emit(lendingPool, "FlashLoan")
                 .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
 
-            const loanData = await loanCore.getLoan(expectedLoanId);
+            const loanData = await loanCoreV2.getLoan(expectedLoanId);
 
             // Check that borrower owns borrower note
             expect(await newBorrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
-            // Check that loanCore owns collateral
-            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
+            // Check that LoanCoreV2 owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCoreV2.address);
             // Check that borrower received extra principal
             const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
             const originationFee = await feeController.getOriginationFee();
@@ -993,7 +997,7 @@ describe("FlashRollover", () => {
                 bundleId,
                 loanData: { borrowerNoteId },
             } = await createLoan(ctx, legacyContracts);
-            const { loanCore, originationController, borrowerNote: newBorrowerNote } = currentContracts;
+            const { loanCoreV2, originationController, borrowerNote: newBorrowerNote } = currentContracts;
             const { borrowerNote } = legacyContracts;
 
             const principal = hre.ethers.utils.parseEther("50");
@@ -1014,13 +1018,13 @@ describe("FlashRollover", () => {
             await mockERC20.connect(lender).approve(originationController.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 
-            // Should be first loan on new loancore since contracts are redeployed every test
+            // Should be first loan on new LoanCoreV2 since contracts are redeployed every test
             const expectedLoanId = 1;
 
             const initialBalance = await mockERC20.balanceOf(borrower.address);
@@ -1028,20 +1032,20 @@ describe("FlashRollover", () => {
                 .to.emit(mockERC20, "Transfer")
                 .withArgs(lender.address, originationController.address, loanTerms.principal)
                 .to.emit(mockERC20, "Transfer")
-                .withArgs(originationController.address, loanCore.address, loanTerms.principal)
-                .to.emit(loanCore, "LoanCreated")
-                .to.emit(loanCore, "LoanStarted")
+                .withArgs(originationController.address, loanCoreV2.address, loanTerms.principal)
+                .to.emit(loanCoreV2, "LoanCreated")
+                .to.emit(loanCoreV2, "LoanStarted")
                 .to.emit(flashRollover, "Rollover")
                 .withArgs(lender.address, borrower.address, bundleId, expectedLoanId)
                 .to.emit(lendingPool, "FlashLoan")
                 .withArgs(hre.ethers.utils.parseEther("101"), hre.ethers.utils.parseEther("101").mul(9).div(10_000));
 
-            const loanData = await loanCore.getLoan(expectedLoanId);
+            const loanData = await loanCoreV2.getLoan(expectedLoanId);
 
             // Check that borrower owns borrower note
             expect(await newBorrowerNote.ownerOf(loanData.borrowerNoteId)).to.equal(borrower.address);
-            // Check that loanCore owns collateral
-            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCore.address);
+            // Check that LoanCoreV2 owns collateral
+            expect(await assetWrapper.ownerOf(loanData.terms.collateralTokenId)).to.equal(loanCoreV2.address);
             // Check that borrower balance was deducted
             const premiumPaid = hre.ethers.utils.parseEther("101").mul(9).div(10_000);
             const originationFee = await feeController.getOriginationFee();
@@ -1087,9 +1091,9 @@ describe("FlashRollover", () => {
             await mockERC20.connect(lender).approve(originationController.address, loanTerms.principal.mul(10));
 
             const contracts = {
-                sourceLoanCore: legacyContracts.loanCore.address,
-                targetLoanCore: currentContracts.loanCore.address,
-                sourceRepaymentController: legacyContracts.repaymentController.address,
+                sourceLoanCoreV2: legacyContracts.loanCoreV2.address,
+                targetLoanCoreV2: currentContracts.loanCoreV2.address,
+                sourceRepaymentControllerV2: legacyContracts.repaymentControllerV2.address,
                 targetOriginationController: currentContracts.originationController.address,
             };
 

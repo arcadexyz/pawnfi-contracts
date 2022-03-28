@@ -30,6 +30,8 @@ describe("PromissoryNote", () => {
             interest = hre.ethers.utils.parseEther("1"),
             collateralTokenId = BigNumber.from(1),
         }: Partial<LoanTerms> = {},
+        startDate = 0,
+        numInstallments = 0,
     ): LoanTerms => {
         return {
             durationSecs,
@@ -37,6 +39,8 @@ describe("PromissoryNote", () => {
             interest,
             collateralTokenId,
             payableCurrency,
+            startDate,
+            numInstallments
         };
     };
 

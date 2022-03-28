@@ -72,6 +72,8 @@ const createLoanTerms = (
         principal = hre.ethers.utils.parseEther("100"),
         interest = hre.ethers.utils.parseEther("1"),
         collateralTokenId = BigNumber.from("1"),
+        startDate = 0,
+        numInstallments = 0,
     }: Partial<LoanTerms> = {},
 ): LoanTerms => {
     return {
@@ -80,6 +82,8 @@ const createLoanTerms = (
         interest,
         collateralTokenId,
         payableCurrency,
+        startDate,
+        numInstallments
     };
 };
 
@@ -92,7 +96,7 @@ describe("OriginationController", () => {
             const assetWrapper = <AssetWrapper>await deploy("AssetWrapper", signers[0], ["AssetWrapper", "WRP"]);
             await expect(
                 deploy("OriginationController", signers[0], [ZERO_ADDRESS, assetWrapper.address]),
-            ).to.be.revertedWith("Origination: loanCore not defined");
+            ).to.be.revertedWith("Origination: loanCoreV2 not defined");
         });
 
         it("Instantiates the OriginationController", async () => {

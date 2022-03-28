@@ -38,9 +38,9 @@ interface IFlashRollover is IFlashLoanReceiver {
      * contracts.
      */
     struct RolloverContractParams {
-        ILoanCoreV2 sourceLoanCore;
-        ILoanCoreV2 targetLoanCore;
-        IRepaymentControllerV2 sourceRepaymentController;
+        ILoanCoreV2 sourceLoanCoreV2;
+        ILoanCoreV2 targetLoanCoreV2;
+        IRepaymentControllerV2 sourceRepaymentControllerV2;
         IOriginationController targetOriginationController;
     }
 
@@ -67,14 +67,14 @@ interface IFlashRollover is IFlashLoanReceiver {
      * which case it requires migration).
      */
     struct OperationContracts {
-        ILoanCoreV2 loanCore;
+        ILoanCoreV2 loanCoreV2;
         IERC721 borrowerNote;
         IERC721 lenderNote;
         IFeeController feeController;
         IERC721 assetWrapper;
-        IRepaymentControllerV2 repaymentController;
+        IRepaymentControllerV2 repaymentControllerV2;
         IOriginationController originationController;
-        ILoanCoreV2 targetLoanCore;
+        ILoanCoreV2 targetLoanCoreV2;
         IERC721 targetBorrowerNote;
     }
 

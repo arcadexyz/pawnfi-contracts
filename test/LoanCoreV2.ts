@@ -15,6 +15,10 @@ const CLAIM_FEES_ROLE = "0x8dd046eb6fe22791cf064df41dbfc76ef240a563550f519aac882
 
 const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
+//interest rate parameters
+const  INTEREST_DENOMINATOR = ethers.utils.parseEther("1"); //1*10**18
+const BASIS_POINTS_DENOMINATOR = BigNumber.from(10000);
+
 interface TestContext {
     LoanCoreV2: LoanCoreV2;
     mockERC20: MockERC20;
@@ -218,7 +222,7 @@ describe("LoanCoreV2", () => {
             const tx = await LoanCoreV2.connect(user).createLoan(terms);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("231487");
+            expect(gasUsed.toString()).to.equal("231557");
         });
     });
 
@@ -643,7 +647,7 @@ describe("LoanCoreV2", () => {
                 .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("513289");
+            expect(gasUsed.toString()).to.equal("513267");
         });
     });
 
@@ -808,7 +812,15 @@ describe("LoanCoreV2", () => {
             const apr = int.div(ethers.utils.parseUnits(".01"));
             const intDue = terms.principal.mul(apr);
             const intDue2 = intDue.div(BigNumber.from("10000"));
-            const total = terms.principal.add(intDue2);
+            const total = terms.principal.add(
+                (
+                  (
+                    terms.principal.mul(
+                      terms.interest.div(INTEREST_DENOMINATOR)
+                    )
+                  ).div(BASIS_POINTS_DENOMINATOR)
+                )
+            );
             await mockERC20.connect(borrower).mint(await borrower.getAddress(), total);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, total.sub(BigNumber.from(1)));
             await expect(LoanCoreV2.connect(borrower).repay(loanId)).to.be.revertedWith(
@@ -830,7 +842,7 @@ describe("LoanCoreV2", () => {
             const tx = await LoanCoreV2.connect(borrower).repay(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("222782");
+            expect(gasUsed.toString()).to.equal("225328");
         });
     });
 

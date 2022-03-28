@@ -15,7 +15,6 @@ import "./interfaces/ILoanCoreV2.sol";
 import "./interfaces/IRepaymentControllerV2.sol";
 
 // * * * * testing only * * * *
-import "./test/MockERC20.sol";
 import "hardhat/console.sol";
 
 contract RepaymentControllerV2 is IRepaymentControllerV2 {
@@ -58,7 +57,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
     function repay(uint256 borrowerNoteId) external override {
         // get loan from borrower note
         uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
-        require(loanId != 0, "RepaymentController: repay could not dereference loan");
+        require(loanId != 0, "RepaymentControllerV2: repay could not dereference loan");
 
         LoanLibraryV2.LoanTerms memory terms = loanCoreV2.getLoan(loanId).terms;
 
@@ -83,11 +82,11 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
     function claim(uint256 lenderNoteId) external override {
         // make sure that caller owns lender note
         address lender = lenderNote.ownerOf(lenderNoteId);
-        require(lender == msg.sender, "RepaymentController: not owner of lender note");
+        require(lender == msg.sender, "RepaymentControllerV2: not owner of lender note");
 
         // get loan from lender note
         uint256 loanId = lenderNote.loanIdByNoteId(lenderNoteId);
-        require(loanId != 0, "RepaymentController: claim could not dereference loan");
+        require(loanId != 0, "RepaymentControllerV2: claim could not dereference loan");
 
         // call claim function in loan core
         loanCoreV2.claim(loanId);
