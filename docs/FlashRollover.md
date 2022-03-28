@@ -1,6 +1,6 @@
 # `FlashRollover`
 
-Implementation of a loan rollover/refinance using [AAVE Flash Loans]([AAVE Flash Loan](https://docs.aave.com/faq/flash-loans).
+Implementation of a loan rollover/refinance using [AAVE Flash Loans](https://docs.aave.com/faq/flash-loans).
 
 Borrowers with a currently open loan can collect a signature from their lender on new loan terms off-chain,
 then provide the desired new terms to the rollover contract. The contract will execute a flash loan to
