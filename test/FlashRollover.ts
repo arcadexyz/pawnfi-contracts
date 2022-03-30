@@ -26,7 +26,7 @@ interface VersionedContracts {
     borrowerNote: PromissoryNote;
     lenderNote: PromissoryNote;
     repaymentControllerV2: RepaymentControllerV2;
-     originationController: OriginationController;
+    originationController: OriginationController;
 }
 
 interface TestContext {
