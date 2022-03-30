@@ -37,7 +37,7 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
     ILendingPool public immutable override LENDING_POOL;
 
     //interest rate parameters
-    uint256 public constant INTEREST_DENOMINATOR = 1*10**18;
+    uint256 public constant INTEREST_DENOMINATOR = 1 * 10**18;
     uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
 
     /* solhint-enable var-name-mixedcase */
@@ -63,15 +63,22 @@ contract FlashRollover is IFlashRollover, ReentrancyGuard {
         LoanLibraryV2.LoanData memory loanData = sourceLoanCoreV2.getLoan(loanId);
         LoanLibraryV2.LoanTerms memory loanTerms = loanData.terms;
 
-        _validateRollover(sourceLoanCoreV2, contracts.sourceLoanCoreV2, loanTerms, newLoanTerms, loanData.borrowerNoteId);
+        _validateRollover(
+            sourceLoanCoreV2,
+            contracts.sourceLoanCoreV2,
+            loanTerms,
+            newLoanTerms,
+            loanData.borrowerNoteId
+        );
 
         {
             address[] memory assets = new address[](1);
             assets[0] = loanTerms.payableCurrency;
 
             uint256[] memory amounts = new uint256[](1);
-            amounts[0] = loanTerms.principal +
-                ((loanTerms.principal * (loanTerms.interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR);
+            amounts[0] =
+                loanTerms.principal +
+                ((loanTerms.principal * (loanTerms.interest / INTEREST_DENOMINATOR)) / BASIS_POINTS_DENOMINATOR);
 
             uint256[] memory modes = new uint256[](1);
             modes[0] = 0;

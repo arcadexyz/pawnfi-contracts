@@ -1,13 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// V2 Notes
-// * interest input as a APR value.
+/** Legacy V1 Notes
+ * see https://github.com/Non-fungible-Technologies/pawnfi-contracts main branch
+ */
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+/** V2 Notes
+ * interest input as a APR value.
+ *
+ * calcInstallment - function which returns the current balanceDue(uint256),
+ * defaulted(bool), and payableCurrency(address)
+ *
+ * repayPartMinimum - function for repaying installment payments. The minimum amount payable. Interest and any fees only.
+ *
+ * repayPart - function for repaying installment payments. The amount must be higher than the minimum amount payable.
+ */
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 
 import "./libraries/LoanLibraryV2.sol";
 import "./interfaces/IPromissoryNote.sol";
@@ -17,8 +28,7 @@ import "./interfaces/IRepaymentControllerV2.sol";
 // * * * * testing only * * * *
 import "hardhat/console.sol";
 
-contract RepaymentControllerV2 is IRepaymentControllerV2 {
-    using SafeMath for uint256;
+contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
     using SafeERC20 for IERC20;
 
     ILoanCoreV2 private loanCoreV2;
@@ -26,8 +36,12 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
     IPromissoryNote private lenderNote;
 
     //interest rate parameters
-    uint256 public constant INTEREST_DENOMINATOR = 1*10**18;
+    uint256 public constant INTEREST_DENOMINATOR = 1 * 10**18;
     uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
+
+    // Installment LoanState
+    uint256 public constant GRACE_PERIOD = 604800; // 60*60*24*7 // 1 week
+    uint256 public constant LATE_FEE = 500; // 5000/BASIS_POINTS_DENOMINATOR = 0.5
 
     constructor(
         ILoanCoreV2 _loanCoreV2,
@@ -39,15 +53,21 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
         lenderNote = _lenderNote;
     }
 
-    //interest and principal must be entered as base 10**18
-    function getInterestNoInstallments(uint256 principal, uint256 interest, address collateralTokenAddr) internal returns(uint256) {
+    /**
+     * @dev interest and principal must be entered as base 10**18
+     */
+    function getInterestNoInstallments(
+        uint256 principal,
+        uint256 interest,
+        address collateralTokenAddr
+    ) internal returns (uint256) {
         //interest to be greater than or equal to 1 ETH
         require(interest / 10**18 >= 1, "Interest must be greater than 0.01%.");
-        console.log("Interest Amount: ", ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR));
+        //console.log("Interest Amount: ", ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR));
 
         //principal must be greater than 10000 wei this is a rquire statement in createLoan function in LoanCoreV2
-        console.log("Principal+interest", principal + ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR));
-        uint256 total = principal + ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR);
+        //console.log("Principal+interest", principal + ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR));
+        uint256 total = principal + ((principal * (interest / INTEREST_DENOMINATOR)) / BASIS_POINTS_DENOMINATOR);
         return total;
     }
 
@@ -63,13 +83,9 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
 
         // withdraw principal plus interest from borrower and send to loan core
         uint256 total = getInterestNoInstallments(terms.principal, terms.interest, terms.payableCurrency);
-        require( total > 0, "No payment due." );
+        require(total > 0, "No payment due.");
 
-        IERC20(terms.payableCurrency).safeTransferFrom(
-            msg.sender,
-            address(this),
-            total
-        );
+        IERC20(terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), total);
         IERC20(terms.payableCurrency).approve(address(loanCoreV2), total);
 
         // call repay function in loan core
@@ -82,7 +98,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
     function claim(uint256 lenderNoteId) external override {
         // make sure that caller owns lender note
         address lender = lenderNote.ownerOf(lenderNoteId);
-        require(lender == msg.sender, "RepaymentControllerV2: not owner of lender note");
+        require(lender == _msgSender(), "RepaymentControllerV2: not owner of lender note");
 
         // get loan from lender note
         uint256 loanId = lenderNote.loanIdByNoteId(lenderNoteId);
@@ -90,5 +106,215 @@ contract RepaymentControllerV2 is IRepaymentControllerV2 {
 
         // call claim function in loan core
         loanCoreV2.claim(loanId);
+    }
+
+    /**
+     * @dev - Get minimum installment payment due, any late fees accrued, and
+     * the number of missed payments since last installment payment.
+     *
+     * 1. Calculate relative time values.
+     * 2. Determine if late fees are added and if so, how much?
+     * 3. Calculate minimum balance due with late fees added if necessary.
+     */
+    function calcInstallment(LoanLibraryV2.LoanData memory data)
+        public
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        // * Local variables
+        uint256[] memory _installmentsDue;
+        uint256 _installmentsMissed = 0;
+        bool _latePayment = false;
+        bool _pastDueDate = false;
+        uint256 _currentTime = block.timestamp;
+        uint256 _bal = data.balance;
+
+        // * Calculated values
+        uint256 _relativeTimeInLoan = (_currentTime - data.terms.startDate) / data.terms.durationSecs; // values greater than one signify over loanDuration, loans paid on time this will be zero
+        uint256 _timePerInstallment = data.terms.durationSecs / data.terms.numInstallments;
+        uint256 _interestPerInstallment = (data.terms.interest / INTEREST_DENOMINATOR) / data.terms.numInstallments; // still need to divide by BASIS_POINTS_DENOMINATOR for rate value
+        // Current installment period
+        uint256 _installmentPeriod = 0;
+        for (uint256 i = 1; i == data.terms.numInstallments; i++) {
+            // Pushes installment periods to an array until the current time is reached.
+            // The first element in this array is the current installment period.
+            // The length of this array is the total installment payments remaining on loan.
+            if (_timePerInstallment * i >= _currentTime) {
+                _installmentsDue[i - 1] = i;
+            }
+        }
+        // Set current installment period. When a payment is made after the loan has ended,
+        // this value is 0 to signify.
+        _installmentPeriod = _installmentsDue[0];
+
+        // * Logic
+        // Check if relative current time is OVER ∆T.
+        if (_relativeTimeInLoan > data.terms.durationSecs && _installmentPeriod == 0) {
+            _pastDueDate = true;
+            _latePayment = true;
+        }
+        // NOT OVER ∆T so determine the current installment period and how many payments have been missed.
+        else {
+            // on time...
+            if (_installmentPeriod == data.numInstallmentsPaid + 1) {
+                _latePayment = false;
+                _pastDueDate = false;
+            }
+            // few installment periods late...
+            else {
+                _latePayment = true;
+                // protection against cases that slip by when checking if relative current time is over ∆T.
+                if (_installmentPeriod != 0) {
+                    _installmentsMissed = _installmentPeriod - data.numInstallmentsPaid;
+                    _pastDueDate = false;
+                } else {
+                    _installmentsMissed = data.terms.numInstallments - data.numInstallmentsPaid;
+                    _pastDueDate = true;
+                }
+            }
+        }
+
+        // *** Determine if late fees are added and if so, how much? ***
+        // Calulate number of payments missed based on _latePayment, _pastDueDate
+
+        // If payment on time...
+        if (_latePayment == false && _pastDueDate == false) {
+            // Minimum balance due calculation. Based on interest per installment period
+            uint256 minBalDue = (_bal * _interestPerInstallment) / BASIS_POINTS_DENOMINATOR;
+            return (minBalDue, 0, 0);
+        }
+        // If payment is late, but not past the due date...
+        if (_latePayment == true && _pastDueDate == false) {
+            /**
+            // installments left
+            uint256 installmentsRemaining = data.terms.numInstallments - _installmentPeriod; //4 total, on 2nd payment, --> 2 payments remain AFTER this one
+                                                                                             //4 total, on 4th payment, --> 0 payments remaining, on the last payment
+            // installments missed, not on the last payment
+            if(installmentsRemaining > 0) {
+                uint256 _numMissedPayments = _installmentPeriod - data.numInstallmentsPaid;
+            }
+            // installments missed, and on the last payment (installmentsRemaining == 0)
+            else {
+                uint256 _numMissedPayments = data.terms.numInstallments - data.numInstallmentsPaid;
+            }
+            */
+
+            // calculate late fees.
+            uint256 minBalDue = 0;
+            uint256 currentBal = _bal;
+            uint256 lateFees = 0;
+            for (uint256 i = 1; i == _installmentsMissed; i++) {
+                minBalDue = (currentBal * (_interestPerInstallment + LATE_FEE)) / BASIS_POINTS_DENOMINATOR;
+                currentBal = currentBal + minBalDue;
+                lateFees = lateFees + ((currentBal * LATE_FEE) / BASIS_POINTS_DENOMINATOR);
+            }
+            return (minBalDue, lateFees, _installmentsMissed);
+        }
+        // Pass due date...
+        // _pastDueDate = true and _lateAPayment = true...
+        // _pastDueDate = true and _lateAPayment = false...
+        else {
+            // calculate late fees.
+            uint256 minBalDue = 0;
+            uint256 currentBal = _bal;
+            uint256 lateFees = 0;
+            for (uint256 i = 1; i == _installmentsMissed; i++) {
+                minBalDue = (currentBal * (_interestPerInstallment + LATE_FEE)) / BASIS_POINTS_DENOMINATOR;
+                currentBal = currentBal + minBalDue;
+                lateFees = lateFees + ((currentBal * LATE_FEE) / BASIS_POINTS_DENOMINATOR);
+            }
+            return (minBalDue, lateFees, _installmentsMissed);
+        }
+    }
+
+    /**
+     * @dev - Crafts the LoanLibrary data to be passed to calcInstallment and returns installment data.
+     */
+    function getInstallmentMinPayment(uint256 borrowerNoteId)
+        public
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        // get loan from borrower note
+        uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
+        require(loanId != 0, "RepaymentControllerV2: repay could not dereference loan");
+        // load terms from loanId
+        LoanLibraryV2.LoanData memory data = loanCoreV2.getLoan(loanId);
+
+        // local variables
+        uint256 startDate = data.terms.startDate;
+        require(startDate < block.timestamp, "Loan has not started yet.");
+        uint256 installments = data.terms.numInstallments;
+        address payableCurrency = data.terms.payableCurrency;
+        require(installments > 0, "This loan type does not have any installments.");
+
+        // Get the current minimum balance due for the installment.
+        (uint256 minBalanceDue, uint256 lateFees, uint256 numMissedPayments) = calcInstallment(data);
+
+        return (minBalanceDue, lateFees, numMissedPayments);
+    }
+
+    /**
+     * @dev - Called when paying back installment loan with the minimum amount due.
+     * Do not call for single payment loan types.
+     */
+    function repayPartMinimum(uint256 borrowerNoteId) public {
+        // get loan from borrower note
+        uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
+        require(loanId != 0, "RepaymentControllerV2: repay could not dereference loan");
+        // load terms from loanId
+        LoanLibraryV2.LoanData memory data = loanCoreV2.getLoan(loanId);
+
+        // local variables
+        uint256 startDate = data.terms.startDate;
+        require(startDate < block.timestamp, "Loan has not started yet.");
+        uint256 installments = data.terms.numInstallments;
+        address payableCurrency = data.terms.payableCurrency;
+        require(installments > 0, "This loan type does not have any installments.");
+
+        // Get the current minimum balance due for the installment.
+        (uint256 minBalanceDue, uint256 lateFees, uint256 numMissedPayments) = calcInstallment(data);
+        // Gather  minimum payment from _msgSender()
+        IERC20(payableCurrency).safeTransferFrom(_msgSender(), address(this), minBalanceDue);
+        // approve loanCoreV2 to take minBalanceDue
+        IERC20(payableCurrency).approve(address(loanCoreV2), minBalanceDue);
+        // Call repayPart function in loanCoreV2.
+        loanCoreV2.repayPart(loanId, minBalanceDue, lateFees, numMissedPayments);
+    }
+
+    /**
+     * @dev Called when paying back installment loan with an amount greater than
+     * the minimum amount due. Do not call for single payment loan types.
+     */
+    function repayPart(uint256 borrowerNoteId, uint256 amount) public {
+        // get loan from borrower note
+        uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
+        require(loanId != 0, "RepaymentControllerV2: repay could not dereference loan");
+        // load data from loanId
+        LoanLibraryV2.LoanData memory data = loanCoreV2.getLoan(loanId);
+
+        // local variables
+        uint256 startDate = data.terms.startDate;
+        require(startDate < block.timestamp, "Loan has not started yet.");
+        uint256 installments = data.terms.numInstallments;
+        address payableCurrency = data.terms.payableCurrency;
+        require(installments > 0, "This loan type does not have any installments.");
+
+        // Get the current minimum balance due for the installment.
+        (uint256 minBalanceDue, uint256 lateFees, uint256 numMissedPayments) = calcInstallment(data);
+        // Require amount to be taken from the _msgSender() to be larger than or equal to minimum amount due
+        require(amount >= minBalanceDue, "Amount sent is less than the minimum amount due.");
+        // gather amount specified in function call params from _msgSender()
+        IERC20(payableCurrency).safeTransferFrom(_msgSender(), address(this), amount);
+        // approve loanCoreV2 to take minBalanceDue
+        IERC20(payableCurrency).approve(address(loanCoreV2), amount);
+        // Call repayPart function in loanCoreV2.
+        loanCoreV2.repayPart(loanId, amount, lateFees, numMissedPayments);
     }
 }

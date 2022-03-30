@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,11 +18,13 @@ import "./PromissoryNote.sol";
 import "hardhat/console.sol";
 
 /**
- * @dev LoanCoreV2 contract - core contract for creating, repaying, and claiming collateral for PawnFi intallment loans
+ * @dev - Core contract for creating, repaying, and claiming collateral for PawnFi intallment loans
+ * Loans with numInstallments set to 0 in the loan terms indicates a legacy loan type where there are no installments.
+ * Loan terms with numInstallments greater than 1, indicates the repayPart function is used to repay loans not
+ * the standard repay function.
  */
 contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
     using Counters for Counters.Counter;
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     bytes32 public constant ORIGINATOR_ROLE = keccak256("ORIGINATOR_ROLE");
@@ -31,7 +32,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
     bytes32 public constant FEE_CLAIMER_ROLE = keccak256("FEE_CLAIMER_ROLE");
 
     //interest rate parameters
-    uint256 public constant INTEREST_DENOMINATOR = 1*10**18;
+    uint256 public constant INTEREST_DENOMINATOR = 1 * 10**18;
     uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
 
     Counters.Counter private loanIdTracker;
@@ -63,6 +64,8 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         emit Initialized(address(collateralToken), address(borrowerNote), address(lenderNote));
     }
 
+    // - - - LEGACY LOANS - - -
+
     /**
      * @inheritdoc ILoanCoreV2
      */
@@ -82,8 +85,12 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
     {
         require(terms.durationSecs > 0, "LoanCoreV2::create: Loan is already expired");
         require(!collateralInUse[terms.collateralTokenId], "LoanCoreV2::create: Collateral token already in use");
+
         // interest rate must be entered as 10**18
-        require(terms.interest / 10**18 >= 1, "Interest must be greater than 0.01%.");
+        require(terms.interest / 10**18 >= 1, "LoanCoreV2::create: Interest must be greater than 0.01%");
+
+        // number of installments must be an even number
+        require(terms.numInstallments % 2 == 0, "LoanCoreV2::create: Number of installments must be an even number");
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
@@ -95,6 +102,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
             LoanLibraryV2.LoanState.Created,
             block.timestamp + terms.durationSecs,
             terms.principal,
+            0,
             0,
             0,
             0
@@ -134,7 +142,8 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
             data.balance,
             data.balancePaid,
             data.lateFeesAccrued,
-            data.numMissedPayments
+            data.numMissedPayments,
+            data.numInstallmentsPaid
         );
 
         IERC20(data.terms.payableCurrency).safeTransfer(borrower, getPrincipalLessFees(data.terms.principal));
@@ -151,8 +160,8 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
 
         // calc total repayment amount (principal + interest)
         uint256 returnAmount = data.terms.principal +
-            ((data.terms.principal * (data.terms.interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR);
-        console.log("LoanCore Calc: ", returnAmount);
+            ((data.terms.principal * (data.terms.interest / INTEREST_DENOMINATOR)) / BASIS_POINTS_DENOMINATOR);
+        //console.log("LoanCore Calc: ", returnAmount);
         // transfer funds
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), returnAmount);
 
@@ -203,10 +212,64 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
      * Take a principal value and return the amount less protocol fees
      */
     function getPrincipalLessFees(uint256 principal) internal view returns (uint256) {
-        return principal.sub(principal.mul(feeController.getOriginationFee()).div(BPS_DENOMINATOR));
+        return principal - ((principal * (feeController.getOriginationFee())) / BPS_DENOMINATOR);
     }
 
-    // ADMIN FUNCTIONS
+    // - - - INSTALLMENT LOANS - - -
+
+    /**
+     * @dev Called from RepaymentController when paying back installment loan.
+     * Function takes in the loanId and amount repaid to RepaymentController.
+     * This amount is then transferred to the lender and loan data is updated accordingly.
+     */
+    function repayPart(
+        uint256 _loanId,
+        uint256 _repaidAmount,
+        uint256 _numMissedPayments,
+        uint256 _lateFeesAccrued
+    ) external override {
+        LoanLibraryV2.LoanData memory data = loans[_loanId];
+        // Ensure valid initial loan state
+        require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
+
+        // transfer funds to LoanCoreV2
+        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), _repaidAmount);
+        // update LoanData
+        data.balance = data.balance - _repaidAmount;
+        data.balancePaid = data.balancePaid + _repaidAmount;
+        data.numMissedPayments = data.numMissedPayments + _numMissedPayments;
+        data.lateFeesAccrued = data.lateFeesAccrued = _lateFeesAccrued;
+
+        // if balance fully paid off after payment...
+        // * TESTING SEQUENCE: try to produce underflow here and see if you can make balance less than 0.
+        address lender = lenderNote.ownerOf(data.lenderNoteId);
+        address borrower = borrowerNote.ownerOf(data.borrowerNoteId);
+        if (data.balance <= 0) {
+            // state changes and cleanup
+            // NOTE: these must be performed before assets are released to prevent reentrance
+            data.state = LoanLibraryV2.LoanState.Repaid;
+            collateralInUse[data.terms.collateralTokenId] = false;
+
+            lenderNote.burn(data.lenderNoteId);
+            borrowerNote.burn(data.borrowerNoteId);
+
+            // Loan is fully repaid, redistribute asset and collateral.
+            IERC20(data.terms.payableCurrency).safeTransfer(lender, _repaidAmount);
+            collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
+
+            emit LoanRepaid(_loanId);
+        }
+        // If balance remaining after payment, only return payment amount to lender,
+        // borrower collateral still locked up
+        if (data.balance > 0) {
+            // asset distribution
+            IERC20(data.terms.payableCurrency).safeTransfer(lender, _repaidAmount);
+
+            emit LoanPartRepaid(_loanId, _repaidAmount);
+        }
+    }
+
+    // - - - ADMIN FUNCTIONS - - -
 
     /**
      * @dev Set the fee controller to a new value

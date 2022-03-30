@@ -40,6 +40,8 @@ const typedLoanTermsData: TypeData = {
             { name: "interest", type: "uint256" },
             { name: "collateralTokenId", type: "uint256" },
             { name: "payableCurrency", type: "address" },
+            { name: "startDate", type: "uint256" },
+            { name: "numInstallments", type: "uint256" },
         ],
     },
     primaryType: "LoanTerms" as const,

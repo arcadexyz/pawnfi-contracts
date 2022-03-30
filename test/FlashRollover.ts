@@ -26,7 +26,7 @@ interface VersionedContracts {
     borrowerNote: PromissoryNote;
     lenderNote: PromissoryNote;
     repaymentControllerV2: RepaymentControllerV2;
-    originationController: OriginationController;
+     originationController: OriginationController;
 }
 
 interface TestContext {
@@ -67,7 +67,9 @@ describe("FlashRollover", () => {
         const mockERC20 = <MockERC20>await deploy("MockERC20", admin, ["Mock ERC20", "MOCK"]);
 
         const deployLoanCoreV2 = async () => {
-            const loanCoreV2 = <LoanCoreV2>await deploy("LoanCoreV2", admin, [assetWrapper.address, feeController.address]);
+            const loanCoreV2 = <LoanCoreV2>(
+                await deploy("LoanCoreV2", admin, [assetWrapper.address, feeController.address])
+            );
 
             const borrowerNoteAddress = await loanCoreV2.borrowerNote();
             const borrowerNote = <PromissoryNote>(
@@ -80,7 +82,11 @@ describe("FlashRollover", () => {
             );
 
             const repaymentControllerV2 = <RepaymentControllerV2>(
-                await deploy("RepaymentControllerV2", admin, [loanCoreV2.address, borrowerNoteAddress, lenderNoteAddress])
+                await deploy("RepaymentControllerV2", admin, [
+                    loanCoreV2.address,
+                    borrowerNoteAddress,
+                    lenderNoteAddress,
+                ])
             );
             await repaymentControllerV2.deployed();
             const updateRepaymentControllerV2Permissions = await loanCoreV2.grantRole(
@@ -157,7 +163,7 @@ describe("FlashRollover", () => {
             collateralTokenId,
             payableCurrency,
             startDate,
-            numInstallments
+            numInstallments,
         };
     };
 
@@ -623,7 +629,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("885296");
+            expect(gasUsed.toString()).to.equal("937732");
         });
     });
 
@@ -1100,7 +1106,7 @@ describe("FlashRollover", () => {
             const tx = await flashRollover.connect(borrower).rolloverLoan(contracts, loanId, loanTerms, v, r, s);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("1096538");
+            expect(gasUsed.toString()).to.equal("1146457");
         });
     });
 

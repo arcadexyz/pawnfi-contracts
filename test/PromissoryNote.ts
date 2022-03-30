@@ -4,7 +4,7 @@ const { loadFixture } = waffle;
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { BigNumber, BigNumberish } from "ethers";
 
-import { MockLoanCore, MockERC721, PromissoryNote } from "../typechain";
+import { MockLoanCore, MockERC721, PromissoryNote, FeeController } from "../typechain";
 import { deploy } from "./utils/contracts";
 import { LoanTerms, LoanState } from "./utils/types";
 import { fromRpcSig } from "ethereumjs-util";
@@ -40,7 +40,7 @@ describe("PromissoryNote", () => {
             collateralTokenId,
             payableCurrency,
             startDate,
-            numInstallments
+            numInstallments,
         };
     };
 

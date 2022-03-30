@@ -25,7 +25,7 @@ export async function mintTokens(
 ): Promise<void> {
     await weth.mint(target, ethers.utils.parseEther(wethAmount.toString()));
     await pawnToken.mint(target, ethers.utils.parseEther(pawnAmount.toString()));
-    await usd.mint(target, ethers.utils.parseUnits(usdAmount.toString(),6)); // was parseUnits to the 6th decimal. This does not work with % interest calculation
+    await usd.mint(target, ethers.utils.parseUnits(usdAmount.toString(), 6)); // was parseUnits to the 6th decimal. This does not work with % interest calculation
 }
 
 export async function mintNFTs(
@@ -285,7 +285,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw1Bundle1Id,
         payableCurrency: weth.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {
@@ -314,7 +314,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw1Bundle2Id,
         payableCurrency: pawnToken.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {
@@ -343,7 +343,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw3Bundle1Id,
         payableCurrency: usd.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {
@@ -372,7 +372,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw3Bundle2Id,
         payableCurrency: usd.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {
@@ -401,7 +401,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw3Bundle3Id,
         payableCurrency: weth.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {
@@ -430,7 +430,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw4Bundle1Id,
         payableCurrency: pawnToken.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {
@@ -482,7 +482,7 @@ export async function wrapAssetsAndMakeLoans(
         collateralTokenId: aw3Bundle2Id,
         payableCurrency: usd.address,
         startDate: 0,
-        numInstallments:0,
+        numInstallments: 0,
     };
 
     const {

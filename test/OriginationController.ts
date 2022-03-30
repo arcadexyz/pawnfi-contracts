@@ -5,7 +5,14 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { BigNumber } from "ethers";
 import { deploy } from "./utils/contracts";
 
-import { OriginationController, MockERC20, AssetWrapper, PromissoryNote, MockLoanCore } from "../typechain";
+import {
+    OriginationController,
+    MockERC20,
+    AssetWrapper,
+    PromissoryNote,
+    MockLoanCore,
+    FeeController,
+} from "../typechain";
 import { approve, mint, ZERO_ADDRESS } from "./utils/erc20";
 import { LoanTerms } from "./utils/types";
 import { createLoanTermsSignature, createPermitSignature } from "./utils/eip712";
@@ -83,7 +90,7 @@ const createLoanTerms = (
         collateralTokenId,
         payableCurrency,
         startDate,
-        numInstallments
+        numInstallments,
     };
 };
 

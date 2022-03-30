@@ -3,7 +3,7 @@ import hre, { ethers, waffle } from "hardhat";
 const { loadFixture } = waffle;
 import { utils, Signer, BigNumber } from "ethers";
 
-import { MockLoanCore, MockERC20, MockERC721, RepaymentControllerV2 } from "../typechain";
+import { MockLoanCore, MockERC20, MockERC721, RepaymentControllerV2, FeeController } from "../typechain";
 import { deploy } from "./utils/contracts";
 
 interface TestContext {

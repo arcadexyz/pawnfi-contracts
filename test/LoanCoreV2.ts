@@ -16,7 +16,7 @@ const CLAIM_FEES_ROLE = "0x8dd046eb6fe22791cf064df41dbfc76ef240a563550f519aac882
 const ZERO = hre.ethers.utils.parseUnits("0", 18);
 
 //interest rate parameters
-const  INTEREST_DENOMINATOR = ethers.utils.parseEther("1"); //1*10**18
+const INTEREST_DENOMINATOR = ethers.utils.parseEther("1"); //1*10**18
 const BASIS_POINTS_DENOMINATOR = BigNumber.from(10000);
 
 interface TestContext {
@@ -222,7 +222,7 @@ describe("LoanCoreV2", () => {
             const tx = await LoanCoreV2.connect(user).createLoan(terms);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("231557");
+            expect(gasUsed.toString()).to.equal("233882");
         });
     });
 
@@ -474,7 +474,11 @@ describe("LoanCoreV2", () => {
             await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, principal);
 
-            await LoanCoreV2.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
+            await LoanCoreV2.connect(borrower).startLoan(
+                await lender.getAddress(),
+                await borrower.getAddress(),
+                loanId,
+            );
             await expect(
                 LoanCoreV2.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId),
             ).to.be.revertedWith("LoanCoreV2::start: Invalid loan state");
@@ -501,7 +505,11 @@ describe("LoanCoreV2", () => {
             await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, principal);
 
-            await LoanCoreV2.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
+            await LoanCoreV2.connect(borrower).startLoan(
+                await lender.getAddress(),
+                await borrower.getAddress(),
+                loanId,
+            );
             await mockERC20.connect(borrower).mint(await borrower.getAddress(), principal.add(interest));
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, principal.add(interest));
 
@@ -533,7 +541,11 @@ describe("LoanCoreV2", () => {
             await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, principal);
 
-            await LoanCoreV2.connect(borrower).startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
+            await LoanCoreV2.connect(borrower).startLoan(
+                await lender.getAddress(),
+                await borrower.getAddress(),
+                loanId,
+            );
             await mockERC20.connect(borrower).mint(LoanCoreV2.address, principal.add(interest));
 
             await blockchainTime.increaseTime(1001);
@@ -642,12 +654,14 @@ describe("LoanCoreV2", () => {
             await mockERC20.connect(lender).transfer(await borrower.getAddress(), principal);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, principal);
 
-            const tx = await LoanCoreV2
-                .connect(borrower)
-                .startLoan(await lender.getAddress(), await borrower.getAddress(), loanId);
+            const tx = await LoanCoreV2.connect(borrower).startLoan(
+                await lender.getAddress(),
+                await borrower.getAddress(),
+                loanId,
+            );
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("513267");
+            expect(gasUsed.toString()).to.equal("515417");
         });
     });
 
@@ -698,9 +712,9 @@ describe("LoanCoreV2", () => {
             const intDue = terms.principal.mul(apr);
             //console.log(intDue.toString());
             const intDue2 = intDue.div(BigNumber.from("10000"));
-            console.log("  Total interest Due: ", ethers.utils.formatEther(intDue2.toString()));
+            //console.log("  Total interest Due: ", ethers.utils.formatEther(intDue2.toString()));
             const total = terms.principal.add(intDue2);
-            console.log("  Total amount to repay: ",ethers.utils.formatEther(total.toString()));
+            //console.log("  Total amount to repay: ", ethers.utils.formatEther(total.toString()));
             await mockERC20.connect(borrower).mint(await borrower.getAddress(), total);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, total);
             await expect(LoanCoreV2.connect(borrower).repay(loanId)).to.emit(LoanCoreV2, "LoanRepaid").withArgs(loanId);
@@ -813,13 +827,7 @@ describe("LoanCoreV2", () => {
             const intDue = terms.principal.mul(apr);
             const intDue2 = intDue.div(BigNumber.from("10000"));
             const total = terms.principal.add(
-                (
-                  (
-                    terms.principal.mul(
-                      terms.interest.div(INTEREST_DENOMINATOR)
-                    )
-                  ).div(BASIS_POINTS_DENOMINATOR)
-                )
+                terms.principal.mul(terms.interest.div(INTEREST_DENOMINATOR)).div(BASIS_POINTS_DENOMINATOR),
             );
             await mockERC20.connect(borrower).mint(await borrower.getAddress(), total);
             await mockERC20.connect(borrower).approve(LoanCoreV2.address, total.sub(BigNumber.from(1)));
@@ -842,7 +850,7 @@ describe("LoanCoreV2", () => {
             const tx = await LoanCoreV2.connect(borrower).repay(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("225328");
+            expect(gasUsed.toString()).to.equal("224455");
         });
     });
 
@@ -895,7 +903,9 @@ describe("LoanCoreV2", () => {
 
             await blockchainTime.increaseTime(1001);
 
-            await expect(LoanCoreV2.connect(borrower).claim(loanId)).to.emit(LoanCoreV2, "LoanClaimed").withArgs(loanId);
+            await expect(LoanCoreV2.connect(borrower).claim(loanId))
+                .to.emit(LoanCoreV2, "LoanClaimed")
+                .withArgs(loanId);
         });
 
         it("Rejects calls from non-repayer", async () => {
@@ -1010,7 +1020,7 @@ describe("LoanCoreV2", () => {
             const tx = await LoanCoreV2.connect(borrower).claim(loanId);
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            expect(gasUsed.toString()).to.equal("182588");
+            expect(gasUsed.toString()).to.equal("184288");
         });
     });
 

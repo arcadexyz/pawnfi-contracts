@@ -24,7 +24,7 @@ export interface LoanData {
     lenderNoteId: BigNumber;
     state: LoanState;
     dueDate: BigNumberish;
-    balance:BigNumber;
+    balance: BigNumber;
     balancePaid: BigNumber;
     lateFeesAccrued: BigNumber;
     numMissedPayments: BigNumber;

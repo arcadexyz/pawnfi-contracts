@@ -23,7 +23,7 @@ const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
 
 //interest rate parameters
-const  INTEREST_DENOMINATOR = ethers.utils.parseEther("1"); //1*10**18
+const INTEREST_DENOMINATOR = ethers.utils.parseEther("1"); //1*10**18
 const BASIS_POINTS_DENOMINATOR = BigNumber.from(10000);
 
 interface TestContext {
@@ -120,7 +120,32 @@ describe("Integration", () => {
             collateralTokenId,
             payableCurrency,
             startDate,
-            numInstallments
+            numInstallments,
+        };
+    };
+
+    /**
+     * Create a LoanTerms object using the given parameters, or defaults
+     */
+    const createInstallmentLoanTerms = (
+        payableCurrency: string,
+        {
+            durationSecs = 3600000,
+            principal = hre.ethers.utils.parseEther("100"),
+            interest = hre.ethers.utils.parseEther("1"),
+            collateralTokenId = BigNumber.from(1),
+            startDate = 1648651988,
+            numInstallments = 4,
+        }: Partial<LoanTerms> = {},
+    ): LoanTerms => {
+        return {
+            durationSecs,
+            principal,
+            interest,
+            collateralTokenId,
+            payableCurrency,
+            startDate,
+            numInstallments,
         };
     };
 
@@ -314,13 +339,7 @@ describe("Integration", () => {
             const postLenderBalance = await mockERC20.balanceOf(await lender.getAddress());
             // calc total repayment amount (principal + interest)
             const returnAmount = loanTerms.principal.add(
-                (
-                  (
-                    loanTerms.principal.mul(
-                      loanTerms.interest.div(INTEREST_DENOMINATOR)
-                    )
-                  ).div(BASIS_POINTS_DENOMINATOR)
-                )
+                loanTerms.principal.mul(loanTerms.interest.div(INTEREST_DENOMINATOR)).div(BASIS_POINTS_DENOMINATOR),
             );
             expect(postLenderBalance.sub(preLenderBalance)).to.equal(returnAmount);
         });
@@ -425,6 +444,51 @@ describe("Integration", () => {
             };
         };
 
+        const initializeInstallmentLoan = async (
+            context: TestContext,
+            terms?: Partial<LoanTerms>,
+        ): Promise<LoanDef> => {
+            const { originationController, mockERC20, assetWrapper, loanCoreV2, lender, borrower } = context;
+            const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
+            const loanTerms = createInstallmentLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+            if (terms) Object.assign(loanTerms, terms);
+
+            await mint(mockERC20, lender, loanTerms.principal);
+
+            const { v, r, s } = await createLoanTermsSignature(
+                originationController.address,
+                "OriginationController",
+                loanTerms,
+                borrower,
+            );
+
+            await approve(mockERC20, lender, originationController.address, loanTerms.principal);
+            await assetWrapper.connect(borrower).approve(originationController.address, bundleId);
+            const tx = await originationController
+                .connect(lender)
+                .initializeLoan(loanTerms, await borrower.getAddress(), await lender.getAddress(), v, r, s);
+            const receipt = await tx.wait();
+
+            let loanId;
+
+            if (receipt && receipt.events && receipt.events.length == 15) {
+                const LoanCreatedLog = new hre.ethers.utils.Interface([
+                    "event LoanStarted(uint256 loanId, address lender, address borrower)",
+                ]);
+                const log = LoanCreatedLog.parseLog(receipt.events[14]);
+                loanId = log.args.loanId;
+            } else {
+                throw new Error("Unable to initialize loan");
+            }
+
+            return {
+                loanId,
+                bundleId,
+                loanTerms,
+                loanData: await loanCoreV2.getLoan(loanId),
+            };
+        };
+
         it("should successfully claim loan", async () => {
             const context = await loadFixture(fixture);
             const { repaymentControllerV2, assetWrapper, loanCoreV2, lender } = context;
@@ -497,6 +561,39 @@ describe("Integration", () => {
             await expect(repaymentControllerV2.connect(borrower).claim(loanData.lenderNoteId)).to.be.revertedWith(
                 "RepaymentControllerV2: not owner of lender note",
             );
+        });
+
+        // *********************** INSTALLMENT TESTS *******************************
+
+        it("Tries to create installment loan type with 0 installments.", async () => {
+            const context = await loadFixture(fixture);
+            const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+            const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
+
+            await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
+            await mockERC20
+                .connect(borrower)
+                .approve(repaymentControllerV2.address, loanTerms.principal.add(loanTerms.interest));
+            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCoreV2.address);
+
+            await expect(
+                repaymentControllerV2.connect(borrower).getInstallmentMinPayment(loanData.borrowerNoteId),
+            ).to.be.revertedWith("This loan type does not have any installments.");
+        });
+
+        it("Tries to create installment loan type with 4 installments periods", async () => {
+            const context = await loadFixture(fixture);
+            const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+            const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context);
+
+            await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
+            await mockERC20
+                .connect(borrower)
+                .approve(repaymentControllerV2.address, loanTerms.principal.add(loanTerms.interest));
+            expect(await assetWrapper.ownerOf(bundleId)).to.equal(loanCoreV2.address);
+
+            const res = repaymentControllerV2.connect(borrower).getInstallmentMinPayment(loanData.borrowerNoteId);
+            console.log(res);
         });
     });
 });

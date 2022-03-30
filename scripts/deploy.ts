@@ -61,7 +61,10 @@ export async function main(
         await RepaymentControllerV2Factory.deploy(loanCoreV2.address, borrowerNoteAddr, lenderNoteAddr)
     );
     await repaymentControllerV2.deployed();
-    const updateRepaymentControllerV2Permissions = await loanCoreV2.grantRole(REPAYER_ROLE, repaymentControllerV2.address);
+    const updateRepaymentControllerV2Permissions = await loanCoreV2.grantRole(
+        REPAYER_ROLE,
+        repaymentControllerV2.address,
+    );
     await updateRepaymentControllerV2Permissions.wait();
 
     console.log("RepaymentControllerV2 deployed to:", repaymentControllerV2.address);

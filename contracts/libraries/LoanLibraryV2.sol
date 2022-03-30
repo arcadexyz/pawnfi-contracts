@@ -37,7 +37,6 @@ library LoanLibraryV2 {
         uint256 collateralTokenId;
         // The payable currency for the loan principal and interest
         address payableCurrency;
-        
         // Installment loan specific
 
         // Start date of the loan - used for determine what is due at each installment
@@ -72,5 +71,7 @@ library LoanLibraryV2 {
         uint256 lateFeesAccrued;
         // Number of consecutive missed payments
         uint256 numMissedPayments;
+        // Number of installment payments made on the loan
+        uint256 numInstallmentsPaid;
     }
 }

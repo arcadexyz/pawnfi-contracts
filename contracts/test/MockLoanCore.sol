@@ -62,6 +62,7 @@ contract MockLoanCore is ILoanCoreV2 {
             terms.principal,
             0,
             0,
+            0,
             0
         );
 
@@ -101,7 +102,8 @@ contract MockLoanCore is ILoanCoreV2 {
             data.balance,
             data.balancePaid,
             data.lateFeesAccrued,
-            data.numMissedPayments
+            data.numMissedPayments,
+            data.numInstallmentsPaid
         );
 
         emit LoanStarted(loanId, lender, borrower);
@@ -129,4 +131,23 @@ contract MockLoanCore is ILoanCoreV2 {
      *  - The current time must be beyond the dueDate
      */
     function claim(uint256 loanId) public override {}
+
+    /**
+     * @dev Called from RepaymentController when paying back installment loan.
+     * Function takes in the loanId and amount repaid to RepaymentController.
+     * This amount is then transferred to the lender and loan data is updated accordingly.
+     */
+    function repayPart(
+        uint256 _loanId,
+        uint256 _repaidAmount,
+        uint256 _numMissedPayments,
+        uint256 _lateFeesAccrued
+    ) external override {
+        LoanLibraryV2.LoanData memory data = loans[_loanId];
+        // Ensure valid initial loan state
+        require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
+        data.state = LoanLibraryV2.LoanState.Repaid;
+
+        emit LoanRepaid(_loanId);
+    }
 }
