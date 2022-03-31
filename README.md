@@ -13,7 +13,9 @@ Interest Rate Formula:
 
 To this point all tests expect ones related to FlashLoans/ FlashRollovers are passing and all the bootstrap scripts.
 
-In development, `calcInstallments` and `repayPart` ... 🔮
+🔮 In development, `calcInstallments` and `repayPart` 
+
+🔑 For Implementation tests, run `npx hardhat test test/Installments.ts` and be sure to set the loanTerms in `Implementations.ts`.
 
 ## Deploying
 
@@ -44,6 +46,7 @@ Run `yarn test` or `npx hardhat test` to perform all the test scripts in the tes
 For specific test scripts run the following:
 
 ```
+npx hardhat test test/Installments.ts
 npx hardhat test test/LoanCoreV2.ts
 npx hardhat test test/AssetWrapper.ts
 // etc...

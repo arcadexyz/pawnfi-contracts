@@ -100,7 +100,7 @@ describe("Implementation", () => {
     };
 
     /**
-     * Create a LoanTerms object using the given parameters, or defaults
+     * Create a NON-INSTALLMENT LoanTerms object using the given parameters, or defaults
      */
     const createLoanTerms = (
         payableCurrency: string,
@@ -125,17 +125,17 @@ describe("Implementation", () => {
     };
 
     /**
-     * Create a LoanTerms object using the given parameters, or defaults
+     * Create an INSTALLMENT LoanTerms object using the given parameters, or defaults
      */
     const createInstallmentLoanTerms = (
         payableCurrency: string,
         {
             durationSecs = 36000,
             principal = hre.ethers.utils.parseEther("100"),
-            interest = hre.ethers.utils.parseEther("1"),
+            interest = hre.ethers.utils.parseEther("1000"), // 1000 = 10%
             collateralTokenId = BigNumber.from(1),
-            startDate = 1648681478,
-            numInstallments = 16,
+            startDate = 1648756727,
+            numInstallments = 4,
         }: Partial<LoanTerms> = {},
     ): LoanTerms => {
         return {
@@ -208,13 +208,6 @@ describe("Implementation", () => {
         };
     };
 
-    interface LoanDef {
-        loanId: string;
-        bundleId: string;
-        loanTerms: LoanTerms;
-        loanData: LoanData;
-    }
-
     const initializeInstallmentLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
         const { originationController, mockERC20, assetWrapper, loanCoreV2, lender, borrower } = context;
         const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
@@ -278,9 +271,9 @@ describe("Implementation", () => {
         const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context);
 
-        await blockchainTime.increaseTime(8000);
+        await blockchainTime.increaseTime(36000/4);
 
         const res = await repaymentControllerV2.connect(borrower).getInstallmentMinPayment(loanData.borrowerNoteId);
-        console.log("RESULT:  ", res);
+        //console.log("RESULT:  ", res);
     });
 });

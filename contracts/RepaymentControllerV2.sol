@@ -41,7 +41,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
 
     // Installment LoanState
     uint256 public constant GRACE_PERIOD = 604800; // 60*60*24*7 // 1 week
-    uint256 public constant LATE_FEE = 500; // 5000/BASIS_POINTS_DENOMINATOR = 0.5
+    uint256 public constant LATE_FEE = 500; // 50/BASIS_POINTS_DENOMINATOR = 0.5%
 
     constructor(
         ILoanCoreV2 _loanCoreV2,
@@ -136,22 +136,28 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
         bool _pastDueDate = false;
         uint256 _bal = data.balance;
 
+        console.log("--------------------------------------------");
+        console.log("--------------------------------------------");
+
         // *** Installment Values
         (uint256 _installmentPeriod, uint256 _relativeTimeInLoan) = installmentWizard(
             data.terms.startDate,
             data.terms.durationSecs,
             numInstallments
         );
-        // interest per installment - using mulitpier of 1 million. There should not be  loan with more than 1 million installment periods
+        console.log("--------------------------------------------");
+        console.log("--------------------------------------------");
+
+        // interest per installment - using mulitpier of 1 million. There should not be loan with more than 1 million installment periods
         uint256 _interestPerInstallment = ((interest / INTEREST_DENOMINATOR) * 1000000) / numInstallments; // still need to divide by BASIS_POINTS_DENOMINATOR for rate value
+        console.log("_interestPerInstallment: ", _interestPerInstallment);
 
         // *** Logic
-        // Check if relative current time is OVER ∆T.
-        if (_relativeTimeInLoan != 0 && _installmentPeriod == 0) {
+        // Check if relative current time is OVER ∆T.s
+        if ( _installmentPeriod == 0) {
             _pastDueDate = true;
             _latePayment = true;
         }
-        // If relative time is equal to zero, the call was made during the loan
         // NOT OVER ∆T so determine the current installment period and how many payments have been missed.
         else {
             // on time...
@@ -163,11 +169,12 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
             else {
                 _latePayment = true;
                 // protection against cases that slip by when checking if relative current time is over ∆T.
+                // +1 because it is factoring in you will not be late on the current payment period
                 if (_installmentPeriod != 0) {
-                    _installmentsMissed = _installmentPeriod - data.numInstallmentsPaid;
+                    _installmentsMissed = _installmentPeriod - (data.numInstallmentsPaid + 1);
                     _pastDueDate = false;
                 } else {
-                    _installmentsMissed = numInstallments - data.numInstallmentsPaid;
+                    _installmentsMissed = numInstallments - (data.numInstallmentsPaid + 1);
                     _pastDueDate = true;
                 }
             }
@@ -175,38 +182,39 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
 
         // *** Determine if late fees are added and if so, how much? ***
         // Calulate number of payments missed based on _latePayment, _pastDueDate
-
+        console.log(_latePayment, _pastDueDate);
         // If payment on time...
         if (_latePayment == false && _pastDueDate == false) {
             // Minimum balance due calculation. Based on interest per installment period
             uint256 minBalDue = ((_bal * _interestPerInstallment) / 1000000) / BASIS_POINTS_DENOMINATOR;
+            console.log("minBalDue: ", minBalDue);
+            console.log(" lateFees: ", 0);
+            console.log("_installmentsMissed: ", 0);
             return (minBalDue, 0, 0);
         }
         // If payment is late, but not past the due date...
         if (_latePayment == true && _pastDueDate == false) {
-            /**
-            // installments left
-            uint256 installmentsRemaining = data.terms.numInstallments - _installmentPeriod; //4 total, on 2nd payment, --> 2 payments remain AFTER this one
-                                                                                             //4 total, on 4th payment, --> 0 payments remaining, on the last payment
-            // installments missed, not on the last payment
-            if(installmentsRemaining > 0) {
-                uint256 _numMissedPayments = _installmentPeriod - data.numInstallmentsPaid;
-            }
-            // installments missed, and on the last payment (installmentsRemaining == 0)
-            else {
-                uint256 _numMissedPayments = data.terms.numInstallments - data.numInstallmentsPaid;
-            }
-            */
-
-            // calculate late fees.
             uint256 minBalDue = 0;
             uint256 currentBal = _bal;
             uint256 lateFees = 0;
-            for (uint256 i = 1; i == _installmentsMissed; i++) {
-                minBalDue = (currentBal * (_interestPerInstallment + LATE_FEE)) / BASIS_POINTS_DENOMINATOR;
+            // late fees compound on any installment periods missed. late fees of first installment numMissedPayments
+            // add to the principal of the next late fees calculation
+            for (uint256 i = 0; i < _installmentsMissed; i++) {
+                minBalDue = minBalDue + (((currentBal * _interestPerInstallment ) / 1000000) / BASIS_POINTS_DENOMINATOR);
                 currentBal = currentBal + minBalDue;
                 lateFees = lateFees + ((currentBal * LATE_FEE) / BASIS_POINTS_DENOMINATOR);
+                console.log("currentBal: ", currentBal);
+                console.log("  lateFees: ", lateFees);
             }
+            // +1 installment loan period to signify paying off the current period, but on the new balance which has accrued a late fee.
+            minBalDue = minBalDue + (((currentBal * _interestPerInstallment ) / 1000000) / BASIS_POINTS_DENOMINATOR);
+
+
+            console.log(" minBalDue: ", minBalDue);
+            console.log("  lateFees: ", lateFees);
+            console.log("_installmentsMissed: ", _installmentsMissed);
+            console.log(" --- TOTAL MIN AMOUNT DUE::", minBalDue + lateFees);
+
             return (minBalDue, lateFees, _installmentsMissed);
         }
         // Pass due date...
@@ -222,8 +230,14 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
                 currentBal = currentBal + minBalDue;
                 lateFees = lateFees + ((currentBal * LATE_FEE) / BASIS_POINTS_DENOMINATOR);
             }
+            console.log("minBalDue: ", minBalDue);
+            console.log(" lateFees: ", lateFees);
+            console.log("_installmentsMissed: ", _installmentsMissed);
+
             return (minBalDue, lateFees, _installmentsMissed);
         }
+        console.log("--------------------------------------------");
+        console.log("--------------------------------------------");
     }
 
     function installmentWizard(
@@ -261,7 +275,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
             _relativeTimeInLoan = (_timePerInstallment * (numInstallments + 10)) * 10**18; // values greater than one signify over loanDuration, loans paid on time this will be zero
         }
 
-        console.log(_multiplier);
+        console.log("_multiplier: ", _multiplier);
         console.log("currentTi: ", _currentTime);
         console.log("startDate: ", startDate);
         console.log("DELTA TIME: ", (_currentTime - startDate));
@@ -272,12 +286,12 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
         );
 
         // Current installment period
-        uint256 startIndex = 10**18; // triggers out of bounds error when not set in the for loop below
+        uint256 startIndex = 10**18;
         for (uint256 i = 1; i < numInstallments + 1; i++) {
             console.log(_relativeTimeInLoan);
             console.log((_timePerInstallment * i) * _multiplier);
             if ((_timePerInstallment * i) * _multiplier >= _relativeTimeInLoan) {
-                console.log("installments left: ", i);
+                console.log("installment: ", i);
                 _installmentsDue[i - 1] = i;
                 // only set once, must ensure 10**18 could never be the start index. cannot have 10**18 installments.
                 if (startIndex == 10**18) {
@@ -287,7 +301,12 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
         }
         // Set current installment period. When a payment is made after the loan has ended,
         // this value is 0 to signify.
-        _installmentPeriod = _installmentsDue[startIndex];
+        if(startIndex != 10**18) {
+            _installmentPeriod = _installmentsDue[startIndex];
+        } else {
+            // an installment period of zero signifies the loan is past the due date
+            _installmentPeriod = 0;
+        }
         console.log("Current Installment Period: ", _installmentPeriod);
 
         return (_installmentPeriod, _relativeTimeInLoan);
