@@ -134,7 +134,7 @@ describe("Implementation", () => {
             principal = hre.ethers.utils.parseEther("100"),
             interest = hre.ethers.utils.parseEther("1000"), // 1000 = 10%
             collateralTokenId = BigNumber.from(1),
-            startDate = 1648756727,
+            startDate = 1648835223,
             numInstallments = 4,
         }: Partial<LoanTerms> = {},
     ): LoanTerms => {

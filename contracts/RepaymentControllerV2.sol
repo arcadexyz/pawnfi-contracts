@@ -41,7 +41,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
 
     // Installment LoanState
     uint256 public constant GRACE_PERIOD = 604800; // 60*60*24*7 // 1 week
-    uint256 public constant LATE_FEE = 500; // 50/BASIS_POINTS_DENOMINATOR = 0.5%
+    uint256 public constant LATE_FEE = 50; // 50/BASIS_POINTS_DENOMINATOR = 0.5%
 
     constructor(
         ILoanCoreV2 _loanCoreV2,
@@ -150,7 +150,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
 
         // interest per installment - using mulitpier of 1 million. There should not be loan with more than 1 million installment periods
         uint256 _interestPerInstallment = ((interest / INTEREST_DENOMINATOR) * 1000000) / numInstallments; // still need to divide by BASIS_POINTS_DENOMINATOR for rate value
-        console.log("_interestPerInstallment: ", _interestPerInstallment);
+        console.log("_interestPerInstallment (/1000000 for %): ", _interestPerInstallment);
 
         // *** Logic
         // Check if relative current time is OVER ∆T.s
