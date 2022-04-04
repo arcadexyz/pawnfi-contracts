@@ -129,13 +129,18 @@ describe("Implementation", () => {
      */
     const createInstallmentLoanTerms = (
         payableCurrency: string,
+        durationSecs: number,
+        principal: BigNumber,
+        interest: BigNumber,
+        startDate:number,
+        numInstallments:number,
         {
-            durationSecs = 36000,
-            principal = hre.ethers.utils.parseEther("100"),
-            interest = hre.ethers.utils.parseEther("1000"), // 1000 = 10%
+            //durationSecs = 36000,
+            //principal = hre.ethers.utils.parseEther("100"),
+            //interest = hre.ethers.utils.parseEther("1000"), // 1000 = 10%
             collateralTokenId = BigNumber.from(1),
-            startDate = 1648835223,
-            numInstallments = 4,
+            //startDate = 1649087157,
+            //numInstallments = 4,
         }: Partial<LoanTerms> = {},
     ): LoanTerms => {
         return {
@@ -208,10 +213,10 @@ describe("Implementation", () => {
         };
     };
 
-    const initializeInstallmentLoan = async (context: TestContext, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
+    const initializeInstallmentLoan = async (context: TestContext, payableCurrency: string, durationSecs: number, principal:BigNumber, interest:BigNumber, startDate:number, numInstallments:number, terms?: Partial<LoanTerms>): Promise<LoanDef> => {
         const { originationController, mockERC20, assetWrapper, loanCoreV2, lender, borrower } = context;
         const bundleId = terms?.collateralTokenId ?? (await createWnft(assetWrapper, borrower));
-        const loanTerms = createInstallmentLoanTerms(mockERC20.address, { collateralTokenId: bundleId });
+        const loanTerms = createInstallmentLoanTerms(payableCurrency,durationSecs, principal, interest, startDate, numInstallments, { collateralTokenId: bundleId });
         if (terms) Object.assign(loanTerms, terms);
         await mint(mockERC20, lender, loanTerms.principal);
 
@@ -269,7 +274,14 @@ describe("Implementation", () => {
     it("Create an installment loan with 4 installments periods and a loan duration of 36000. Increase time to the second installment period.", async () => {
         const context = await loadFixture(fixture);
         const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
-        const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context);
+        const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
+            mockERC20.address,
+            36000, // durationSecs
+            hre.ethers.utils.parseEther("100"), // principal
+            hre.ethers.utils.parseEther("1000"), // interest
+            1649091316, // startDate
+            4 // numInstallments
+        );
 
         await blockchainTime.increaseTime(36000/4);
 
