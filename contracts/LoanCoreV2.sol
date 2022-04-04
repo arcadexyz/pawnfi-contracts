@@ -231,19 +231,20 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         LoanLibraryV2.LoanData memory data = loans[_loanId];
         // Ensure valid initial loan state
         require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
-
         // transfer funds to LoanCoreV2
-        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), _repaidAmount);
+        uint256 paymentTotal = _repaidAmount + _lateFeesAccrued;
+        IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), paymentTotal);
         // update LoanData
-        data.balance = data.balance - _repaidAmount;
-        data.balancePaid = data.balancePaid + _repaidAmount;
+        data.balance = data.balance - _repaidAmount; // WRONG!!
+        data.balancePaid = data.balancePaid + paymentTotal;
         data.numMissedPayments = data.numMissedPayments + _numMissedPayments;
         data.lateFeesAccrued = data.lateFeesAccrued = _lateFeesAccrued;
 
-        // if balance fully paid off after payment...
+        // * Repay lender from LoanCoreV2
         // * TESTING SEQUENCE: try to produce underflow here and see if you can make balance less than 0.
         address lender = lenderNote.ownerOf(data.lenderNoteId);
         address borrower = borrowerNote.ownerOf(data.borrowerNoteId);
+        // if balance fully paid off after payment...
         if (data.balance <= 0) {
             // state changes and cleanup
             // NOTE: these must be performed before assets are released to prevent reentrance
@@ -254,7 +255,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
             borrowerNote.burn(data.borrowerNoteId);
 
             // Loan is fully repaid, redistribute asset and collateral.
-            IERC20(data.terms.payableCurrency).safeTransfer(lender, _repaidAmount);
+            IERC20(data.terms.payableCurrency).safeTransfer(lender, paymentTotal);
             collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
 
             emit LoanRepaid(_loanId);
@@ -263,9 +264,9 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         // borrower collateral still locked up
         if (data.balance > 0) {
             // asset distribution
-            IERC20(data.terms.payableCurrency).safeTransfer(lender, _repaidAmount);
+            IERC20(data.terms.payableCurrency).safeTransfer(lender, paymentTotal);
 
-            emit LoanPartRepaid(_loanId, _repaidAmount);
+            emit LoanPartRepaid(_loanId, paymentTotal);
         }
     }
 
