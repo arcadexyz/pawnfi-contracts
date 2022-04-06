@@ -233,6 +233,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
         // transfer funds to LoanCoreV2
         uint256 paymentTotal = _repaidAmount + _lateFeesAccrued;
+        console.log("TOTAL PAID FROM BORROWER: ", paymentTotal);
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), paymentTotal);
         // update LoanData
         data.balance = data.balance - _repaidAmount; // WRONG!!

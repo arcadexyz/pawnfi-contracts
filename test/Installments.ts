@@ -19,6 +19,8 @@ import { approve, mint } from "./utils/erc20";
 import { LoanTerms, LoanData } from "./utils/types";
 import { createLoanTermsSignature } from "./utils/eip712";
 
+const SECTION_SEPARATOR = "\n" + "=".repeat(80) + "\n";
+
 const ORIGINATOR_ROLE = "0x59abfac6520ec36a6556b2a4dd949cc40007459bcd5cd2507f1e5cc77b6bc97e";
 const REPAYER_ROLE = "0x9c60024347074fd9de2c1e36003080d22dbc76a41ef87444d21e361bcb39118e";
 
@@ -37,6 +39,7 @@ interface TestContext {
     borrower: SignerWithAddress;
     lender: SignerWithAddress;
     admin: SignerWithAddress;
+    currentTimestamp: number;
 }
 
 describe("Implementation", () => {
@@ -46,6 +49,8 @@ describe("Implementation", () => {
      * Sets up a test context, deploying new contracts and returning them for use in a test
      */
     const fixture = async (): Promise<TestContext> => {
+        const currentTimestamp = await blockchainTime.secondsFromNow(0);
+
         const signers: SignerWithAddress[] = await hre.ethers.getSigners();
         const [borrower, lender, admin] = signers;
 
@@ -96,6 +101,7 @@ describe("Implementation", () => {
             borrower,
             lender,
             admin,
+            currentTimestamp
         };
     };
 
@@ -259,8 +265,9 @@ describe("Implementation", () => {
     // *********************** INSTALLMENT TESTS *******************************
 
     it("Tries to create installment loan type with 0 installments.", async () => {
+      console.log(" ----- TEST 1 ----- ")
         const context = await loadFixture(fixture);
-        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeLoan(context);
 
         await mint(mockERC20, borrower, loanTerms.principal.add(loanTerms.interest));
@@ -275,14 +282,15 @@ describe("Implementation", () => {
     });
 
     it("Create an installment loan with 4 installments periods and a loan duration of 36000. Call repayPart to pay the minimum on the first installment period.", async () => {
+        console.log(" ----- TEST 2 ----- ")
         const context = await loadFixture(fixture);
-        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
             mockERC20.address,
             36000, // durationSecs
             hre.ethers.utils.parseEther("100"), // principal
             hre.ethers.utils.parseEther("1000"), // interest
-            1649104671, // startDate
+            currentTimestamp, // startDate
             4 // numInstallments
         );
 
@@ -295,14 +303,15 @@ describe("Implementation", () => {
     });
 
     it("Create an installment loan with 4 installments periods and a loan duration of 36000. Call repayPart to pay the minimum on the first installment period. With Allowance set to less than amount due. Should Revert.", async () => {
+        console.log(" ----- TEST 3 ----- ")
         const context = await loadFixture(fixture);
-        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
             mockERC20.address,
             36000, // durationSecs
             hre.ethers.utils.parseEther("100"), // principal
             hre.ethers.utils.parseEther("1000"), // interest
-            1649104671, // startDate
+            currentTimestamp, // startDate
             4 // numInstallments
         );
 
@@ -313,65 +322,127 @@ describe("Implementation", () => {
         ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
     });
     it("Create an installment loan with 4 installments periods and a loan duration of 36000. Skip the first period, then call repayPart. Pay the minimum balance due with late fees. ", async () => {
+        console.log(" ----- TEST 4 ----- ")
         const context = await loadFixture(fixture);
-        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
             mockERC20.address,
             36000, // durationSecs
             hre.ethers.utils.parseEther("100"), // principal
             hre.ethers.utils.parseEther("1000"), // interest
-            1649104671, // startDate
+            currentTimestamp, // startDate
             4 // numInstallments
         );
         //increase one installment period
         await blockchainTime.increaseTime(36000/4);
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("5.575"));
-        //await repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId);
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("2.5"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.emit(mockERC20, "Transfer");
     });
 
     it("Create an installment loan with 4 installments periods and a loan duration of 36000. Skip the first two instalment periods, then call repayPart. Pay the minimum balance due with late fees. ", async () => {
+        console.log(" ----- TEST 5 ----- ")
         const context = await loadFixture(fixture);
-        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
             mockERC20.address,
             36000, // durationSecs
             hre.ethers.utils.parseEther("100"), // principal
             hre.ethers.utils.parseEther("1000"), // interest
-            1649104671, // startDate
+            currentTimestamp, // startDate
             4 // numInstallments
         );
-        //increase one installment period
+        //increase two installment period
         await blockchainTime.increaseTime((36000/4) + (36000/4));
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("8.801875"));
-        //await repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId);
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("5.575"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.emit(mockERC20, "Transfer");
     });
 
     it("Create an installment loan with 4 installments periods and a loan duration of 36000. Skip the first two instalment periods, then call repayPart. Pay the minimum balance due with late fees. Should revert with insufficient allowance sent. ", async () => {
+        console.log(" ----- TEST 6 ----- ")
         const context = await loadFixture(fixture);
-        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender } = context;
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
         const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
             mockERC20.address,
             36000, // durationSecs
             hre.ethers.utils.parseEther("100"), // principal
             hre.ethers.utils.parseEther("1000"), // interest
-            1649104671, // startDate
+            currentTimestamp, // startDate
             4 // numInstallments
         );
-        //increase one installment period
+        //increase two installment period
         await blockchainTime.increaseTime((36000/4) + (36000/4));
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("8.801874"));
-        //await repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId);
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("5.574"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+    });
+
+    it("Create an installment loan with 4 installments periods and a loan duration of 36000. Skip the first three instalment periods, then call repayPart. Pay the minimum balance due with late fees. Should revert with insufficient allowance sent. ", async () => {
+        console.log(" ----- TEST 7 ----- ")
+        const context = await loadFixture(fixture);
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
+        const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
+            mockERC20.address,
+            36000, // durationSecs
+            hre.ethers.utils.parseEther("100"), // principal
+            hre.ethers.utils.parseEther("1000"), // interest
+            currentTimestamp, // startDate
+            4 // numInstallments
+        );
+        //increase three installment period
+        await blockchainTime.increaseTime((36000/4) + (36000/4) + (36000/4));
+
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("8.801875"));
+        await expect(
+          repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
+        ).to.emit(mockERC20, "Transfer");
+    });
+
+    it("Create an installment loan with 4 installments periods and a loan duration of 36000. Skip the first three instalment periods, then call repayPart. Pay the minimum balance due with late fees. Should revert with insufficient allowance sent. ", async () => {
+        console.log(" ----- TEST 8 ----- ")
+        const context = await loadFixture(fixture);
+        const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
+        const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
+            mockERC20.address,
+            36000, // durationSecs
+            hre.ethers.utils.parseEther("100"), // principal
+            hre.ethers.utils.parseEther("1000"), // interest
+            currentTimestamp, // startDate
+            4 // numInstallments
+        );
+        //increase three installment period
+        await blockchainTime.increaseTime((36000/4) + (36000/4) + (36000/4));
+
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("8.801874"));
+        await expect(
+          repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
+        ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+    });
+
+    it("Should return installment period and number of installments missed when relative current time is outside loan duration. " , async () => {
+      const context = await loadFixture(fixture);
+      const { repaymentControllerV2, assetWrapper, mockERC20, loanCoreV2, borrower, lender, currentTimestamp } = context;
+      const { loanId, loanTerms, loanData, bundleId } = await initializeInstallmentLoan(context,
+          mockERC20.address,
+          36000, // durationSecs
+          hre.ethers.utils.parseEther("100"), // principal
+          hre.ethers.utils.parseEther("1000"), // interest
+          currentTimestamp, // startDate
+          4 // numInstallments
+      );
+      //increase 4 installment periods
+      await blockchainTime.increaseTime((36000/4) + (36000/4) + (36000/4) + (36000/4));
+
+      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("12.26129875"));
+      await expect(
+        repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
+      ).to.emit(mockERC20, "Transfer");
     });
 });
