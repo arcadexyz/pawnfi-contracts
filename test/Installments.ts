@@ -337,7 +337,7 @@ describe("Implementation", () => {
         //increase one installment period
         await blockchainTime.increaseTime(36000/4);
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("5.575"));
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("3.0125"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.emit(mockERC20, "Transfer");
@@ -358,7 +358,7 @@ describe("Implementation", () => {
         //increase two installment period
         await blockchainTime.increaseTime((36000/4) + (36000/4));
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("8.801875"));
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("6.1128125"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.emit(mockERC20, "Transfer");
@@ -379,7 +379,7 @@ describe("Implementation", () => {
         //increase two installment period
         await blockchainTime.increaseTime((36000/4) + (36000/4));
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("8.801874"));
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("6.1128124"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
@@ -400,7 +400,7 @@ describe("Implementation", () => {
         //increase three installment period
         await blockchainTime.increaseTime((36000/4) + (36000/4) + (36000/4));
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("12.261296875"));
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("9.3784453125"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.emit(mockERC20, "Transfer");
@@ -421,7 +421,7 @@ describe("Implementation", () => {
         //increase three installment period
         await blockchainTime.increaseTime((36000/4) + (36000/4) + (36000/4));
 
-        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("12.261296874"));
+        await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("9.3784453124"));
         await expect(
           repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
         ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
@@ -441,7 +441,7 @@ describe("Implementation", () => {
       //increase 4 installment periods
       await blockchainTime.increaseTime((36000) + (36000/4));
 
-      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("20.2317"));
+      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("16.74"));
       await expect(
         repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
       ).to.emit(mockERC20, "Transfer");
@@ -461,7 +461,7 @@ describe("Implementation", () => {
       //increase 4 installment periods
       await blockchainTime.increaseTime((36000) + (36000));
 
-      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("36.405"));
+      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("31.31"));
       await expect(
         repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
       ).to.emit(mockERC20, "Transfer");
@@ -481,10 +481,10 @@ describe("Implementation", () => {
       //increase 4 installment periods
       await blockchainTime.increaseTime((36000) + (36000));
 
-      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("36.405"));
+      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("31.30"));
       await expect(
         repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
-      ).to.emit(mockERC20, "Transfer");
+      ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
     });
 
     it("Should return installment period and number of installments missed when relative current time is outside loan duration. This case is 4 periods overdue. " , async () => {
@@ -501,7 +501,7 @@ describe("Implementation", () => {
       //increase 4 installment periods
       await blockchainTime.increaseTime((36000) * 10);
 
-      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("6150"));
+      await mockERC20.connect(borrower).approve(repaymentControllerV2.address, ethers.utils.parseEther("5393"));
       await expect(
         repaymentControllerV2.connect(borrower).repayPartMinimum(loanData.borrowerNoteId)
       ).to.emit(mockERC20, "Transfer");

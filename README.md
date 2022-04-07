@@ -6,16 +6,16 @@ This branch serves the purpose of research and development of how installment lo
 
 `LoanTerms` and `LoanData` structs have been updated in the `LoanLibrary` to reflect changes needed for installment loans. The smart contract functions have been updated accordingly to accept these changes.
 
-Second, in V2 the interested rate in the `LoanTerms` is to be entered as a rate. For implementing this, we have decided to start the rate as a total interest period rate. For example, a one year loan with 10% APR, would be entered as (1000) _ 10^18. The minimum interest rate allowed is 0.01% or (1) _ 10^18.
+Second, in V2 the interested rate in the `LoanTerms` is to be entered as a rate. For implementing this, we have decided to start the rate as a total interest period rate. For example, a one year loan with 10% APR, would be entered as (1000) * 10^18. The minimum interest rate allowed is 0.01% or (1) * 10^18.
 
 Interest Rate Formula:
-`principal + ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR));` where `INTEREST_DENOMINATOR = 1*10**18` and `BASIS_POINTS_DENOMINATOR = 10000`
+`principal + ((principal * (interest / INTEREST_DENOMINATOR))/BASIS_POINTS_DENOMINATOR));`
 
-To this point all tests expect ones related to FlashLoans/ FlashRollovers are passing and all the bootstrap scripts.
+where `INTEREST_DENOMINATOR = 1*10**18` and `BASIS_POINTS_DENOMINATOR = 10000`
 
-🔮 In development, `calcInstallments` and `repayPart` 
+All tests expect ones related to FlashLoans/ FlashRollovers are passing and all the bootstrap scripts. Two new test scripts have been added `Installments.ts` and `installmentsRepay.ts`.
 
-🔑 For Implementation tests, run `npx hardhat test test/Installments.ts` and be sure to set the loanTerms in `Implementations.ts`.
+🔑 For Implementation tests, run `npx hardhat test test/Installments.ts` or `npx hardhat test test/InstallmentsRepay.ts`.
 
 ## Deploying
 
