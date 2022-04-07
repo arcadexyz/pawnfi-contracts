@@ -43,8 +43,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
     IERC721 public override collateralToken;
     IFeeController public override feeController;
 
-    // 10k bps per whole
-    uint256 private constant BPS_DENOMINATOR = 10_000;
+    uint256 private constant BPS_DENOMINATOR = 10_000; // 10k bps per whole
 
     constructor(IERC721 _collateralToken, IFeeController _feeController) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -64,7 +63,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         emit Initialized(address(collateralToken), address(borrowerNote), address(lenderNote));
     }
 
-    // - - - LEGACY LOANS - - -
+    // --------------------- Legacy Loans ----------------------------
 
     /**
      * @inheritdoc ILoanCoreV2
@@ -215,7 +214,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         return principal - ((principal * (feeController.getOriginationFee())) / BPS_DENOMINATOR);
     }
 
-    // - - - INSTALLMENT LOANS - - -
+    // --------------------- Installment Specific ----------------------------
 
     /**
      * @dev Called from RepaymentController when paying back installment loan.
@@ -224,54 +223,79 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
      */
     function repayPart(
         uint256 _loanId,
-        uint256 _repaidAmount,
-        uint256 _numMissedPayments,
-        uint256 _lateFeesAccrued
+        uint256 _repaidAmount, // amount paid to principal
+        uint256 _numMissedPayments, // number of missed payments (number of payments since the last payment)
+        uint256 _lateFeesAccrued // any minimum payments to interest and or late fees
     ) external override {
-        LoanLibraryV2.LoanData memory data = loans[_loanId];
+        LoanLibraryV2.LoanData storage data = loans[_loanId];
         // Ensure valid initial loan state
         require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
         // transfer funds to LoanCoreV2
         uint256 paymentTotal = _repaidAmount + _lateFeesAccrued;
         console.log("TOTAL PAID FROM BORROWER: ", paymentTotal);
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), paymentTotal);
-        // update LoanData
-        data.balance = data.balance - _repaidAmount; // WRONG!!
-        data.balancePaid = data.balancePaid + paymentTotal;
-        data.numMissedPayments = data.numMissedPayments + _numMissedPayments;
-        data.lateFeesAccrued = data.lateFeesAccrued = _lateFeesAccrued;
 
-        // * Repay lender from LoanCoreV2
-        // * TESTING SEQUENCE: try to produce underflow here and see if you can make balance less than 0.
+        // update LoanData
         address lender = lenderNote.ownerOf(data.lenderNoteId);
         address borrower = borrowerNote.ownerOf(data.borrowerNoteId);
-        // if balance fully paid off after payment...
-        if (data.balance <= 0) {
-            // state changes and cleanup
+        // if last payment and extra sent
+        if(_repaidAmount > data.balance) {
+            // set the loan state to repaid
             // NOTE: these must be performed before assets are released to prevent reentrance
             data.state = LoanLibraryV2.LoanState.Repaid;
             collateralInUse[data.terms.collateralTokenId] = false;
-
+            // return the difference to borrower
+            uint256 diffAmount = _repaidAmount - data.balance;
+            IERC20(data.terms.payableCurrency).safeTransfer(borrower, diffAmount);
+            // state changes and cleanup
             lenderNote.burn(data.lenderNoteId);
             borrowerNote.burn(data.borrowerNoteId);
+            // Loan is fully repaid, redistribute asset and collateral.
+            IERC20(data.terms.payableCurrency).safeTransfer(lender, paymentTotal);
+            collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
+            // update state
+            data.balance = 0;
+            data.balancePaid = data.balancePaid + paymentTotal;
+            data.numMissedPayments = data.numMissedPayments + _numMissedPayments;
+            data.lateFeesAccrued = data.lateFeesAccrued + _lateFeesAccrued;
+            data.numInstallmentsPaid = data.numInstallmentsPaid + _numMissedPayments + 1;
 
+            emit LoanRepaid(_loanId);
+        }
+        // if last payment and exact amount sent
+        else if(_repaidAmount == data.balance) {
+            // set the loan state to repaid
+            // NOTE: these must be performed before assets are released to prevent reentrance
+            data.state = LoanLibraryV2.LoanState.Repaid;
+            collateralInUse[data.terms.collateralTokenId] = false;
+            // state changes and cleanup
+            lenderNote.burn(data.lenderNoteId);
+            borrowerNote.burn(data.borrowerNoteId);
             // Loan is fully repaid, redistribute asset and collateral.
             IERC20(data.terms.payableCurrency).safeTransfer(lender, paymentTotal);
             collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
 
+            // update state
+            data.balance = 0;
+            data.balancePaid = data.balancePaid + paymentTotal;
+            data.numMissedPayments = data.numMissedPayments + _numMissedPayments;
+            data.lateFeesAccrued = data.lateFeesAccrued + _lateFeesAccrued;
+            data.numInstallmentsPaid = data.numInstallmentsPaid + _numMissedPayments + 1;
+
             emit LoanRepaid(_loanId);
         }
-        // If balance remaining after payment, only return payment amount to lender,
-        // borrower collateral still locked up
-        if (data.balance > 0) {
-            // asset distribution
-            IERC20(data.terms.payableCurrency).safeTransfer(lender, paymentTotal);
-
-            emit LoanPartRepaid(_loanId, paymentTotal);
+        // else, (mid loan payment)
+        else {
+            // update state
+            data.balance = data.balance - _repaidAmount;
+            data.balancePaid = data.balancePaid + paymentTotal;
+            data.numMissedPayments = data.numMissedPayments + _numMissedPayments;
+            data.lateFeesAccrued = data.lateFeesAccrued + _lateFeesAccrued;
+            data.numInstallmentsPaid = data.numInstallmentsPaid + _numMissedPayments + 1;
         }
     }
 
-    // - - - ADMIN FUNCTIONS - - -
+    // --------------------- Admin Functions ----------------------------
 
     /**
      * @dev Set the fee controller to a new value
