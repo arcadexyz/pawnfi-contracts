@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.11;
 
 import "../libraries/LoanLibrary.sol";
 
 interface IArcadeSignatureVerifier {
+    // ============== Signature Verification ==============
+
     function recoverBundleSignature(
         LoanLibrary.LoanTerms calldata loanTerms,
         uint8 v,
@@ -18,6 +21,8 @@ interface IArcadeSignatureVerifier {
         bytes32 s,
         bytes calldata items
     ) external view returns (address signer);
+
+    // ============== Collateral Verification ==============
 
     function verifyItems(
         bytes calldata itemsPacked,

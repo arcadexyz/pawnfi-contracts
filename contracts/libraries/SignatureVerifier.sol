@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.11;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -14,6 +15,9 @@ import "../interfaces/ISignatureVerifier.sol";
 import "./LoanLibrary.sol";
 
 /**
+ * @title ArcadeSignatureVerifier
+ * @author Non-Fungible Technologies, Inc.
+ *
  * This contract can be used for verifying complex signature-encoded
  * bundle descriptions. This resolves on a new array of SignatureItems[],
  * which outside of verification, is passed around as bytes memory.
@@ -40,6 +44,11 @@ import "./LoanLibrary.sol";
 abstract contract ArcadeSignatureVerifier is IArcadeSignatureVerifier, EIP712 {
     using SafeCast for int256;
 
+
+    // ============================================ STATE ==============================================
+
+    // =================== Constants =====================
+
     /// @notice EIP712 type hash for bundle-based signatures.
     bytes32 private constant _BUNDLE_TYPEHASH =
         keccak256(
@@ -54,6 +63,8 @@ abstract contract ArcadeSignatureVerifier is IArcadeSignatureVerifier, EIP712 {
             "LoanTerms(uint256 durationSecs,uint256 principal,uint256 interest,bytes items,address payableCurrency)"
         );
 
+    // ========================================== CONSTRUCTOR ===========================================
+
     /**
      * @notice Initialized needed EIP712 fields for signature verification.
      *
@@ -61,6 +72,8 @@ abstract contract ArcadeSignatureVerifier is IArcadeSignatureVerifier, EIP712 {
      * @param version                       The version of the contract.
      */
     constructor(string memory name, string memory version) EIP712(name, version) {}
+
+    // ==================================== SIGNATURE VERIFICATION ======================================
 
     /**
      * @notice Determine the external signer for a signature specifying only a bundle ID.
@@ -127,6 +140,8 @@ abstract contract ArcadeSignatureVerifier is IArcadeSignatureVerifier, EIP712 {
         bytes32 typedLoanHash = _hashTypedDataV4(loanHash);
         signer = ECDSA.recover(typedLoanHash, v, r, s);
     }
+
+    // ==================================== COLLATERAL VERIFICATION =====================================
 
     /**
      * @notice Verify that the items specified by the packed SignatureItem array are held by the vault.
