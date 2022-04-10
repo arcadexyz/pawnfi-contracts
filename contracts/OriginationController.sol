@@ -131,7 +131,7 @@ contract OriginationController is ArcadeSignatureVerifier, Context, IOrigination
         IERC721Permit(vaultFactory).permit(
             borrower,
             address(this),
-            loanTerms.collateralTokenId,
+            loanTerms.bundleId,
             permitDeadline,
             collateralV,
             collateralR,
@@ -160,7 +160,7 @@ contract OriginationController is ArcadeSignatureVerifier, Context, IOrigination
         IERC721Permit(vaultFactory).permit(
             borrower,
             address(this),
-            loanTerms.collateralTokenId,
+            loanTerms.bundleId,
             permitDeadline,
             collateralV,
             collateralR,
