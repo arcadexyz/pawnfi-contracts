@@ -9396,6 +9396,10 @@ solidity-docgen@^0.5.13:
     semver "^7.3.2"
     solc "^0.6.7"
 
+solidity-stringutils@Arachnid/solidity-stringutils:
+  version "0.0.0"
+  resolved "https://codeload.github.com/Arachnid/solidity-stringutils/tar.gz/46983c6d9462a80229cf0d5bab8ea3b3ee31066c"
+
 source-map-resolve@^0.5.0:
   version "0.5.3"
   resolved "https://registry.yarnpkg.com/source-map-resolve/-/source-map-resolve-0.5.3.tgz#190866bece7553e1f8f267a2ee82c606b5509a1a"
