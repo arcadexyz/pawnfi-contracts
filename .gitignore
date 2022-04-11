@@ -4,15 +4,15 @@
 .coverage_contracts/
 artifacts/
 build/
+lib/
+out/
 cache/
 coverage/
 dist/
-lib/
 node_modules/
 typechain/
 
 # files
-*.env
 *.log
 *.tsbuildinfo
 coverage.json

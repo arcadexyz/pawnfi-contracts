@@ -13,9 +13,9 @@ Interest Rate Formula:
 
 where `INTEREST_DENOMINATOR = 1*10**18` and `BASIS_POINTS_DENOMINATOR = 10000`
 
-All tests expect ones related to FlashLoans/ FlashRollovers are passing and all the bootstrap scripts. Two new test scripts have been added `Installments.ts` and `installmentsRepay.ts`.
+All tests except ones related to FlashLoans/ FlashRollovers are passing in the bootstrap scripts. Two new test scripts have been added `Installments.ts` and `installmentsRepay.ts`.
 
-🔑 For Implementation tests, run `npx hardhat test test/Installments.ts` or `npx hardhat test test/InstallmentsRepay.ts`.
+🔑 For Installment tests, run `npx hardhat test test/Installments.ts` or `npx hardhat test test/InstallmentsRepay.ts`.
 
 ## Deploying
 
@@ -51,3 +51,15 @@ npx hardhat test test/LoanCoreV2.ts
 npx hardhat test test/AssetWrapper.ts
 // etc...
 ```
+
+### Foundry Notes
+Install Rust, Cargo, Foundry: https://book.getfoundry.sh/getting-started/installation.html
+
+Notice new test folder `foundry-tests` here tests are written in solidity and executed against deployed contracts similar to how smart contracts interact in the wild.
+
+Room for Improvement:
+The `foundry-tests` folder cannot be in the contracts folder for the `npx hardhat compile` command to run successfully.
+
+In order to run `forge test` or ` forge build` or any forge commands, you must comment out all hardhat console log commands from the other contracts.
+
+Cool out-of-the-box features include deploying from command line, fuzz testing, cheat-codes, and more!

@@ -15,7 +15,7 @@ import "./interfaces/ILoanCoreV2.sol";
 import "./PromissoryNote.sol";
 
 // * * * * testing only * * * *
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 /**
  * @dev - Core contract for creating, repaying, and claiming collateral for PawnFi intallment loans
@@ -232,7 +232,7 @@ contract LoanCoreV2 is ILoanCoreV2, AccessControl, Pausable {
         require(data.state == LoanLibraryV2.LoanState.Active, "LoanCoreV2::repay: Invalid loan state");
         // transfer funds to LoanCoreV2
         uint256 paymentTotal = _repaidAmount + _lateFeesAccrued;
-        console.log("TOTAL PAID FROM BORROWER: ", paymentTotal);
+        //console.log("TOTAL PAID FROM BORROWER: ", paymentTotal);
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), paymentTotal);
 
         // update LoanData

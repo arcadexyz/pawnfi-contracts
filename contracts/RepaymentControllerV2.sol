@@ -26,7 +26,7 @@ import "./interfaces/ILoanCoreV2.sol";
 import "./interfaces/IRepaymentControllerV2.sol";
 
 // * * * * testing only * * * *
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
     using SafeERC20 for IERC20;
@@ -120,7 +120,6 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
         uint256 numInstallments
     ) internal returns (uint256) {
         // *** Local State
-        // create array with length that is the total number of installments
         uint256 _currentTime = block.timestamp;
         uint256 _installmentPeriod = 1;
         uint256 _relativeTimeInLoan = 0;
@@ -143,15 +142,15 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
         // *** Relative Time In Loan
         _relativeTimeInLoan = (_currentTime - startDate) * _multiplier;
 
-        console.log("_multiplier: ", _multiplier);
-        console.log("currentTi: ", _currentTime);
-        console.log("startDate: ", startDate);
-        console.log("DELTA TIME: ", (_currentTime - startDate));
-        console.log(
-            "_relativeTimeInLoan/ _timePerInstallment: ",
-            _relativeTimeInLoan,
-            _timePerInstallment * _multiplier
-        );
+        // console.log("_multiplier: ", _multiplier);
+        // console.log("currentTi: ", _currentTime);
+        // console.log("startDate: ", startDate);
+        //console.log("DELTA TIME: ", (_currentTime - startDate));
+        //console.log(
+        //     "_relativeTimeInLoan/ _timePerInstallment: ",
+        //     _relativeTimeInLoan,
+        //     _timePerInstallment * _multiplier
+        // );
 
         // *** Check to see when _timePerInstallment * i is greater than _relativeTimeInLoan
         // Used to determine the current installment period. (j+1 to account for the current period)
@@ -163,7 +162,7 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
             j++;
         }
 
-        console.log("Current Installment Period: ", _installmentPeriod);
+        //console.log("Current Installment Period: ", _installmentPeriod);
         // *** Return
         return (_installmentPeriod);
     }
@@ -202,18 +201,18 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
 
         // Interest per installment - using mulitpier of 1 million. There should not be loan with more than 1 million installment periods
         uint256 _interestPerInstallment = ((interest / INTEREST_DENOMINATOR) * 1000000) / numInstallments; // still need to divide by BASIS_POINTS_DENOMINATOR for rate value
-        console.log("_interestPerInstallment (/1000000 for BPS): ", _interestPerInstallment);
+        //console.log("_interestPerInstallment (/1000000 for BPS): ", _interestPerInstallment);
 
         // *** Determine if late fees are added and if so, how much? ***
         // Calulate number of payments missed based on _latePayment, _pastDueDate
         // * If payment on time...
         //console.log(_latePayment, _pastDueDate);
-        console.log("numInstallmentsPaid", data.numInstallmentsPaid);
+        //console.log("numInstallmentsPaid", data.numInstallmentsPaid);
         if (_installmentsMissed == 0) {
             // Minimum balance due calculation. Based on interest per installment period
             uint256 minBalDue = ((_bal * _interestPerInstallment) / 1000000) / BASIS_POINTS_DENOMINATOR;
-            console.log(" _bal: ", _bal);
-            console.log(" --- TOTAL MIN AMOUNT DUE:: ", minBalDue);
+            //console.log(" _bal: ", _bal);
+            //console.log(" --- TOTAL MIN AMOUNT DUE:: ", minBalDue);
 
             return (minBalDue, 0, 0);
         }
@@ -228,14 +227,14 @@ contract RepaymentControllerV2 is IRepaymentControllerV2, Context {
                 minBalDue = minBalDue + (((currentBal * _interestPerInstallment ) / 1000000) / BASIS_POINTS_DENOMINATOR);
                 currentBal = currentBal + minBalDue;
                 lateFees = lateFees + ((currentBal * LATE_FEE) / BASIS_POINTS_DENOMINATOR);
-                console.log("currentBal: ", currentBal);
-                console.log("  lateFees: ", lateFees);
+                //console.log("currentBal: ", currentBal);
+                //console.log("  lateFees: ", lateFees);
             }
 
-            console.log(" minBalDue: ", minBalDue);
-            console.log("  lateFees: ", lateFees);
-            console.log("_installmentsMissed: ", _installmentsMissed);
-            console.log(" --- TOTAL MIN AMOUNT DUE::", minBalDue + lateFees);
+            //console.log(" minBalDue: ", minBalDue);
+            //console.log("  lateFees: ", lateFees);
+            //console.log("_installmentsMissed: ", _installmentsMissed);
+            //console.log(" --- TOTAL MIN AMOUNT DUE::", minBalDue + lateFees);
 
             return (minBalDue, lateFees, _installmentsMissed);
         }
