@@ -73,7 +73,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
         returns (uint256 loanId)
     {
         require(terms.durationSecs > 0, "LoanCore::create: Loan is already expired");
-        require(!collateralInUse[terms.collateralTokenId], "LoanCore::create: Collateral token already in use");
+        require(!collateralInUse[terms.bundleId], "LoanCore::create: Collateral token already in use");
 
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
@@ -85,7 +85,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
             LoanLibrary.LoanState.Created,
             block.timestamp + terms.durationSecs
         );
-        collateralInUse[terms.collateralTokenId] = true;
+        collateralInUse[terms.bundleId] = true;
         emit LoanCreated(terms, loanId);
     }
 
@@ -101,7 +101,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
         // Ensure valid initial loan state
         require(data.state == LoanLibrary.LoanState.Created, "LoanCore::start: Invalid loan state");
         // Pull collateral token and principal
-        collateralToken.transferFrom(_msgSender(), address(this), data.terms.collateralTokenId);
+        collateralToken.transferFrom(_msgSender(), address(this), data.terms.bundleId);
 
         IERC20(data.terms.payableCurrency).safeTransferFrom(_msgSender(), address(this), data.terms.principal);
 
@@ -140,14 +140,14 @@ contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
         // state changes and cleanup
         // NOTE: these must be performed before assets are released to prevent reentrance
         loans[loanId].state = LoanLibrary.LoanState.Repaid;
-        collateralInUse[data.terms.collateralTokenId] = false;
+        collateralInUse[data.terms.bundleId] = false;
 
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
         // asset and collateral redistribution
         IERC20(data.terms.payableCurrency).safeTransfer(lender, returnAmount);
-        collateralToken.transferFrom(address(this), borrower, data.terms.collateralTokenId);
+        collateralToken.transferFrom(address(this), borrower, data.terms.bundleId);
 
         emit LoanRepaid(loanId);
     }
@@ -166,13 +166,13 @@ contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
 
         // NOTE: these must be performed before assets are released to prevent reentrance
         loans[loanId].state = LoanLibrary.LoanState.Defaulted;
-        collateralInUse[data.terms.collateralTokenId] = false;
+        collateralInUse[data.terms.bundleId] = false;
 
         lenderNote.burn(data.lenderNoteId);
         borrowerNote.burn(data.borrowerNoteId);
 
         // collateral redistribution
-        collateralToken.transferFrom(address(this), lender, data.terms.collateralTokenId);
+        collateralToken.transferFrom(address(this), lender, data.terms.bundleId);
 
         emit LoanClaimed(loanId);
     }
@@ -249,7 +249,7 @@ contract LoanCore is ILoanCore, AccessControl, Pausable, ICallDelegator {
             uint256 loanId = borrowerNote.loanIdByNoteId(borrowerNoteId);
             // if the borrower is currently borrowing against this vault,
             // return true
-            if (loans[loanId].terms.collateralTokenId == uint256(uint160(vault))) {
+            if (loans[loanId].terms.bundleId == uint256(uint160(vault))) {
                 return true;
             }
         }

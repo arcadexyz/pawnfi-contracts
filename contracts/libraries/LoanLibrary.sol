@@ -21,6 +21,15 @@ library LoanLibrary {
     }
 
     /**
+     * @dev Enum describing the collateral type of a signature item
+     */
+    enum CollateralType {
+        ERC_721,
+        ERC_1155,
+        ERC_20
+    }
+
+    /**
      * @dev The raw terms of a loan
      */
     struct LoanTerms {
@@ -31,9 +40,21 @@ library LoanLibrary {
         // The amount of interest in terms of the payableCurrency
         uint256 interest;
         // The tokenID of the collateral bundle
-        uint256 collateralTokenId;
+        uint256 bundleId;
         // The payable currency for the loan principal and interest
         address payableCurrency;
+    }
+
+    struct SignatureItem {
+        // The type of collateral - which interface does it implement
+        CollateralType cType;
+        // The address of the collateral contract
+        address asset;
+        // The token ID of the collateral (only applicable to 721 and 1155)
+        // int256 because a negative value serves as wildcard
+        int256 tokenId;
+        // The minimum amount of collateral (only applicable for 20 and 1155)
+        uint256 amount;
     }
 
     /**
